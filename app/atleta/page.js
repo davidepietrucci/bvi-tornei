@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 
 export default function AtletaLogin() {
   const [username, setUsername] = useState("");
@@ -78,10 +79,7 @@ export default function AtletaLogin() {
         </div>
 
         <button 
-          onClick={() => {
-            localStorage.setItem("bvi_atleta_logged_in", "true");
-            router.push("/atleta/dashboard");
-          }}
+          onClick={() => signIn('google', { callbackUrl: '/atleta/dashboard' })}
           className="w-full mt-6 py-3 rounded-lg font-semibold text-gray-700 bg-white border border-gray-300 shadow-sm hover:bg-gray-50 transition-all flex items-center justify-center gap-3"
         >
           <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">

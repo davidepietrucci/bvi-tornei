@@ -3,15 +3,16 @@
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSession, signOut } from "next-auth/react";
 
 export default function AtletaDashboard() {
+  const { data: session, status } = useSession();
   const [leMieIscrizioni, setLeMieIscrizioni] = useState([]);
-
   const router = useRouter();
 
   useEffect(() => {
     // Controllo Accesso
-    if (localStorage.getItem("bvi_atleta_logged_in") !== "true") {
+    if (status === "unauthenticated" && localStorage.getItem("bvi_atleta_logged_in") !== "true") {
       router.push("/atleta");
       return;
     }
@@ -19,16 +20,18 @@ export default function AtletaDashboard() {
     const saved = localStorage.getItem("bvi_iscrizioni");
     if (saved) {
       const allIscrizioni = JSON.parse(saved);
-      // Filtriamo per "Davide P."
-      const mie = allIscrizioni.filter(isc => isc.giocatori.includes("Davide P."));
+      // Filtriamo per l'utente loggato (o Davide P. se mock)
+      const nomeUtente = session?.user?.name || "Davide P.";
+      const mie = allIscrizioni.filter(isc => isc.giocatori.includes(nomeUtente));
       setLeMieIscrizioni(mie);
     } else {
-      // Dati di default se il localStorage è vuoto (non è passato dalla pagina staff)
       setLeMieIscrizioni([
         { id: "101", data: "Oggi, 10:45", torneo: "Torneo di Ferragosto - Misto 2x2", giocatori: "Davide P. & Elena M.", tel: "333 1234567", stato: "In Attesa" }
       ]);
     }
-  }, [router]);
+  }, [router, status, session]);
+
+  if (status === "loading") return <div className="min-h-screen flex items-center justify-center">Caricamento...</div>;
 
   return (
     <main className="min-h-screen pb-12" style={{backgroundColor: "#f0f4ff"}}>
@@ -51,12 +54,16 @@ export default function AtletaDashboard() {
 
         <div className="flex gap-4 items-center">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-800 font-bold border-2" style={{borderColor: "#0a1628"}}>
-              D
-            </div>
-            <span className="font-medium text-gray-700 hidden sm:inline">Davide</span>
+            {session?.user?.image ? (
+              <Image src={session.user.image} alt="Profile" width={32} height={32} className="rounded-full border-2" style={{borderColor: "#0a1628"}} />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-800 font-bold border-2" style={{borderColor: "#0a1628"}}>
+                {session?.user?.name ? session.user.name.charAt(0) : "D"}
+              </div>
+            )}
+            <span className="font-medium text-gray-700 hidden sm:inline">{session?.user?.name || "Davide"}</span>
           </div>
-          <button onClick={() => { localStorage.removeItem("bvi_atleta_logged_in"); router.push("/"); }} className="hover:underline font-bold text-red-500 text-sm ml-4">
+          <button onClick={() => { localStorage.removeItem("bvi_atleta_logged_in"); signOut(); }} className="hover:underline font-bold text-red-500 text-sm ml-4">
             Esci
           </button>
         </div>
@@ -71,7 +78,7 @@ export default function AtletaDashboard() {
             <span className="text-yellow-600 text-xl">⚠️</span>
             <div>
               <p className="font-bold text-yellow-800">Certificato Medico in Scadenza</p>
-              <p className="text-yellow-700 text-sm mt-1">Il tuo certificato medico agonistico scadrà tra 15 giorni. Aggiornalo per poter partecipare ai prossimi tornei.</p>
+              <p className="text-yellow-700 text-sm mt-1">Ciao {session?.user?.name ? session.user.name.split(' ')[0] : "Davide"}, il tuo certificato medico agonistico scadrà tra 15 giorni.</p>
             </div>
           </div>
           <button className="px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg text-sm font-bold hover:bg-yellow-200 transition-colors">
