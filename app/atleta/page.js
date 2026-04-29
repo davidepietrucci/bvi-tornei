@@ -1,6 +1,26 @@
+"use client";
+
 import Image from "next/image";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function AtletaLogin() {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const router = useRouter();
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    setError("");
+
+    if (username.trim().toLowerCase() === "davide" && password.trim() === "bvi") {
+      router.push("/atleta/dashboard");
+    } else {
+      setError("Username o password errati");
+    }
+  };
+
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-4" style={{backgroundColor: "#f0f4ff"}}>
       <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full border-t-4" style={{borderColor: "#FFD700"}}>
@@ -13,14 +33,17 @@ export default function AtletaLogin() {
         <p className="text-center text-gray-500 mb-6 text-sm">Accedi per gestire le tue iscrizioni ai tornei</p>
         
         {/* Form di Login */}
-        <form className="flex flex-col gap-4">
+        <form className="flex flex-col gap-4" onSubmit={handleLogin}>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Username o Email</label>
             <input 
-              type="email" 
+              type="text" 
               className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2" 
               style={{focusRingColor: "#0a1628"}}
-              placeholder="atleta@esempio.com" 
+              placeholder="es. davide" 
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
             />
           </div>
           <div>
@@ -30,12 +53,17 @@ export default function AtletaLogin() {
               className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2" 
               style={{focusRingColor: "#0a1628"}}
               placeholder="••••••••" 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
             />
           </div>
+
+          {error && <p className="text-red-500 text-sm text-center font-medium mt-1">{error}</p>}
           
           <button 
-            type="button" 
-            className="w-full py-3 mt-4 rounded-lg font-semibold text-white transition-all shadow-md hover:opacity-90" 
+            type="submit"
+            className="w-full py-3 mt-2 rounded-lg font-semibold text-white transition-all shadow-md hover:opacity-90 block text-center" 
             style={{backgroundColor: "#0a1628"}}
           >
             Accedi come Atleta
