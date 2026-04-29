@@ -1,6 +1,43 @@
+"use client";
+
 import Image from "next/image";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function StaffDashboard() {
+  const router = useRouter();
+  const [stats, setStats] = useState({
+    torneiAttivi: 0,
+    iscrizioniInAttesa: 0,
+    squadreConfermate: 0
+  });
+
+  useEffect(() => {
+    // Carica Tornei
+    const savedTornei = localStorage.getItem("bvi_tornei");
+    let countTorneiAttivi = 0;
+    if (savedTornei) {
+      const tornei = JSON.parse(savedTornei);
+      countTorneiAttivi = tornei.filter(t => t.stato === "Iscrizioni Aperte" || t.stato === "In Programmazione").length;
+    }
+
+    // Carica Iscrizioni
+    const savedIscrizioni = localStorage.getItem("bvi_iscrizioni");
+    let countInAttesa = 0;
+    let countConfermate = 0;
+    if (savedIscrizioni) {
+      const iscrizioni = JSON.parse(savedIscrizioni);
+      countInAttesa = iscrizioni.filter(i => i.stato === "In Attesa").length;
+      countConfermate = iscrizioni.filter(i => i.stato === "Approvata").length;
+    }
+
+    setStats({
+      torneiAttivi: countTorneiAttivi,
+      iscrizioniInAttesa: countInAttesa,
+      squadreConfermate: countConfermate
+    });
+  }, []);
+
   return (
     <main className="min-h-screen pb-12" style={{backgroundColor: "#f0f4ff"}}>
       {/* Header Staff */}
@@ -17,6 +54,7 @@ export default function StaffDashboard() {
             <a href="/staff/iscrizioni" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Iscrizioni</a>
             <a href="/staff/tornei" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Tornei</a>
             <a href="/staff/gironi" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Gironi</a>
+            <a href="/staff/pagamenti" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Pagamenti</a>
           </nav>
         </div>
 
@@ -37,34 +75,37 @@ export default function StaffDashboard() {
               <h3 className="text-gray-500 font-semibold">Tornei Attivi</h3>
               <span className="text-2xl">🏆</span>
             </div>
-            <p className="text-4xl font-bold" style={{color: "#0a1628"}}>3</p>
+            <p className="text-4xl font-bold" style={{color: "#0a1628"}}>{stats.torneiAttivi}</p>
           </div>
           <div className="bg-white rounded-2xl shadow-lg p-6 border-t-4" style={{borderColor: "#0a1628"}}>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-gray-500 font-semibold">Iscrizioni in Attesa</h3>
               <span className="text-2xl">⏳</span>
             </div>
-            <p className="text-4xl font-bold text-yellow-600">2</p>
+            <p className="text-4xl font-bold text-yellow-600">{stats.iscrizioniInAttesa}</p>
           </div>
           <div className="bg-white rounded-2xl shadow-lg p-6 border-t-4 border-green-500">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-gray-500 font-semibold">Squadre Confermate</h3>
               <span className="text-2xl">✅</span>
             </div>
-            <p className="text-4xl font-bold text-green-600">24</p>
+            <p className="text-4xl font-bold text-green-600">{stats.squadreConfermate}</p>
           </div>
         </div>
 
-        {/* Quick Actions (Opzionale) */}
+        {/* Quick Actions */}
         <div className="mt-8 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <h3 className="text-xl font-bold mb-4" style={{color: "#0a1628"}}>Azioni Rapide</h3>
-          <div className="flex gap-4">
-            <a href="/staff/tornei" className="px-6 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg font-semibold text-gray-800 transition-colors">
+          <div className="flex flex-wrap gap-4">
+            <button onClick={() => router.push('/staff/tornei/nuovo')} className="px-6 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg font-semibold text-gray-800 transition-colors">
               + Crea Nuovo Torneo
-            </a>
-            <a href="/staff/iscrizioni" className="px-6 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg font-semibold text-gray-800 transition-colors">
+            </button>
+            <button onClick={() => router.push('/staff/iscrizioni')} className="px-6 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg font-semibold text-gray-800 transition-colors">
               Valuta Iscrizioni
-            </a>
+            </button>
+            <button onClick={() => router.push('/staff/pagamenti')} className="px-6 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg font-semibold text-gray-800 transition-colors">
+              Gestisci Pagamenti
+            </button>
           </div>
         </div>
       </div>

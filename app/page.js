@@ -60,10 +60,10 @@ export default function Home() {
 
       {/* Cards funzionalità */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-8 px-16 pb-24">
-        <a href="/iscrizioni" className="bg-white rounded-2xl shadow p-8 text-center border-t-4 block transition-transform hover:-translate-y-2 hover:shadow-2xl cursor-pointer" style={{borderColor: "#FFD700"}}>
+        <a href="/atleta/iscriviti" className="bg-white rounded-2xl shadow p-8 text-center border-t-4 block transition-transform hover:-translate-y-2 hover:shadow-2xl cursor-pointer" style={{borderColor: "#FFD700"}}>
           <div className="text-5xl mb-4">📋</div>
           <h3 className="text-xl font-bold mb-2" style={{color: "#0a1628"}}>Iscrizioni</h3>
-          <p className="text-gray-500">Registra le coppie e gestisci le iscrizioni ai tornei facilmente.</p>
+          <p className="text-gray-500">Invia la tua richiesta di iscrizione e partecipa ai prossimi tornei BVI.</p>
         </a>
         <div className="bg-white rounded-2xl shadow p-8 text-center border-t-4" style={{borderColor: "#FFD700"}}>
           <div className="text-5xl mb-4">🏆</div>

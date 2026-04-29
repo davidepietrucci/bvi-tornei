@@ -1,12 +1,57 @@
+"use client";
+
 import Image from "next/image";
+import { useState, useEffect } from "react";
 
 export default function StaffIscrizioni() {
-  // Dati fittizi per simulare le iscrizioni arrivate
-  const iscrizioni = [
-    { id: "101", data: "Oggi, 10:45", torneo: "Torneo di Ferragosto - Misto 2x2", giocatori: "Davide P. & Elena M.", tel: "333 1234567", stato: "In Attesa" },
-    { id: "102", data: "Oggi, 09:12", torneo: "BVI Summer Cup - Maschile 2x2", giocatori: "Marco R. & Luca B.", tel: "333 7654321", stato: "Approvata" },
-    { id: "103", data: "Ieri, 18:30", torneo: "BVI Summer Cup - Femminile 2x2", giocatori: "Giulia M. & Sara L.", tel: "328 1122334", stato: "In Attesa" },
-  ];
+  const [iscrizioni, setIscrizioni] = useState([]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("bvi_iscrizioni");
+    if (saved) {
+      setIscrizioni(JSON.parse(saved));
+    } else {
+      const initialData = [
+        { id: "101", data: "Oggi, 10:45", torneo: "Torneo di Ferragosto - Misto 2x2", giocatori: "Davide P. & Elena M.", tel: "333 1234567", stato: "In Attesa" },
+        { id: "102", data: "Oggi, 09:12", torneo: "BVI Summer Cup - Maschile 2x2", giocatori: "Marco R. & Luca B.", tel: "333 7654321", stato: "Approvata" },
+        { id: "103", data: "Ieri, 18:30", torneo: "BVI Summer Cup - Femminile 2x2", giocatori: "Giulia M. & Sara L.", tel: "328 1122334", stato: "In Attesa" },
+      ];
+      setIscrizioni(initialData);
+      localStorage.setItem("bvi_iscrizioni", JSON.stringify(initialData));
+    }
+  }, []);
+
+  const handleApprove = (id) => {
+    const updated = iscrizioni.map((isc) => 
+      isc.id === id ? { ...isc, stato: "Approvata" } : isc
+    );
+    setIscrizioni(updated);
+    localStorage.setItem("bvi_iscrizioni", JSON.stringify(updated));
+  };
+
+  const exportToExcel = () => {
+    const headers = ["ID", "Data", "Torneo", "Giocatori", "Contatto", "Stato"];
+    const csvRows = [
+      headers.join(","),
+      ...iscrizioni.map(isc => [
+        isc.id, 
+        `"${isc.data}"`, 
+        `"${isc.torneo}"`, 
+        `"${isc.giocatori}"`, 
+        `"${isc.tel}"`, 
+        isc.stato
+      ].join(","))
+    ];
+    
+    const csvContent = "data:text/csv;charset=utf-8," + csvRows.join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "iscrizioni_bvi.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <main className="min-h-screen pb-12" style={{backgroundColor: "#f0f4ff"}}>
@@ -24,6 +69,7 @@ export default function StaffIscrizioni() {
             <a href="/staff/iscrizioni" className="px-4 py-2 rounded-lg text-sm font-bold bg-white text-[#0a1628] shadow-sm border border-gray-200 transition-all whitespace-nowrap">Iscrizioni</a>
             <a href="/staff/tornei" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Tornei</a>
             <a href="/staff/gironi" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Gironi</a>
+            <a href="/staff/pagamenti" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Pagamenti</a>
           </nav>
         </div>
 
@@ -41,7 +87,12 @@ export default function StaffIscrizioni() {
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
           <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 flex-wrap gap-4">
             <h3 className="font-bold text-lg text-gray-800">Ultime Richieste Ricevute ({iscrizioni.length})</h3>
-            <button className="text-sm bg-white border border-gray-300 px-4 py-2 rounded-lg font-medium shadow-sm hover:bg-gray-50">⬇️ Esporta in Excel</button>
+            <button 
+              onClick={exportToExcel}
+              className="text-sm bg-white border border-gray-300 px-4 py-2 rounded-lg font-medium shadow-sm hover:bg-gray-50 transition-colors"
+            >
+              ⬇️ Esporta in Excel
+            </button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -79,7 +130,15 @@ export default function StaffIscrizioni() {
                     </td>
                     <td className="py-4 px-6 text-center">
                       <div className="flex items-center justify-center gap-2">
-                        <button className="bg-green-500 hover:bg-green-600 text-white w-8 h-8 rounded-lg shadow-sm font-bold flex items-center justify-center transition-colors" title="Approva">✓</button>
+                        {req.stato === "In Attesa" && (
+                          <button 
+                            onClick={() => handleApprove(req.id)}
+                            className="bg-green-500 hover:bg-green-600 text-white w-8 h-8 rounded-lg shadow-sm font-bold flex items-center justify-center transition-colors" 
+                            title="Approva"
+                          >
+                            ✓
+                          </button>
+                        )}
                         <button className="bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-lg shadow-sm font-bold flex items-center justify-center transition-colors" title="Rifiuta">✕</button>
                       </div>
                     </td>

@@ -1,6 +1,35 @@
+"use client";
+
 import Image from "next/image";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function AtletaDashboard() {
+  const [leMieIscrizioni, setLeMieIscrizioni] = useState([]);
+
+  const router = useRouter();
+
+  useEffect(() => {
+    // Controllo Accesso
+    if (localStorage.getItem("bvi_atleta_logged_in") !== "true") {
+      router.push("/atleta");
+      return;
+    }
+
+    const saved = localStorage.getItem("bvi_iscrizioni");
+    if (saved) {
+      const allIscrizioni = JSON.parse(saved);
+      // Filtriamo per "Davide P."
+      const mie = allIscrizioni.filter(isc => isc.giocatori.includes("Davide P."));
+      setLeMieIscrizioni(mie);
+    } else {
+      // Dati di default se il localStorage è vuoto (non è passato dalla pagina staff)
+      setLeMieIscrizioni([
+        { id: "101", data: "Oggi, 10:45", torneo: "Torneo di Ferragosto - Misto 2x2", giocatori: "Davide P. & Elena M.", tel: "333 1234567", stato: "In Attesa" }
+      ]);
+    }
+  }, [router]);
+
   return (
     <main className="min-h-screen pb-12" style={{backgroundColor: "#f0f4ff"}}>
       {/* Header Atleta */}
@@ -15,7 +44,7 @@ export default function AtletaDashboard() {
           <nav className="flex gap-2 bg-gray-50 p-1 rounded-xl border border-gray-200 overflow-x-auto">
             <a href="/atleta/dashboard" className="px-4 py-2 rounded-lg text-sm font-bold bg-white text-[#0a1628] shadow-sm border border-gray-200 transition-all whitespace-nowrap">Dashboard</a>
             <a href="/atleta/iscrizioni" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Le Mie Iscrizioni</a>
-            <a href="/tornei" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Trova Tornei</a>
+            <a href="/atleta/iscriviti" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Invia Iscrizione</a>
             <a href="/atleta/profilo" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Profilo & Documenti</a>
           </nav>
         </div>
@@ -27,7 +56,9 @@ export default function AtletaDashboard() {
             </div>
             <span className="font-medium text-gray-700 hidden sm:inline">Davide</span>
           </div>
-          <a href="/atleta" className="hover:underline font-bold text-red-500 text-sm ml-4">Esci</a>
+          <button onClick={() => { localStorage.removeItem("bvi_atleta_logged_in"); router.push("/"); }} className="hover:underline font-bold text-red-500 text-sm ml-4">
+            Esci
+          </button>
         </div>
       </header>
 
@@ -79,8 +110,8 @@ export default function AtletaDashboard() {
               <h3 className="text-gray-500 font-semibold">Stato Iscrizioni</h3>
               <span className="text-2xl">📝</span>
             </div>
-            <p className="text-xl font-bold text-green-600 mt-2">1 Torneo Confermato</p>
-            <p className="text-sm text-gray-500">Torneo Estivo Beach Volley</p>
+            <p className="text-xl font-bold text-green-600 mt-2">{leMieIscrizioni.filter(i => i.stato === "Approvata").length} Tornei Confermati</p>
+            <p className="text-sm text-gray-500">In attesa: {leMieIscrizioni.filter(i => i.stato === "In Attesa").length}</p>
           </div>
         </div>
 
@@ -94,39 +125,33 @@ export default function AtletaDashboard() {
               <a href="/atleta/iscrizioni" className="text-sm font-semibold text-blue-600 hover:underline">Vedi tutti</a>
             </div>
             <div className="p-0">
-              {/* Item Torneo */}
-              <div className="p-5 border-b border-gray-50 hover:bg-gray-50 transition-colors flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-                <div className="flex gap-4 items-center">
-                  <div className="w-14 h-14 rounded-xl bg-blue-50 flex flex-col items-center justify-center flex-shrink-0 border" style={{borderColor: "#e0e7ff"}}>
-                    <span className="text-xs font-bold text-blue-500 uppercase">Lug</span>
-                    <span className="text-xl font-extrabold" style={{color: "#0a1628"}}>15</span>
+              {leMieIscrizioni.length > 0 ? leMieIscrizioni.map((isc, index) => (
+                <div key={index} className="p-5 border-b border-gray-50 hover:bg-gray-50 transition-colors flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+                  <div className="flex gap-4 items-center">
+                    <div className="w-14 h-14 rounded-xl bg-blue-50 flex flex-col items-center justify-center flex-shrink-0 border" style={{borderColor: "#e0e7ff"}}>
+                      <span className="text-xs font-bold text-blue-500 uppercase">Pross</span>
+                      <span className="text-xl font-extrabold" style={{color: "#0a1628"}}>☀️</span>
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-lg" style={{color: "#0a1628"}}>{isc.torneo}</h4>
+                      <p className="text-sm text-gray-500 flex items-center gap-1">👥 Con {isc.giocatori.replace("Davide P. & ", "")}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-bold text-lg" style={{color: "#0a1628"}}>Torneo BVI Summer Cup</h4>
-                    <p className="text-sm text-gray-500 flex items-center gap-1">📍 Ostia Lido (RM) • 👨‍👦 2x2 Maschile</p>
-                  </div>
+                  {isc.stato === "In Attesa" ? (
+                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 whitespace-nowrap">
+                      In Attesa di Conferma
+                    </span>
+                  ) : (
+                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 whitespace-nowrap">
+                      Iscrizione Confermata
+                    </span>
+                  )}
                 </div>
-                <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 whitespace-nowrap">
-                  Iscrizione Confermata
-                </span>
-              </div>
-              
-              {/* Item Torneo 2 */}
-              <div className="p-5 hover:bg-gray-50 transition-colors flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-                <div className="flex gap-4 items-center">
-                  <div className="w-14 h-14 rounded-xl bg-gray-50 flex flex-col items-center justify-center flex-shrink-0 border border-gray-200">
-                    <span className="text-xs font-bold text-gray-500 uppercase">Ago</span>
-                    <span className="text-xl font-extrabold text-gray-700">02</span>
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-lg" style={{color: "#0a1628"}}>Coppa di Fine Estate</h4>
-                    <p className="text-sm text-gray-500 flex items-center gap-1">📍 Fregene • 👫 2x2 Misto</p>
-                  </div>
+              )) : (
+                <div className="p-6 text-center text-gray-500">
+                  Non hai ancora iscrizioni attive.
                 </div>
-                <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 whitespace-nowrap">
-                  In Attesa di Pagamento
-                </span>
-              </div>
+              )}
             </div>
           </div>
 
@@ -137,7 +162,7 @@ export default function AtletaDashboard() {
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
               <h3 className="text-xl font-bold mb-4" style={{color: "#0a1628"}}>Azioni Rapide</h3>
               <div className="grid grid-cols-2 gap-4">
-                <a href="/tornei" className="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-dashed border-gray-300 hover:border-[#0a1628] hover:bg-gray-50 transition-all group">
+                <a href="/atleta/iscriviti" className="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-dashed border-gray-300 hover:border-[#0a1628] hover:bg-gray-50 transition-all group">
                   <span className="text-3xl mb-2 group-hover:scale-110 transition-transform">🔍</span>
                   <span className="font-semibold text-gray-700 text-center text-sm">Trova Torneo</span>
                 </a>
