@@ -24,10 +24,12 @@ export default function StaffAtleti() {
     }
   }, []);
 
-  const filteredAtleti = atleti.filter(a => 
-    `${a.nome} ${a.cognome}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    a.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredAtleti = atleti.filter(a => {
+    const fullName = `${a.nome || ""} ${a.cognome || ""}`.toLowerCase();
+    const email = (a.email || "").toLowerCase();
+    const search = searchTerm.toLowerCase();
+    return fullName.includes(search) || email.includes(search);
+  });
 
   return (
     <main className="min-h-screen pb-20 bg-[#f8faff]">
