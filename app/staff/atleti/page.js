@@ -1,8 +1,4 @@
-"use client";
-
-import Image from "next/image";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import StaffHeader from "@/app/components/StaffHeader";
 
 export default function StaffAtleti() {
   const router = useRouter();
@@ -14,7 +10,6 @@ export default function StaffAtleti() {
     if (savedUsers) {
       setAtleti(JSON.parse(savedUsers));
     } else {
-        // Mock data se vuoto
         const mock = [
             { id: "1", nome: "Davide", cognome: "Pietrucci", email: "davide@example.com", dataRegistrazione: "01/01/2024" },
             { id: "2", nome: "Marco", cognome: "Rossi", email: "marco@example.com", dataRegistrazione: "15/02/2024" }
@@ -33,76 +28,72 @@ export default function StaffAtleti() {
 
   return (
     <main className="min-h-screen pb-20 bg-[#f8faff]">
-      <header className="bg-white py-4 px-8 flex justify-between items-center shadow-md border-b-4 border-[#0a1628]">
-        <div className="flex items-center gap-6">
-          <Image src="/logo.png" alt="BVI" width={50} height={50} />
-          <nav className="flex gap-2 bg-gray-50 p-1 rounded-xl border overflow-x-auto">
-            <a href="/staff/dashboard" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Dashboard</a>
-            <a href="/staff/iscrizioni" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Iscrizioni</a>
-            <a href="/staff/atleti" className="px-4 py-2 rounded-lg text-sm font-bold bg-white text-[#0a1628] shadow-sm border border-gray-200 transition-all whitespace-nowrap">Anagrafica Atleti</a>
-            <a href="/staff/tornei" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Tornei</a>
-            <a href="/staff/gironi" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Gironi</a>
-            <a href="/staff/classifica" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Classifica</a>
-            <a href="/staff/tabellone" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Tabellone</a>
-            <a href="/staff/pagamenti" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Pagamenti</a>
-          </nav>
-        </div>
-        <a href="/" className="font-bold text-red-500 text-sm">Esci</a>
-      </header>
+      <StaffHeader />
 
-      <div className="max-w-6xl mx-auto mt-10 px-4">
-        <div className="flex justify-between items-center mb-8">
+      <div className="max-w-6xl mx-auto mt-6 md:mt-10 px-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
             <div>
-                <h2 className="text-4xl font-black text-[#0a1628] uppercase tracking-tighter">Anagrafica Atleti 👤</h2>
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">Gestione Utenti Registrati</p>
+                <h2 className="text-3xl md:text-5xl font-black text-[#0a1628] uppercase tracking-tighter leading-none">Anagrafica Atleti 👤</h2>
+                <p className="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-widest mt-2">Gestione Utenti Registrati</p>
             </div>
-            <div className="relative">
+            <div className="relative w-full md:w-80">
                 <input 
                     type="text" 
                     placeholder="Cerca per nome o email..." 
-                    className="pl-10 pr-4 py-3 bg-white border-2 border-gray-100 rounded-2xl w-80 focus:border-[#0a1628] outline-none transition-all shadow-sm"
+                    className="w-full pl-12 pr-4 py-4 bg-white border-2 border-gray-100 rounded-[1.5rem] focus:border-[#0a1628] outline-none transition-all shadow-xl text-sm font-bold"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />
-                <span className="absolute left-4 top-1/2 -translate-y-1/2">🔍</span>
+                <span className="absolute left-5 top-1/2 -translate-y-1/2 text-xl">🔍</span>
             </div>
         </div>
 
-        <div className="bg-white rounded-[2.5rem] shadow-xl overflow-hidden border border-gray-100">
-            <table className="w-full text-left">
-                <thead className="bg-gray-50/50 border-b">
-                    <tr className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                        <th className="px-8 py-5">Atleta</th>
-                        <th className="px-8 py-5">Email</th>
-                        <th className="px-8 py-5 text-center">Data Reg.</th>
-                        <th className="px-8 py-5 text-right">Azioni</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                    {filteredAtleti.map((atleta) => (
-                        <tr key={atleta.id} className="hover:bg-blue-50/20 transition-all group">
-                            <td className="px-8 py-6">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 rounded-full bg-[#0a1628] text-white flex items-center justify-center font-black text-sm">
-                                        {atleta.nome.charAt(0)}{atleta.cognome.charAt(0)}
-                                    </div>
-                                    <span className="font-bold text-lg text-[#0a1628]">{atleta.nome} {atleta.cognome}</span>
-                                </div>
-                            </td>
-                            <td className="px-8 py-6 text-gray-500 font-medium">{atleta.email}</td>
-                            <td className="px-8 py-6 text-center font-bold text-gray-400">{atleta.dataRegistrazione}</td>
-                            <td className="px-8 py-6 text-right">
-                                <button className="text-xs font-black text-blue-600 uppercase tracking-widest hover:underline">Vedi Profilo</button>
-                            </td>
-                        </tr>
-                    ))}
-                    {filteredAtleti.length === 0 && (
-                        <tr>
-                            <td colSpan="4" className="py-20 text-center text-gray-400 font-bold italic">Nessun atleta trovato.</td>
-                        </tr>
-                    )}
-                </tbody>
-            </table>
+        <div className="space-y-4 md:space-y-0">
+            {/* Desktop Table Header */}
+            <div className="hidden md:grid grid-cols-4 bg-gray-50 p-5 rounded-t-[2rem] border-x border-t border-gray-100 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                <div className="px-4">Atleta</div>
+                <div className="px-4">Email</div>
+                <div className="px-4 text-center">Data Reg.</div>
+                <div className="px-4 text-right">Azioni</div>
+            </div>
+
+            {/* List */}
+            <div className="space-y-4 md:space-y-0 md:bg-white md:rounded-b-[2rem] md:shadow-xl md:border md:border-gray-100 md:divide-y">
+                {filteredAtleti.map((atleta) => (
+                    <div key={atleta.id} className="bg-white p-6 rounded-[2rem] shadow-xl md:shadow-none md:rounded-none md:grid md:grid-cols-4 md:items-center hover:bg-blue-50/20 transition-all">
+                        <div className="flex items-center gap-4 md:px-4 mb-4 md:mb-0">
+                            <div className="w-12 h-12 rounded-2xl bg-[#0a1628] text-white flex items-center justify-center font-black text-sm shadow-lg shadow-blue-900/20">
+                                {(atleta.nome || "A").charAt(0)}{(atleta.cognome || "T").charAt(0)}
+                            </div>
+                            <div>
+                                <h4 className="font-black text-lg text-[#0a1628] leading-none">{atleta.nome} {atleta.cognome}</h4>
+                                <span className="text-[10px] font-black text-gray-300 md:hidden uppercase tracking-widest">ID #{atleta.id}</span>
+                            </div>
+                        </div>
+
+                        <div className="md:px-4 mb-2 md:mb-0">
+                            <p className="text-sm font-bold text-gray-500">{atleta.email}</p>
+                        </div>
+
+                        <div className="md:px-4 mb-6 md:mb-0 md:text-center">
+                            <span className="text-[10px] font-black text-gray-400 uppercase md:hidden block mb-1">Registrato il</span>
+                            <span className="font-bold text-gray-400">{atleta.dataRegistrazione}</span>
+                        </div>
+
+                        <div className="md:px-4 text-right">
+                            <button className="w-full md:w-auto px-6 py-3 bg-gray-50 hover:bg-[#0a1628] hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-gray-100">
+                                Vedi Profilo
+                            </button>
+                        </div>
+                    </div>
+                ))}
+
+                {filteredAtleti.length === 0 && (
+                    <div className="py-20 text-center text-gray-400 font-bold italic">
+                        Nessun atleta trovato.
+                    </div>
+                )}
+            </div>
         </div>
       </div>
     </main>

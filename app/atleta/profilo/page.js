@@ -1,9 +1,4 @@
-"use client";
-
-import Image from "next/image";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import AthleteHeader from "@/app/components/AthleteHeader";
 
 export default function AtletaProfilo() {
   const { data: session, status } = useSession();
@@ -20,7 +15,6 @@ export default function AtletaProfilo() {
   });
 
   useEffect(() => {
-    // Controllo Accesso
     if (status === "unauthenticated" && localStorage.getItem("bvi_atleta_logged_in") !== "true") {
       router.push("/atleta");
       return;
@@ -35,182 +29,171 @@ export default function AtletaProfilo() {
     }
   }, [router, status, session]);
 
-  if (status === "loading") return <div className="min-h-screen flex items-center justify-center font-bold text-[#0a1628]">Caricamento...</div>;
+  if (status === "loading") return (
+    <div className="min-h-screen bg-[#f8faff] flex items-center justify-center">
+        <div className="w-16 h-16 border-4 border-[#0a1628] border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
 
   return (
-    <main className="min-h-screen pb-12" style={{backgroundColor: "#f0f4ff"}}>
-      {/* Header Atleta */}
-      <header className="bg-white py-4 px-8 flex flex-col md:flex-row justify-between items-center shadow-md border-b-4 gap-4" style={{borderColor: "#FFD700"}}>
-        <div className="flex flex-col md:flex-row items-center gap-6">
-          <div className="flex items-center gap-3">
-            <Image src="/logo.png" alt="BVI Logo" width={50} height={50} className="object-contain" />
-            <h1 className="text-2xl font-bold" style={{color: "#0a1628"}}>Area Atleta</h1>
-          </div>
-          
-          <nav className="flex gap-2 bg-gray-50 p-1 rounded-xl border border-gray-200 overflow-x-auto">
-            <a href="/atleta/dashboard" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Dashboard</a>
-            <a href="/atleta/iscrizioni" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Le Mie Iscrizioni</a>
-            <a href="/atleta/gironi" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Gironi & Calendario</a>
-            <a href="/atleta/iscriviti" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Invia Iscrizione</a>
-            <a href="/atleta/profilo" className="px-4 py-2 rounded-lg text-sm font-bold bg-white text-[#0a1628] shadow-sm border border-gray-200 transition-all whitespace-nowrap">Profilo & Documenti</a>
-          </nav>
-        </div>
+    <main className="min-h-screen bg-[#f8faff] pb-20">
+      <AthleteHeader />
 
-        <div className="flex gap-4 items-center">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-800 font-bold border-2" style={{borderColor: "#0a1628"}}>
-              {userData.name.charAt(0)}
-            </div>
-            <span className="font-medium text-gray-700 hidden sm:inline">{userData.name}</span>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <div className="max-w-6xl mx-auto mt-10 px-4">
+      <div className="max-w-6xl mx-auto mt-6 md:mt-10 px-4">
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          {/* Colonna Sinistra: Info Profilo */}
+          {/* Colonna Sinistra */}
           <div className="lg:col-span-1 flex flex-col gap-8">
-            <div className="bg-white rounded-[2.5rem] shadow-xl overflow-hidden border border-gray-100">
-              <div className="h-32 bg-gradient-to-r from-[#0a1628] to-[#1a2e4a]"></div>
-              <div className="px-8 pb-8 -mt-16 flex flex-col items-center">
-                <div className="w-32 h-32 rounded-[2rem] bg-white p-2 shadow-2xl mb-4">
-                  <div className="w-full h-full rounded-[1.5rem] bg-blue-100 flex items-center justify-center text-4xl font-black text-[#0a1628] border-4 border-white">
+            <div className="bg-white rounded-[3rem] shadow-2xl overflow-hidden border border-gray-100 transition-all hover:shadow-3xl">
+              <div className="h-40 bg-gradient-to-br from-[#0a1628] to-[#1a2e4a] relative">
+                  <div className="absolute inset-0 opacity-20 bg-[url('/mesh-gradient.png')] bg-cover"></div>
+              </div>
+              <div className="px-8 pb-10 -mt-20 flex flex-col items-center relative z-10">
+                <div className="w-40 h-40 rounded-[2.5rem] bg-white p-2 shadow-2xl mb-6">
+                  <div className="w-full h-full rounded-[2rem] bg-blue-50 flex items-center justify-center text-6xl font-black text-[#0a1628] border-4 border-white shadow-inner">
                     {userData.name.charAt(0)}
                   </div>
                 </div>
-                <h2 className="text-2xl font-black text-[#0a1628] text-center">{userData.name}</h2>
-                <p className="text-gray-400 font-medium text-sm mb-6 uppercase tracking-widest">Atleta Gold</p>
+                <h2 className="text-3xl font-black text-[#0a1628] text-center uppercase tracking-tighter leading-none">{userData.name}</h2>
+                <p className="text-[10px] font-black text-blue-400 uppercase tracking-[0.3em] mt-4 mb-8 bg-blue-50 px-4 py-1.5 rounded-full">Atleta Gold 🏆</p>
                 
-                <div className="w-full space-y-4">
-                  <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                    <span className="text-xl">📧</span>
+                <div className="w-full space-y-4 mb-8">
+                  <div className="flex items-center gap-4 p-5 bg-gray-50 rounded-3xl border border-gray-100 group transition-all hover:bg-white hover:shadow-lg">
+                    <span className="text-2xl group-hover:scale-110 transition-transform">📧</span>
                     <div className="overflow-hidden">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Email</p>
-                      <p className="text-sm font-bold text-gray-700 truncate">{userData.email}</p>
+                      <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Email Privata</p>
+                      <p className="text-sm font-black text-[#0a1628] truncate">{userData.email}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                    <span className="text-xl">📅</span>
+                  <div className="flex items-center gap-4 p-5 bg-gray-50 rounded-3xl border border-gray-100 group transition-all hover:bg-white hover:shadow-lg">
+                    <span className="text-2xl group-hover:scale-110 transition-transform">📆</span>
                     <div>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Membro Da</p>
-                      <p className="text-sm font-bold text-gray-700">{userData.socioDal}</p>
+                      <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Membro Attivo Da</p>
+                      <p className="text-sm font-black text-[#0a1628]">{userData.socioDal}</p>
                     </div>
                   </div>
                 </div>
                 
-                <button className="w-full mt-8 py-4 rounded-2xl border-2 border-[#0a1628] text-[#0a1628] font-bold hover:bg-[#0a1628] hover:text-white transition-all text-sm shadow-md">
-                  Modifica Profilo
+                <button className="w-full py-5 rounded-3xl border-4 border-[#0a1628] text-[#0a1628] font-black text-[10px] uppercase tracking-[0.2em] hover:bg-[#0a1628] hover:text-white transition-all shadow-xl active:scale-95">
+                  Modifica Profilo ⚙️
                 </button>
               </div>
             </div>
 
             {/* Ranking Widget */}
-            <div className="bg-[#0a1628] rounded-[2.5rem] p-8 shadow-2xl text-white relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16"></div>
-              <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-                Ranking Stagionale <span className="text-yellow-400">★</span>
+            <div className="bg-[#0a1628] rounded-[3rem] p-10 shadow-2xl text-white relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-48 h-48 bg-[#FFD700] rounded-full -mr-24 -mt-24 opacity-10 group-hover:scale-150 transition-transform duration-700"></div>
+              <h3 className="text-xs font-black uppercase tracking-[0.3em] mb-10 text-[#FFD700]">
+                Ranking Mondiale BVI
               </h3>
               <div className="flex items-end justify-between">
                 <div>
-                  <p className="text-5xl font-black">{userData.ranking}</p>
-                  <p className="text-blue-300 font-semibold mt-1">Punti Totali</p>
+                  <p className="text-7xl font-black tracking-tighter leading-none">{userData.ranking}</p>
+                  <p className="text-[10px] font-bold text-blue-300 uppercase tracking-widest mt-4">Punti Carriera</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl font-bold text-green-400">#42</p>
-                  <p className="text-xs text-blue-300">Posizione</p>
+                  <p className="text-4xl font-black text-green-400 leading-none">#42</p>
+                  <p className="text-[10px] font-bold text-blue-300 uppercase tracking-widest mt-4">Posizione</p>
                 </div>
               </div>
-              <div className="mt-8 pt-6 border-t border-white/10 flex justify-between items-center">
-                <p className="text-xs font-medium text-blue-200">Prossimo obiettivo: 1000pt</p>
-                <div className="w-24 h-2 bg-white/10 rounded-full overflow-hidden">
-                  <div className="h-full bg-yellow-400 rounded-full" style={{width: '85%'}}></div>
+              <div className="mt-12 pt-8 border-t border-white/10 flex flex-col gap-4">
+                <div className="flex justify-between items-center">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-blue-200">Prossimo Tier: 1000pt</p>
+                    <span className="text-[10px] font-black text-[#FFD700]">85%</span>
+                </div>
+                <div className="w-full h-3 bg-white/5 rounded-full overflow-hidden p-0.5 border border-white/10">
+                  <div className="h-full bg-[#FFD700] rounded-full shadow-[0_0_15px_rgba(255,215,0,0.5)]" style={{width: '85%'}}></div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Colonna Destra: Documenti e Altro */}
-          <div className="lg:col-span-2 space-y-8">
+          {/* Colonna Destra */}
+          <div className="lg:col-span-2 space-y-10">
             
-            {/* Sezione Documenti */}
-            <div className="bg-white rounded-[2.5rem] shadow-lg border border-gray-100 overflow-hidden">
-              <div className="p-8 border-b border-gray-50 flex justify-between items-center">
-                <h3 className="text-2xl font-black text-[#0a1628]">Documenti Sportivi 📂</h3>
-                <span className="px-4 py-1.5 rounded-full bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest">Digital Hub</span>
+            {/* Documenti Sportivi */}
+            <div className="bg-white rounded-[3.5rem] shadow-2xl border border-gray-100 overflow-hidden transition-all hover:shadow-3xl">
+              <div className="p-10 md:p-12 border-b border-gray-50 flex flex-col md:flex-row justify-between items-center gap-6">
+                <div>
+                    <h3 className="text-3xl font-black text-[#0a1628] uppercase tracking-tighter leading-none">Hub Documenti</h3>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-2">Archivio Digitale Sicuro 🛡️</p>
+                </div>
+                <span className="px-6 py-2 rounded-2xl bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest border border-blue-100">Certificato & Moduli</span>
               </div>
-              <div className="p-8 space-y-6">
+              <div className="p-10 md:p-12 space-y-8">
                 
                 {/* Certificato Medico */}
-                <div className="p-6 rounded-3xl border-2 border-dashed border-gray-100 hover:border-blue-200 hover:bg-blue-50/30 transition-all group">
-                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                    <div className="flex gap-5 items-center">
-                      <div className="w-16 h-16 rounded-2xl bg-white shadow-sm flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">🏥</div>
+                <div className="p-8 rounded-[2.5rem] bg-gray-50 border-2 border-transparent hover:border-yellow-200 hover:bg-white transition-all group relative overflow-hidden">
+                  {userData.certificatoStato === "In Scadenza" && (
+                      <div className="absolute top-0 right-0 w-2 h-full bg-yellow-400"></div>
+                  )}
+                  <div className="flex flex-col md:flex-row justify-between items-center gap-8">
+                    <div className="flex flex-col md:flex-row gap-6 items-center text-center md:text-left">
+                      <div className="w-20 h-20 rounded-3xl bg-white shadow-xl flex items-center justify-center text-4xl group-hover:scale-110 transition-transform">🏥</div>
                       <div>
-                        <h4 className="text-lg font-black text-[#0a1628]">Certificato Medico Agonistico</h4>
-                        <p className="text-sm text-gray-500 font-medium">Scadenza: <span className="text-gray-800">{userData.certificatoScadenza}</span></p>
+                        <h4 className="text-xl font-black text-[#0a1628] uppercase tracking-tighter leading-none">Certificato Agonistico</h4>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-3">Scadenza: <span className="text-[#0a1628]">{userData.certificatoScadenza}</span></p>
                       </div>
                     </div>
-                    <div className="flex flex-col items-end gap-3 w-full md:w-auto">
-                      <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                        userData.certificatoStato === "In Scadenza" ? "bg-yellow-100 text-yellow-700" : "bg-green-100 text-green-700"
+                    <div className="flex flex-col items-center md:items-end gap-4 w-full md:w-auto">
+                      <span className={`px-6 py-2 rounded-full text-[9px] font-black uppercase tracking-[0.2em] shadow-lg ${
+                        userData.certificatoStato === "In Scadenza" ? "bg-yellow-400 text-white" : "bg-green-500 text-white"
                       }`}>
                         {userData.certificatoStato}
                       </span>
-                      <button className="px-6 py-2.5 rounded-xl bg-[#0a1628] text-white text-xs font-bold shadow-lg hover:shadow-[#0a1628]/20 transition-all">
-                        Aggiorna File
+                      <button className="w-full md:w-auto px-8 py-4 rounded-2xl bg-[#0a1628] text-[#FFD700] text-[10px] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all">
+                        Carica Nuovo 📁
                       </button>
                     </div>
                   </div>
                 </div>
 
-                {/* Modulo Iscrizione Associazione */}
-                <div className="p-6 rounded-3xl border-2 border-dashed border-gray-100 hover:border-green-200 hover:bg-green-50/30 transition-all group">
-                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                    <div className="flex gap-5 items-center">
-                      <div className="w-16 h-16 rounded-2xl bg-white shadow-sm flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">📄</div>
+                {/* Modulo Iscrizione */}
+                <div className="p-8 rounded-[2.5rem] bg-gray-50 border-2 border-transparent hover:border-green-200 hover:bg-white transition-all group">
+                  <div className="flex flex-col md:flex-row justify-between items-center gap-8">
+                    <div className="flex flex-col md:flex-row gap-6 items-center text-center md:text-left">
+                      <div className="w-20 h-20 rounded-3xl bg-white shadow-xl flex items-center justify-center text-4xl group-hover:scale-110 transition-transform">📋</div>
                       <div>
-                        <h4 className="text-lg font-black text-[#0a1628]">Modulo Iscrizione BVI 2024</h4>
-                        <p className="text-sm text-gray-500 font-medium">Stato: <span className="text-green-600 font-bold">Approvato</span></p>
+                        <h4 className="text-xl font-black text-[#0a1628] uppercase tracking-tighter leading-none">Modulo BVI 2024</h4>
+                        <p className="text-[10px] font-bold text-green-500 uppercase tracking-widest mt-3">Stato: Validato dallo Staff</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 w-full md:w-auto">
-                      <button className="flex-grow md:flex-none px-6 py-2.5 rounded-xl border border-gray-200 text-gray-500 text-xs font-bold hover:bg-white transition-all">
-                        Scarica
+                    <div className="flex items-center gap-4 w-full md:w-auto">
+                      <button className="flex-grow md:flex-none px-8 py-4 rounded-2xl border-2 border-gray-200 text-gray-400 text-[10px] font-black uppercase tracking-widest hover:border-[#0a1628] hover:text-[#0a1628] transition-all active:scale-95">
+                        Download PDF
                       </button>
-                      <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600">✓</div>
+                      <div className="w-14 h-14 rounded-full bg-green-500 flex items-center justify-center text-white text-2xl shadow-lg shadow-green-200 group-hover:rotate-12 transition-all">✓</div>
                     </div>
                   </div>
                 </div>
 
               </div>
-              <div className="bg-gray-50 p-6 text-center border-t border-gray-50">
-                <p className="text-xs text-gray-400 font-medium italic">I documenti caricati vengono crittografati e archiviati in modo sicuro secondo il GDPR.</p>
+              <div className="bg-gray-50 p-8 text-center border-t border-gray-100">
+                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Sicurezza Dati Garantita • GDPR COMPLIANT 🔒</p>
               </div>
             </div>
 
             {/* Impostazioni Account */}
-            <div className="bg-white rounded-[2.5rem] shadow-lg border border-gray-100 p-8">
-              <h3 className="text-2xl font-black text-[#0a1628] mb-8">Preferenze Account ⚙️</h3>
-              <div className="space-y-6">
-                <div className="flex items-center justify-between p-4 hover:bg-gray-50 rounded-2xl transition-colors">
+            <div className="bg-white rounded-[3.5rem] shadow-2xl border border-gray-100 p-10 md:p-12 transition-all hover:shadow-3xl">
+              <h3 className="text-2xl font-black text-[#0a1628] uppercase tracking-tighter mb-10">Privacy & Preferenze</h3>
+              <div className="space-y-8">
+                <div className="flex items-center justify-between p-6 bg-gray-50 rounded-[2rem] hover:bg-white border-2 border-transparent hover:border-gray-100 transition-all cursor-pointer group">
                   <div>
-                    <p className="font-bold text-[#0a1628]">Notifiche Push</p>
-                    <p className="text-xs text-gray-400">Ricevi avvisi per nuovi tornei e scadenze</p>
+                    <p className="font-black text-[#0a1628] uppercase text-xs tracking-widest group-hover:text-blue-500 transition-colors">Notifiche Smart</p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Avvisi tornei e scadenze</p>
                   </div>
-                  <div className="w-12 h-6 bg-green-500 rounded-full p-1 cursor-pointer shadow-inner">
-                    <div className="w-4 h-4 bg-white rounded-full ml-auto shadow-sm"></div>
+                  <div className="w-16 h-8 bg-green-500 rounded-full p-1 shadow-inner relative">
+                    <div className="absolute right-1 top-1 w-6 h-6 bg-white rounded-full shadow-lg"></div>
                   </div>
                 </div>
-                <div className="flex items-center justify-between p-4 hover:bg-gray-50 rounded-2xl transition-colors">
+                <div className="flex items-center justify-between p-6 bg-gray-50 rounded-[2rem] hover:bg-white border-2 border-transparent hover:border-gray-100 transition-all cursor-pointer group">
                   <div>
-                    <p className="font-bold text-[#0a1628]">Profilo Pubblico</p>
-                    <p className="text-xs text-gray-400">Permetti agli altri di vedere il tuo ranking</p>
+                    <p className="font-black text-[#0a1628] uppercase text-xs tracking-widest group-hover:text-blue-500 transition-colors">Visibilità Ranking</p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Mostra punteggio agli altri</p>
                   </div>
-                  <div className="w-12 h-6 bg-gray-200 rounded-full p-1 cursor-pointer shadow-inner">
-                    <div className="w-4 h-4 bg-white rounded-full shadow-sm"></div>
+                  <div className="w-16 h-8 bg-gray-200 rounded-full p-1 shadow-inner relative">
+                    <div className="absolute left-1 top-1 w-6 h-6 bg-white rounded-full shadow-lg"></div>
                   </div>
                 </div>
               </div>

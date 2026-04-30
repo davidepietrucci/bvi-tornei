@@ -1,8 +1,4 @@
-"use client";
-
-import Image from "next/image";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import StaffHeader from "@/app/components/StaffHeader";
 
 export default function StaffTornei() {
   const router = useRouter();
@@ -21,14 +17,8 @@ export default function StaffTornei() {
       localStorage.setItem("bvi_tornei", JSON.stringify(savedTornei));
     }
 
-    // Calcoliamo gli iscritti effettivi dalla lista iscrizioni
     const updatedWithActualCounts = savedTornei.map(torneo => {
-      // Contiamo quante iscrizioni ci sono per questo specifico torneo
       const count = savedIscrizioni.filter(isc => isc.torneo === torneo.nome).length;
-      
-      // Se il torneo è uno di quelli iniziali mockati, sommiamo il count alle iscrizioni "base" 
-      // (oppure resettiamo e usiamo solo il count reale, a seconda della logica desiderata).
-      // Qui usiamo il count reale se sono presenti iscrizioni, altrimenti teniamo il mock.
       return { ...torneo, iscritti: count > 0 ? count : torneo.iscritti };
     });
 
@@ -36,93 +26,66 @@ export default function StaffTornei() {
   }, []);
 
   return (
-    <main className="min-h-screen pb-12" style={{backgroundColor: "#f0f4ff"}}>
-      {/* Header Staff */}
-      <header className="bg-white py-4 px-8 flex flex-col md:flex-row justify-between items-center shadow-md border-b-4 gap-4" style={{borderColor: "#0a1628"}}>
-        <div className="flex flex-col md:flex-row items-center gap-6">
-          <div className="flex items-center gap-3">
-            <Image src="/logo.png" alt="BVI Logo" width={50} height={50} className="object-contain" />
-            <h1 className="text-2xl font-bold" style={{color: "#0a1628"}}>BVI Staff</h1>
-          </div>
-          
-          {/* Menu Navigazione Staff */}
-          <nav className="flex gap-2 bg-gray-50 p-1 rounded-xl border border-gray-200 overflow-x-auto">
-            <a href="/staff/dashboard" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Dashboard</a>
-            <a href="/staff/iscrizioni" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Iscrizioni</a>
-            <a href="/staff/tornei" className="px-4 py-2 rounded-lg text-sm font-bold bg-white text-[#0a1628] shadow-sm border border-gray-200 transition-all whitespace-nowrap">Tornei</a>
-            <a href="/staff/atleti" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Anagrafica Atleti</a>
-            <a href="/staff/gironi" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Gironi</a>
-            <a href="/staff/classifica" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Classifica</a>
-            <a href="/staff/tabellone" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Tabellone</a>
-            <a href="/staff/pagamenti" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Pagamenti</a>
-          </nav>
+    <main className="min-h-screen pb-20 bg-[#f8faff]">
+      <StaffHeader />
+
+      <div className="max-w-6xl mx-auto mt-6 md:mt-10 px-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
+            <div>
+                <h2 className="text-3xl md:text-5xl font-black text-[#0a1628] uppercase tracking-tighter leading-none">Gestione Tornei 🏆</h2>
+                <p className="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-widest mt-2">Programmazione e Status Gare</p>
+            </div>
+            <button 
+                onClick={() => router.push('/staff/tornei/nuovo')}
+                className="w-full md:w-auto px-8 py-4 bg-[#0a1628] text-white rounded-[1.5rem] font-black text-xs uppercase tracking-widest shadow-xl hover:scale-105 active:scale-95 transition-all"
+            >
+                + Crea Nuovo Torneo
+            </button>
         </div>
 
-        <div className="flex gap-4 items-center">
-          <span className="font-medium text-gray-500 hidden sm:inline">Bentornato, Admin</span>
-          <a href="/" className="hover:underline font-bold text-red-500 text-sm">Esci</a>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <div className="max-w-6xl mx-auto mt-10 px-4">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-3xl font-extrabold" style={{color: "#0a1628"}}>Gestione Tornei</h2>
-          <button 
-            onClick={() => router.push('/staff/tornei/nuovo')}
-            className="px-5 py-2.5 rounded-lg font-bold text-white shadow-md hover:opacity-90 transition-all flex items-center gap-2" 
-            style={{backgroundColor: "#0a1628"}}
-          >
-            <span className="text-xl leading-none">+</span> Nuovo Torneo
-          </button>
-        </div>
-
-        {/* Lista Tornei */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Lista Tornei - Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
           {tornei.map((torneo) => (
-            <div key={torneo.id} className="bg-white rounded-2xl shadow-lg border-t-4 overflow-hidden flex flex-col hover:shadow-xl transition-shadow" style={{borderColor: torneo.stato === "Concluso" ? "#9ca3af" : "#FFD700"}}>
-              <div className="p-6 flex-1">
-                <div className="flex justify-between items-start mb-4">
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+            <div key={torneo.id} className="bg-white rounded-[2.5rem] shadow-xl border-b-8 overflow-hidden flex flex-col hover:shadow-2xl transition-all group" style={{borderColor: torneo.stato === "Concluso" ? "#cbd5e1" : "#FFD700"}}>
+              <div className="p-8 flex-1">
+                <div className="flex justify-between items-start mb-6">
+                  <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
                     torneo.stato === 'Iscrizioni Aperte' ? 'bg-green-100 text-green-700' :
                     torneo.stato === 'In Programmazione' ? 'bg-yellow-100 text-yellow-700' :
-                    'bg-gray-100 text-gray-600'
+                    'bg-gray-100 text-gray-500'
                   }`}>
                     {torneo.stato}
                   </span>
-                  <button className="text-gray-400 hover:text-gray-700">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z" />
-                    </svg>
-                  </button>
+                  <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 font-black">#{torneo.id}</div>
                 </div>
                 
-                <h3 className="text-xl font-bold mb-2" style={{color: "#0a1628"}}>{torneo.nome}</h3>
+                <h3 className="text-2xl font-black text-[#0a1628] leading-tight mb-6 group-hover:text-blue-600 transition-colors">{torneo.nome}</h3>
                 
-                <div className="space-y-2 mt-4 text-sm text-gray-600">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">📅</span> {torneo.data}
+                <div className="space-y-4 text-sm font-bold text-gray-500">
+                  <div className="flex items-center gap-3">
+                    <span className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600">📅</span> {torneo.data}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">📍</span> {torneo.location}
+                  <div className="flex items-center gap-3">
+                    <span className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600">📍</span> {torneo.location}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">🏐</span> {torneo.categoria}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">💰</span> Quota: €{torneo.quota !== undefined ? torneo.quota : 40}
+                  <div className="flex items-center gap-3">
+                    <span className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600">🏐</span> {torneo.categoria}
                   </div>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-gray-100">
-                  <div className="flex justify-between items-center text-sm mb-1">
-                    <span className="font-semibold text-gray-700">Iscrizioni</span>
-                    <span className="font-bold text-gray-900">{torneo.iscritti} / {torneo.maxSquadre}</span>
+                <div className="mt-8 pt-6 border-t border-gray-50">
+                  <div className="flex justify-between items-end mb-3">
+                    <div>
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Riempimento</span>
+                        <span className="text-xl font-black text-[#0a1628]">{torneo.iscritti} <span className="text-gray-300 font-medium">/ {torneo.maxSquadre}</span></span>
+                    </div>
+                    <span className="text-[10px] font-black text-green-600">
+                        {Math.round((torneo.iscritti / torneo.maxSquadre) * 100)}%
+                    </span>
                   </div>
-                  {/* Progress bar */}
-                  <div className="w-full bg-gray-100 rounded-full h-2.5 mt-2 overflow-hidden">
+                  <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
                     <div 
-                      className="h-full rounded-full transition-all duration-500" 
+                      className="h-full rounded-full transition-all duration-1000" 
                       style={{
                         width: `${(torneo.iscritti / torneo.maxSquadre) * 100}%`,
                         backgroundColor: torneo.iscritti >= torneo.maxSquadre ? "#ef4444" : "#10b981"
@@ -132,16 +95,16 @@ export default function StaffTornei() {
                 </div>
               </div>
               
-              <div className="bg-gray-50 p-4 border-t border-gray-100 flex gap-2">
+              <div className="bg-gray-50/50 p-6 flex gap-3">
                 <button 
                   onClick={() => router.push(`/staff/tornei/modifica/${torneo.id}`)}
-                  className="flex-1 bg-white border border-gray-200 py-2 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="flex-1 bg-white border-2 border-gray-100 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest text-gray-600 hover:bg-[#0a1628] hover:text-white hover:border-[#0a1628] transition-all shadow-sm"
                 >
                   Modifica
                 </button>
                 <button 
                   onClick={() => router.push(`/staff/gironi?tour=${encodeURIComponent(torneo.nome)}`)}
-                  className="flex-1 text-center bg-white border border-gray-200 py-2 rounded-lg text-sm font-semibold text-blue-600 hover:bg-blue-50 transition-colors"
+                  className="flex-1 bg-white border-2 border-blue-100 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-sm"
                 >
                   Gironi
                 </button>

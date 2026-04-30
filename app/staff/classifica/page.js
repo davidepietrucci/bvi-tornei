@@ -4,6 +4,8 @@ import Image from "next/image";
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import StaffHeader from "@/app/components/StaffHeader";
+
 function ClassificaContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -55,7 +57,6 @@ function ClassificaContent() {
       }
     }
 
-    // Risoluzione dei nomi basata sui match (semplificata per 4 team pool)
     for (let i = 0; i < 20; i++) {
         const meta = metadata[`${activeGirone}-${i}`];
         if (!meta) continue;
@@ -63,8 +64,6 @@ function ClassificaContent() {
         let teamL = "", teamR = "";
         if (i === 0) { teamL = assignments[0]; teamR = assignments[3]; }
         else if (i === 1) { teamL = assignments[1]; teamR = assignments[2]; }
-        // Se i nomi non sono fissi (match 2, 3), servirebbe la logica dinamica. 
-        // Per ora calcoliamo solo sui match risolti.
         
         if (!stats[teamL] || !stats[teamR]) continue;
 
@@ -113,35 +112,17 @@ function ClassificaContent() {
   const gironiDisponibili = config ? Array.from({ length: config.numGironi || 0 }, (_, i) => String.fromCharCode(65 + i)) : [];
 
   return (
-    <main className="min-h-screen pb-20" style={{backgroundColor: "#f8faff"}}>
-      <header className="bg-white py-4 px-8 flex flex-col md:flex-row justify-between items-center shadow-md border-b-4 gap-4" style={{borderColor: "#0a1628"}}>
-        <div className="flex flex-col md:flex-row items-center gap-6">
-          <div className="flex items-center gap-3">
-            <Image src="/logo.png" alt="BVI Logo" width={50} height={50} className="object-contain" />
-            <h1 className="text-2xl font-bold" style={{color: "#0a1628"}}>BVI Staff</h1>
-          </div>
-          <nav className="flex gap-2 bg-gray-50 p-1 rounded-xl border border-gray-200 overflow-x-auto">
-            <a href="/staff/dashboard" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Dashboard</a>
-            <a href="/staff/iscrizioni" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Iscrizioni</a>
-            <a href="/staff/tornei" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Tornei</a>
-            <a href="/staff/gironi" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Gironi</a>
-            <a href="/staff/classifica" className="px-4 py-2 rounded-lg text-sm font-bold bg-white text-[#0a1628] shadow-sm border border-gray-200 transition-all whitespace-nowrap">Classifica</a>
-            <a href="/staff/atleti" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Anagrafica Atleti</a>
-            <a href="/staff/tabellone" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Tabellone</a>
-            <a href="/staff/pagamenti" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Pagamenti</a>
-          </nav>
-        </div>
-        <a href="/" className="hover:underline font-bold text-red-500 text-sm">Esci</a>
-      </header>
+    <main className="min-h-screen pb-20 bg-[#f8faff]">
+      <StaffHeader />
 
-      <div className="max-w-6xl mx-auto mt-10 px-4">
+      <div className="max-w-6xl mx-auto mt-6 md:mt-10 px-4">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div>
-                <h2 className="text-4xl font-black text-[#0a1628] uppercase tracking-tighter">Controllo Classifiche 📊</h2>
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">Verifica PF/PS e Quoziente</p>
+                <h2 className="text-3xl md:text-5xl font-black text-[#0a1628] uppercase tracking-tighter">Classifiche 📊</h2>
+                <p className="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-widest mt-2">Verifica PF/PS e Quoziente</p>
             </div>
             <select 
-                className="bg-white border-2 border-gray-200 rounded-xl px-4 py-3 font-bold text-[#0a1628] shadow-sm"
+                className="w-full md:w-auto bg-white border-2 border-gray-100 rounded-2xl px-4 py-4 font-bold text-[#0a1628] shadow-xl outline-none focus:border-[#0a1628]"
                 value={selectedTorneo}
                 onChange={(e) => setSelectedTorneo(e.target.value)}
             >
@@ -149,67 +130,69 @@ function ClassificaContent() {
             </select>
         </div>
 
-        <div className="bg-white rounded-[2.5rem] shadow-xl overflow-hidden border border-gray-100">
-            <div className="bg-gray-50 p-4 border-b flex gap-2 overflow-x-auto">
+        <div className="bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-white">
+            <div className="bg-gray-50/50 p-4 border-b flex gap-2 overflow-x-auto no-scrollbar">
                 {gironiDisponibili.map(g => (
                     <button
                         key={g}
                         onClick={() => setActiveGirone(g)}
-                        className={`px-6 py-2 rounded-xl font-black text-xs transition-all ${activeGirone === g ? 'bg-[#0a1628] text-white shadow-md' : 'bg-white text-gray-400 border border-gray-100'}`}
+                        className={`px-6 py-3 rounded-2xl font-black text-xs transition-all whitespace-nowrap ${activeGirone === g ? 'bg-[#0a1628] text-white shadow-lg' : 'bg-white text-gray-400 border border-gray-100 hover:text-gray-600'}`}
                     >
                         GIRONE {g}
                     </button>
                 ))}
             </div>
 
-            <div className="overflow-x-auto">
-                <table className="w-full text-left">
+            <div className="overflow-x-auto no-scrollbar">
+                <table className="w-full text-left min-w-[800px] md:min-w-0">
                     <thead className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b bg-white">
                         <tr>
-                            <th className="px-6 py-5">Pos</th>
-                            <th className="px-6 py-5">Squadra</th>
-                            <th className="px-4 py-5 text-center">G</th>
-                            <th className="px-4 py-5 text-center">V / P</th>
-                            <th className="px-4 py-5 text-center">PF</th>
-                            <th className="px-4 py-5 text-center">PS</th>
-                            <th className="px-4 py-5 text-center bg-gray-50/50">Quoz.</th>
-                            <th className="px-6 py-5 text-right">Punti</th>
+                            <th className="px-6 py-6">Pos</th>
+                            <th className="px-6 py-6">Squadra</th>
+                            <th className="px-4 py-6 text-center">G</th>
+                            <th className="px-4 py-6 text-center">V / P</th>
+                            <th className="px-4 py-6 text-center">PF</th>
+                            <th className="px-4 py-6 text-center">PS</th>
+                            <th className="px-4 py-6 text-center bg-gray-50/30">Quoz.</th>
+                            <th className="px-6 py-6 text-right">Punti</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                         {rankings.map((team, idx) => {
                             const quotient = team.puntiSubiti === 0 ? team.puntiFatti : (team.puntiFatti / team.puntiSubiti).toFixed(3);
                             return (
-                                <tr key={team.nome} className={`hover:bg-blue-50/20 transition-all ${idx < 2 ? 'bg-yellow-50/20' : ''}`}>
-                                    <td className="px-6 py-5">
-                                        <span className={`w-7 h-7 rounded flex items-center justify-center font-black text-xs ${idx < 2 ? 'bg-yellow-400 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                                <tr key={team.nome} className={`hover:bg-blue-50/20 transition-all ${idx < 2 ? 'bg-yellow-50/30' : ''}`}>
+                                    <td className="px-6 py-6">
+                                        <span className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs shadow-sm ${idx < 2 ? 'bg-yellow-400 text-white' : 'bg-gray-100 text-gray-400'}`}>
                                             {idx + 1}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-5">
-                                        <p className="font-bold text-[#0a1628]">{team.nome}</p>
-                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">
-                                            {idx < 2 ? "Passa al Gold" : "Passa al Silver"}
+                                    <td className="px-6 py-6">
+                                        <p className="font-black text-[#0a1628] text-lg leading-none mb-1">{team.nome}</p>
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                                            {idx < 2 ? "Qualificato Gold" : "Qualificato Silver"}
                                         </p>
                                     </td>
-                                    <td className="px-4 py-5 text-center font-bold text-gray-400">{team.giocate}</td>
-                                    <td className="px-4 py-5 text-center whitespace-nowrap">
+                                    <td className="px-4 py-6 text-center font-bold text-gray-400">{team.giocate}</td>
+                                    <td className="px-4 py-6 text-center whitespace-nowrap">
                                         <span className="text-green-600 font-black">{team.vinte}</span>
                                         <span className="mx-1 text-gray-200">/</span>
                                         <span className="text-red-500 font-black">{team.perse}</span>
                                     </td>
-                                    <td className="px-4 py-5 text-center font-bold text-gray-600">{team.puntiFatti}</td>
-                                    <td className="px-4 py-5 text-center font-bold text-gray-400">{team.puntiSubiti}</td>
-                                    <td className="px-4 py-5 text-center font-black text-[#0a1628] bg-gray-50/30">{quotient}</td>
-                                    <td className="px-6 py-5 text-right">
-                                        <span className="text-2xl font-black text-[#0a1628]">{team.score}</span>
+                                    <td className="px-4 py-6 text-center font-bold text-gray-600">{team.puntiFatti}</td>
+                                    <td className="px-4 py-6 text-center font-bold text-gray-400">{team.puntiSubiti}</td>
+                                    <td className="px-4 py-6 text-center font-black text-[#0a1628] bg-gray-50/30">{quotient}</td>
+                                    <td className="px-6 py-6 text-right">
+                                        <span className="text-3xl font-black text-[#0a1628]">{team.score}</span>
                                     </td>
                                 </tr>
                             );
                         })}
                         {rankings.length === 0 && (
                             <tr>
-                                <td colSpan="8" className="py-20 text-center text-gray-400 font-bold italic">Nessun dato calcolato. Inserisci i punteggi nei gironi.</td>
+                                <td colSpan="8" className="py-20 text-center text-gray-400 font-bold italic">
+                                    Nessun dato disponibile. Inserisci i risultati nei gironi.
+                                </td>
                             </tr>
                         )}
                     </tbody>

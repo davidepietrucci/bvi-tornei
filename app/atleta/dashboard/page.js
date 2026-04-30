@@ -1,9 +1,4 @@
-"use client";
-
-import Image from "next/image";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useSession, signOut } from "next-auth/react";
+import AthleteHeader from "@/app/components/AthleteHeader";
 
 export default function AtletaDashboard() {
   const { data: session, status } = useSession();
@@ -11,7 +6,6 @@ export default function AtletaDashboard() {
   const router = useRouter();
 
   useEffect(() => {
-    // Controllo Accesso
     if (status === "unauthenticated" && localStorage.getItem("bvi_atleta_logged_in") !== "true") {
       router.push("/atleta");
       return;
@@ -20,7 +14,6 @@ export default function AtletaDashboard() {
     const saved = localStorage.getItem("bvi_iscrizioni");
     if (saved) {
       const allIscrizioni = JSON.parse(saved);
-      // Filtriamo per l'utente loggato (o Davide P. se mock)
       const nomeUtente = session?.user?.name || "Davide P.";
       const mie = allIscrizioni.filter(isc => isc.giocatori.includes(nomeUtente));
       setLeMieIscrizioni(mie);
@@ -31,176 +24,137 @@ export default function AtletaDashboard() {
     }
   }, [router, status, session]);
 
-  if (status === "loading") return <div className="min-h-screen flex items-center justify-center">Caricamento...</div>;
+  if (status === "loading") return (
+    <div className="min-h-screen bg-[#f8faff] flex items-center justify-center">
+        <div className="w-16 h-16 border-4 border-[#0a1628] border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
 
   return (
-    <main className="min-h-screen pb-12" style={{backgroundColor: "#f0f4ff"}}>
-      {/* Header Atleta */}
-      <header className="bg-white py-4 px-8 flex flex-col md:flex-row justify-between items-center shadow-md border-b-4 gap-4" style={{borderColor: "#FFD700"}}>
-        <div className="flex flex-col md:flex-row items-center gap-6">
-          <div className="flex items-center gap-3">
-            <Image src="/logo.png" alt="BVI Logo" width={50} height={50} className="object-contain" />
-            <h1 className="text-2xl font-bold" style={{color: "#0a1628"}}>Area Atleta</h1>
-          </div>
-          
-          {/* Menu Navigazione Atleta */}
-          <nav className="flex gap-2 bg-gray-50 p-1 rounded-xl border border-gray-200 overflow-x-auto">
-            <a href="/atleta/dashboard" className="px-4 py-2 rounded-lg text-sm font-bold bg-white text-[#0a1628] shadow-sm border border-gray-200 transition-all whitespace-nowrap">Dashboard</a>
-            <a href="/atleta/iscrizioni" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Le Mie Iscrizioni</a>
-            <a href="/atleta/gironi" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Gironi & Calendario</a>
-            <a href="/atleta/iscriviti" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Invia Iscrizione</a>
-            <a href="/atleta/profilo" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Profilo & Documenti</a>
-          </nav>
-        </div>
+    <main className="min-h-screen bg-[#f8faff] pb-20">
+      <AthleteHeader />
 
-        <div className="flex gap-4 items-center">
-          <div className="flex items-center gap-2">
-            {session?.user?.image ? (
-              <Image src={session.user.image} alt="Profile" width={32} height={32} className="rounded-full border-2" style={{borderColor: "#0a1628"}} />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-800 font-bold border-2" style={{borderColor: "#0a1628"}}>
-                {session?.user?.name ? session.user.name.charAt(0) : "D"}
-              </div>
-            )}
-            <span className="font-medium text-gray-700 hidden sm:inline">{session?.user?.name || "Davide"}</span>
-          </div>
-          <button onClick={() => { localStorage.removeItem("bvi_atleta_logged_in"); signOut(); }} className="hover:underline font-bold text-red-500 text-sm ml-4">
-            Esci
-          </button>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <div className="max-w-6xl mx-auto mt-10 px-4">
+      <div className="max-w-6xl mx-auto mt-6 md:mt-10 px-4">
         
-        {/* Banner Alert (es: Certificato Medico) */}
-        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-8 rounded-r-lg flex items-start justify-between shadow-sm">
-          <div className="flex items-center gap-3">
-            <span className="text-yellow-600 text-xl">⚠️</span>
+        {/* Banner Alert */}
+        <div className="bg-white p-6 rounded-[2.5rem] shadow-xl border border-yellow-100 flex flex-col md:flex-row items-center justify-between gap-6 mb-10 relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-2 h-full bg-yellow-400"></div>
+          <div className="flex items-center gap-6">
+            <div className="w-16 h-16 bg-yellow-50 rounded-2xl flex items-center justify-center text-3xl">⚠️</div>
             <div>
-              <p className="font-bold text-yellow-800">Certificato Medico in Scadenza</p>
-              <p className="text-yellow-700 text-sm mt-1">Ciao {session?.user?.name ? session.user.name.split(' ')[0] : "Davide"}, il tuo certificato medico agonistico scadrà tra 15 giorni.</p>
+              <h4 className="text-xl font-black text-[#0a1628] uppercase tracking-tighter">Certificato Medico</h4>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Scade tra 15 giorni</p>
             </div>
           </div>
-          <button className="px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg text-sm font-bold hover:bg-yellow-200 transition-colors">
-            Carica Ora
+          <button className="w-full md:w-auto px-8 py-4 bg-[#0a1628] text-[#FFD700] rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:scale-105 transition-all active:scale-95">
+            Aggiorna Ora
           </button>
         </div>
 
-        <h2 className="text-3xl font-extrabold mb-6" style={{color: "#0a1628"}}>La Tua Panoramica</h2>
+        <div className="mb-10">
+            <h2 className="text-3xl md:text-5xl font-black text-[#0a1628] uppercase tracking-tighter leading-none">Bentornato, {session?.user?.name ? session.user.name.split(' ')[0] : "Davide"} ⚡</h2>
+            <p className="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-widest mt-2">La tua panoramica atleta aggiornata</p>
+        </div>
         
         {/* Widget Statistici */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white rounded-2xl shadow-lg p-6 border-t-4" style={{borderColor: "#FFD700"}}>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-gray-500 font-semibold">Tornei Giocati</h3>
-              <span className="text-2xl">🏅</span>
-            </div>
-            <div className="flex items-end gap-2">
-              <p className="text-4xl font-bold" style={{color: "#0a1628"}}>12</p>
-              <span className="text-sm text-gray-400 mb-1">questa stagione</span>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+          <div className="bg-white rounded-[2.5rem] p-8 shadow-xl border-b-8 border-[#FFD700] relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-yellow-50 rounded-full -mr-12 -mt-12 group-hover:scale-150 transition-transform duration-500"></div>
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-4 relative z-10">Tornei Giocati</span>
+            <div className="flex items-baseline gap-2 relative z-10">
+                <span className="text-5xl font-black text-[#0a1628]">12</span>
+                <span className="text-xs font-bold text-gray-300 uppercase tracking-widest">Stagione 2024</span>
             </div>
           </div>
           
-          <div className="bg-white rounded-2xl shadow-lg p-6 border-t-4" style={{borderColor: "#0a1628"}}>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-gray-500 font-semibold">Punti Ranking</h3>
-              <span className="text-2xl">⭐</span>
-            </div>
-            <div className="flex items-end gap-2">
-              <p className="text-4xl font-bold" style={{color: "#0a1628"}}>850</p>
-              <span className="text-sm text-green-500 font-bold mb-1">↑ +45</span>
+          <div className="bg-white rounded-[2.5rem] p-8 shadow-xl border-b-8 border-[#0a1628] relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50 rounded-full -mr-12 -mt-12 group-hover:scale-150 transition-transform duration-500"></div>
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-4 relative z-10">Punti Ranking</span>
+            <div className="flex items-baseline gap-2 relative z-10">
+                <span className="text-5xl font-black text-[#0a1628]">850</span>
+                <span className="text-xs font-bold text-green-500 uppercase tracking-widest">↑ +45 Live</span>
             </div>
           </div>
           
-          <div className="bg-white rounded-2xl shadow-lg p-6 border-t-4 border-green-500">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-gray-500 font-semibold">Stato Iscrizioni</h3>
-              <span className="text-2xl">📝</span>
+          <div className="bg-white rounded-[2.5rem] p-8 shadow-xl border-b-8 border-green-500 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-green-50 rounded-full -mr-12 -mt-12 group-hover:scale-150 transition-transform duration-500"></div>
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-4 relative z-10">Stato Attuale</span>
+            <div className="relative z-10">
+                <p className="text-2xl font-black text-green-600 uppercase tracking-tighter leading-none">{leMieIscrizioni.filter(i => i.stato === "Approvata").length} Confermati</p>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-2">{leMieIscrizioni.filter(i => i.stato === "In Attesa").length} In attesa di approvazione</p>
             </div>
-            <p className="text-xl font-bold text-green-600 mt-2">{leMieIscrizioni.filter(i => i.stato === "Approvata").length} Tornei Confermati</p>
-            <p className="text-sm text-gray-500">In attesa: {leMieIscrizioni.filter(i => i.stato === "In Attesa").length}</p>
           </div>
         </div>
 
-        {/* Sezioni Inferiori */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-10">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
           
           {/* Prossimi Impegni */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="bg-gray-50 p-4 border-b border-gray-100 flex justify-between items-center">
-              <h3 className="text-xl font-bold" style={{color: "#0a1628"}}>I Tuoi Prossimi Tornei</h3>
-              <a href="/atleta/iscrizioni" className="text-sm font-semibold text-blue-600 hover:underline">Vedi tutti</a>
+          <div className="space-y-6">
+            <div className="flex justify-between items-center px-2">
+                <h3 className="text-xl font-black text-[#0a1628] uppercase tracking-widest">Prossimi Tornei</h3>
+                <a href="/atleta/iscrizioni" className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em] hover:underline">Vedi Tutti</a>
             </div>
-            <div className="p-0">
+            
+            <div className="space-y-4">
               {leMieIscrizioni.length > 0 ? leMieIscrizioni.map((isc, index) => (
-                <div key={index} className="p-5 border-b border-gray-50 hover:bg-gray-50 transition-colors flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-                  <div className="flex gap-4 items-center">
-                    <div className="w-14 h-14 rounded-xl bg-blue-50 flex flex-col items-center justify-center flex-shrink-0 border" style={{borderColor: "#e0e7ff"}}>
-                      <span className="text-xs font-bold text-blue-500 uppercase">Pross</span>
-                      <span className="text-xl font-extrabold" style={{color: "#0a1628"}}>☀️</span>
-                    </div>
+                <div key={index} className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-gray-100 flex flex-col md:flex-row gap-6 justify-between items-center transition-all hover:shadow-2xl group">
+                  <div className="flex items-center gap-6">
+                    <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">🏐</div>
                     <div>
-                      <h4 className="font-bold text-lg" style={{color: "#0a1628"}}>{isc.torneo}</h4>
-                      <p className="text-sm text-gray-500 flex items-center gap-1">👥 Con {isc.giocatori.replace("Davide P. & ", "")}</p>
+                      <h4 className="text-lg font-black text-[#0a1628] uppercase tracking-tighter leading-tight">{isc.torneo}</h4>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Partner: {isc.giocatori.replace(session?.user?.name || "Davide P.", "").replace("&", "").trim()}</p>
                     </div>
                   </div>
                   {isc.stato === "In Attesa" ? (
-                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 whitespace-nowrap">
-                      In Attesa di Conferma
+                    <span className="px-4 py-2 rounded-full text-[10px] font-black bg-yellow-100 text-yellow-700 uppercase tracking-widest">
+                      In Attesa
                     </span>
                   ) : (
-                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 whitespace-nowrap">
-                      Iscrizione Confermata
+                    <span className="px-4 py-2 rounded-full text-[10px] font-black bg-green-100 text-green-700 uppercase tracking-widest">
+                      Confermato
                     </span>
                   )}
                 </div>
               )) : (
-                <div className="p-6 text-center text-gray-500">
-                  Non hai ancora iscrizioni attive.
+                <div className="bg-white p-12 rounded-[2.5rem] shadow-xl border border-gray-100 text-center">
+                    <span className="text-5xl block mb-4">📝</span>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Nessuna iscrizione attiva</p>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Azioni Rapide e Compagno */}
-          <div className="flex flex-col gap-6">
-            
+          <div className="space-y-10">
             {/* Azioni Rapide */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-              <h3 className="text-xl font-bold mb-4" style={{color: "#0a1628"}}>Azioni Rapide</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <a href="/atleta/iscriviti" className="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-dashed border-gray-300 hover:border-[#0a1628] hover:bg-gray-50 transition-all group">
-                  <span className="text-3xl mb-2 group-hover:scale-110 transition-transform">🔍</span>
-                  <span className="font-semibold text-gray-700 text-center text-sm">Trova Torneo</span>
+            <div className="bg-white p-10 rounded-[2.5rem] shadow-xl border border-gray-100">
+              <h3 className="text-xl font-black text-[#0a1628] uppercase tracking-widest mb-8">Azioni Rapide</h3>
+              <div className="grid grid-cols-2 gap-6">
+                <a href="/atleta/iscriviti" className="flex flex-col items-center justify-center p-8 rounded-3xl bg-gray-50 border-2 border-transparent hover:border-[#0a1628] hover:bg-white transition-all group">
+                  <span className="text-4xl mb-4 group-hover:scale-110 transition-transform">🏆</span>
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest group-hover:text-[#0a1628]">Iscriviti</span>
                 </a>
-                <a href="/atleta/profilo" className="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-dashed border-gray-300 hover:border-[#0a1628] hover:bg-gray-50 transition-all group">
-                  <span className="text-3xl mb-2 group-hover:scale-110 transition-transform">📄</span>
-                  <span className="font-semibold text-gray-700 text-center text-sm">Carica Documenti</span>
+                <a href="/atleta/profilo" className="flex flex-col items-center justify-center p-8 rounded-3xl bg-gray-50 border-2 border-transparent hover:border-[#0a1628] hover:bg-white transition-all group">
+                  <span className="text-4xl mb-4 group-hover:scale-110 transition-transform">📂</span>
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest group-hover:text-[#0a1628]">Documenti</span>
                 </a>
               </div>
             </div>
 
-            {/* Il mio compagno preferito */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-              <h3 className="text-xl font-bold mb-4" style={{color: "#0a1628"}}>Squadra Principale</h3>
-              <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
-                <div className="flex -space-x-4">
-                  <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-800 font-bold border-2 border-white z-10">MR</div>
-                  <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center text-orange-800 font-bold border-2 border-white z-0">LB</div>
+            {/* Squadra Principale */}
+            <div className="bg-[#0a1628] p-10 rounded-[2.5rem] shadow-xl text-white relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16"></div>
+                <h3 className="text-lg font-black uppercase tracking-widest mb-6 text-[#FFD700]">Squadra Principale</h3>
+                <div className="flex items-center gap-6">
+                    <div className="flex -space-x-6">
+                        <div className="w-16 h-16 rounded-full bg-[#FFD700] flex items-center justify-center text-[#0a1628] font-black text-xl border-4 border-[#0a1628] z-10 shadow-lg">DP</div>
+                        <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-[#0a1628] font-black text-xl border-4 border-[#0a1628] z-0 shadow-lg">LB</div>
+                    </div>
+                    <div>
+                        <h4 className="text-2xl font-black tracking-tighter">I Beach Boys</h4>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mt-1">con <span className="text-[#FFD700]">Luca Bianchi</span></p>
+                    </div>
                 </div>
-                <div>
-                  <h4 className="font-bold text-gray-800">I Beach Boys</h4>
-                  <p className="text-sm text-gray-500">con <span className="font-semibold">Luca Bianchi</span></p>
-                </div>
-                <button className="ml-auto text-gray-400 hover:text-[#0a1628]">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z" />
-                  </svg>
-                </button>
-              </div>
             </div>
-
           </div>
 
         </div>

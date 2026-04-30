@@ -1,8 +1,4 @@
-"use client";
-
-import Image from "next/image";
-import { useState, useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import StaffHeader from "@/app/components/StaffHeader";
 
 function TabelloneContent() {
   const router = useRouter();
@@ -42,7 +38,6 @@ function TabelloneContent() {
     }
   }, [selectedTorneo]);
 
-  // Logica di progressione automatica dei vincitori
   useEffect(() => {
     const newAssignments = { ...bracketAssignments };
     let changed = false;
@@ -70,29 +65,21 @@ function TabelloneContent() {
       }
     };
 
-    // Progressione per Gold & Silver
     ["gold", "silver"].forEach(p => {
-        // Quarti -> Semi
         update(`${p}-s1-L`, resolveWinner(`${p}-q1`));
         update(`${p}-s1-R`, resolveWinner(`${p}-q2`));
         update(`${p}-s2-L`, resolveWinner(`${p}-q3`));
         update(`${p}-s2-R`, resolveWinner(`${p}-q4`));
-        // Semi -> Finale 1/2
         update(`${p}-f1-L`, resolveWinner(`${p}-s1`));
         update(`${p}-f1-R`, resolveWinner(`${p}-s2`));
-        // Semi -> Finale 3/4
         update(`${p}-f3-L`, resolveLoser(`${p}-s1`));
         update(`${p}-f3-R`, resolveLoser(`${p}-s2`));
     });
 
-    // Progressione per Double Elimination
-    // WB
     update(`wb-s1-L`, resolveWinner(`wb-q1`)); update(`wb-s1-R`, resolveWinner(`wb-q2`));
     update(`wb-s2-L`, resolveWinner(`wb-q3`)); update(`wb-s2-R`, resolveWinner(`wb-q4`));
     update(`wb-f-L`, resolveWinner(`wb-s1`)); update(`wb-f-R`, resolveWinner(`wb-s2`));
-    // LB (Semplificato)
     update(`lb-f-L`, resolveWinner(`lb-s1`)); update(`lb-f-R`, resolveWinner(`lb-s2`));
-    // Grand Final
     update(`grand-final-L`, resolveWinner(`wb-f`));
     update(`grand-final-R`, resolveWinner(`lb-f`));
 
@@ -114,7 +101,6 @@ function TabelloneContent() {
         for(let i=0; i<(gConfig.teamCounts[gid]||0); i++) {
             const n = teams[i]; if(n && n!=="—") stats[n] = { nome: n, punti: 0, pf: 0, ps: 0 };
         }
-        // Calcolo base (G1/G2)
         for(let i=0; i<2; i++) {
             const m = meta[`${gid}-${i}`]; if(!m) continue;
             const l = i===0?teams[0]:teams[1], r = i===0?teams[3]:teams[2];
@@ -156,7 +142,7 @@ function TabelloneContent() {
     }
 
     setBracketAssignments(newAssignments);
-    alert(`Tabellone generato da Classifica! 🏆`);
+    alert(`Tabellone generato! 🏆`);
   };
 
   const handleSave = () => {
@@ -173,7 +159,7 @@ function TabelloneContent() {
     const meta = bracketMetadata[matchId] || {};
     const borderClass = color === "gold" ? "hover:border-yellow-500" : color === "silver" ? "hover:border-gray-400" : "hover:border-blue-600";
     return (
-      <div className={`bg-white border-2 border-gray-100 rounded-xl p-4 shadow-sm group ${borderClass} transition-all`}>
+      <div className={`bg-white border-2 border-gray-100 rounded-2xl p-4 shadow-sm group ${borderClass} transition-all min-w-[200px]`}>
         <div className="flex justify-between items-center mb-3">
           <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{label}</span>
           <div className="flex gap-2">
@@ -199,62 +185,54 @@ function TabelloneContent() {
     <div className="mb-16">
       <h3 className={`text-2xl font-black uppercase mb-8 ${color==='gold'?'text-yellow-600':color==='silver'?'text-gray-500':'text-blue-600'}`}>{title}</h3>
       {bracketSize===8 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10 overflow-x-auto no-scrollbar">
           {renderMatch(`${p}-q1`,'M1',color)} {renderMatch(`${p}-q2`,'M2',color)} {renderMatch(`${p}-q3`,'M3',color)} {renderMatch(`${p}-q4`,'M4',color)}
         </div>
       )}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mb-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-4xl mb-10">
         {renderMatch(`${p}-s1`,'S1',color)} {renderMatch(`${p}-s2`,'S2',color)}
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl">
-        <div><h4 className="text-[10px] font-black text-red-400 mb-2 uppercase">Finale 3°/4°</h4>{renderMatch(`${p}-f3`,'BRONZO',color)}</div>
-        <div><h4 className="text-[10px] font-black text-yellow-500 mb-2 uppercase">Finale 1°/2°</h4>{renderMatch(`${p}-f1`,'ORO',color)}</div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-4xl">
+        <div><h4 className="text-[10px] font-black text-red-400 mb-2 uppercase tracking-widest">Finale 3°/4°</h4>{renderMatch(`${p}-f3`,'BRONZO',color)}</div>
+        <div><h4 className="text-[10px] font-black text-yellow-500 mb-2 uppercase tracking-widest">Finale 1°/2°</h4>{renderMatch(`${p}-f1`,'ORO',color)}</div>
       </div>
     </div>
   );
 
   return (
     <main className="min-h-screen pb-20 bg-[#f8faff]">
-      <header className="bg-white py-4 px-8 flex justify-between items-center shadow-md border-b-4 border-[#0a1628]">
-        <div className="flex items-center gap-6">
-          <Image src="/logo.png" alt="BVI" width={50} height={50} />
-          <nav className="flex gap-2 bg-gray-50 p-1 rounded-xl border">
-            <a href="/staff/dashboard" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Dashboard</a>
-            <a href="/staff/iscrizioni" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Iscrizioni</a>
-            <a href="/staff/tornei" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Tornei</a>
-            <a href="/staff/gironi" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Gironi</a>
-            <a href="/staff/classifica" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Classifica</a>
-            <a href="/staff/tabellone" className="px-4 py-2 rounded-lg text-sm font-bold bg-white text-[#0a1628] shadow-sm border border-gray-200 transition-all whitespace-nowrap">Tabellone</a>
-            <a href="/staff/atleti" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Anagrafica Atleti</a>
-            <a href="/staff/pagamenti" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Pagamenti</a>
-          </nav>
-        </div>
-        <a href="/" className="font-bold text-red-500 text-sm">Esci</a>
-      </header>
+      <StaffHeader />
 
-      <div className="max-w-7xl mx-auto mt-10 px-4">
-        <div className="flex justify-between items-center mb-12">
-            <div><h2 className="text-4xl font-black text-[#0a1628] uppercase tracking-tighter">Tabellone ⚔️</h2><p className="text-[10px] font-bold text-blue-500 uppercase">Progressione Automatica Vincitori</p></div>
-            <div className="flex gap-4">
-                <select className="bg-white border-2 rounded-xl px-4 py-2 font-bold text-[#0a1628]" value={phaseType} onChange={e=>setPhaseType(e.target.value)}><option value="double">Doppia Elim.</option><option value="gold_silver">Gold & Silver</option></select>
-                <button onClick={handleAutoFill} className="bg-[#FFD700] border-2 border-[#0a1628] text-[#0a1628] px-6 py-2 rounded-xl font-black shadow-md hover:scale-105 transition-all">🔄 GENERA</button>
-                <button onClick={handleSave} className="bg-[#0a1628] text-[#FFD700] px-8 py-2 rounded-xl font-black shadow-lg">SALVA TUTTO</button>
+      <div className="max-w-7xl mx-auto mt-6 md:mt-10 px-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
+            <div>
+                <h2 className="text-3xl md:text-5xl font-black text-[#0a1628] uppercase tracking-tighter leading-none">Tabellone ⚔️</h2>
+                <p className="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-widest mt-2">Progressione Automatica Vincitori</p>
+            </div>
+            <div className="flex flex-wrap gap-2 w-full md:w-auto">
+                <select className="flex-1 md:flex-none bg-white border-2 border-gray-100 rounded-xl px-4 py-3 font-bold text-[#0a1628] text-sm shadow-xl" value={phaseType} onChange={e=>setPhaseType(e.target.value)}>
+                    <option value="double">Doppia Elim.</option>
+                    <option value="gold_silver">Gold & Silver</option>
+                </select>
+                <button onClick={handleAutoFill} className="flex-1 md:flex-none bg-[#FFD700] text-[#0a1628] px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all">🔄 GENERA</button>
+                <button onClick={handleSave} className="w-full md:w-auto bg-[#0a1628] text-white px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all">SALVA</button>
             </div>
         </div>
 
         {phaseType === "double" ? (
             <div className="space-y-16">
                 {renderSection("wb", "Winners Bracket 🏆", "blue")}
-                <div className="bg-gray-100/50 p-8 rounded-[3rem] border">{renderSection("lb", "Losers Bracket 🔄", "silver")}</div>
-                <section className="bg-[#0a1628] p-10 rounded-[3rem] text-white shadow-2xl">
-                    <h3 className="text-3xl font-black text-[#FFD700] uppercase mb-8 text-center">GRAND FINAL 👑</h3>
-                    <div className="max-w-xl mx-auto">{renderMatch('grand-final', 'Finalissima', 'gold')}</div>
+                <div className="bg-gray-100/30 p-6 md:p-10 rounded-[2.5rem] border border-gray-100">{renderSection("lb", "Losers Bracket 🔄", "silver")}</div>
+                <section className="bg-[#0a1628] p-8 md:p-12 rounded-[3rem] text-white shadow-2xl relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-yellow-400/10 rounded-full -mr-32 -mt-32"></div>
+                    <h3 className="text-2xl md:text-4xl font-black text-[#FFD700] uppercase mb-8 text-center relative z-10 tracking-tighter">GRAND FINAL 👑</h3>
+                    <div className="max-w-xl mx-auto relative z-10">{renderMatch('grand-final', 'Finalissima', 'gold')}</div>
                 </section>
             </div>
         ) : (
             <div className="space-y-16">
                 {renderSection("gold", "🏆 Tabellone GOLD", "gold")}
-                <div className="border-t-2 border-dashed border-gray-200 my-10"></div>
+                <div className="border-t-4 border-dashed border-gray-100 my-10"></div>
                 {renderSection("silver", "🥈 Tabellone SILVER", "silver")}
             </div>
         )}
@@ -262,7 +240,6 @@ function TabelloneContent() {
     </main>
   );
 }
-
 export default function StaffTabellone() {
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Caricamento...</div>}>

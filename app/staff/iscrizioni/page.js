@@ -1,7 +1,4 @@
-"use client";
-
-import Image from "next/image";
-import { useState, useEffect } from "react";
+import StaffHeader from "@/app/components/StaffHeader";
 
 export default function StaffIscrizioni() {
   const [iscrizioni, setIscrizioni] = useState([]);
@@ -50,7 +47,6 @@ export default function StaffIscrizioni() {
         isc.stato
       ].join(","))
     ];
-    
     const csvContent = "data:text/csv;charset=utf-8," + csvRows.join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -62,111 +58,98 @@ export default function StaffIscrizioni() {
   };
 
   return (
-    <main className="min-h-screen pb-12" style={{backgroundColor: "#f0f4ff"}}>
-      {/* Header Staff */}
-      <header className="bg-white py-4 px-8 flex flex-col md:flex-row justify-between items-center shadow-md border-b-4 gap-4" style={{borderColor: "#0a1628"}}>
-        <div className="flex flex-col md:flex-row items-center gap-6">
-          <div className="flex items-center gap-3">
-            <Image src="/logo.png" alt="BVI Logo" width={50} height={50} className="object-contain" />
-            <h1 className="text-2xl font-bold" style={{color: "#0a1628"}}>BVI Staff</h1>
-          </div>
-          
-          {/* Menu Navigazione Staff */}
-          <nav className="flex gap-2 bg-gray-50 p-1 rounded-xl border border-gray-200 overflow-x-auto">
-            <a href="/staff/dashboard" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Dashboard</a>
-            <a href="/staff/iscrizioni" className="px-4 py-2 rounded-lg text-sm font-bold bg-white text-[#0a1628] shadow-sm border border-gray-200 transition-all whitespace-nowrap">Iscrizioni</a>
-            <a href="/staff/atleti" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Anagrafica Atleti</a>
-            <a href="/staff/tornei" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Tornei</a>
-            <a href="/staff/gironi" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Gironi</a>
-            <a href="/staff/classifica" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Classifica</a>
-            <a href="/staff/tabellone" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Tabellone</a>
-            <a href="/staff/pagamenti" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Pagamenti</a>
-          </nav>
-        </div>
+    <main className="min-h-screen pb-20 bg-[#f8faff]">
+      <StaffHeader />
 
-        <div className="flex gap-4 items-center">
-          <span className="font-medium text-gray-500 hidden sm:inline">Bentornato, Admin</span>
-          <a href="/" className="hover:underline font-bold text-red-500 text-sm">Esci</a>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <div className="max-w-6xl mx-auto mt-10 px-4">
-        <h2 className="text-3xl font-extrabold mb-6" style={{color: "#0a1628"}}>Gestione Iscrizioni Torneo</h2>
-
-        {/* Tabella Iscrizioni */}
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-          <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 flex-wrap gap-4">
-            <h3 className="font-bold text-lg text-gray-800">Ultime Richieste Ricevute ({iscrizioni.length})</h3>
+      <div className="max-w-6xl mx-auto mt-6 md:mt-10 px-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+            <div>
+                <h2 className="text-3xl md:text-5xl font-black text-[#0a1628] uppercase tracking-tighter">Iscrizioni 📝</h2>
+                <p className="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-widest mt-2">Approvazione e gestione richieste</p>
+            </div>
             <button 
               onClick={exportToExcel}
-              className="text-sm bg-white border border-gray-300 px-4 py-2 rounded-lg font-medium shadow-sm hover:bg-gray-50 transition-colors"
+              className="w-full md:w-auto text-xs bg-[#0a1628] text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest shadow-lg hover:scale-105 transition-transform"
             >
-              ⬇️ Esporta in Excel
+              ⬇️ Scarica CSV
             </button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-100 text-gray-600 text-sm">
-                  <th className="py-3 px-6 font-semibold">ID</th>
-                  <th className="py-3 px-6 font-semibold min-w-[120px]">Ricevuta il</th>
-                  <th className="py-3 px-6 font-semibold min-w-[200px]">Torneo</th>
-                  <th className="py-3 px-6 font-semibold min-w-[200px]">Giocatori</th>
-                  <th className="py-3 px-6 font-semibold min-w-[120px]">Contatto</th>
-                  <th className="py-3 px-6 font-semibold">Stato</th>
-                  <th className="py-3 px-6 font-semibold text-center">Azioni</th>
-                </tr>
-              </thead>
-              <tbody>
-                {iscrizioni.map((req, i) => (
-                  <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-4 px-6 text-sm text-gray-500">#{req.id}</td>
-                    <td className="py-4 px-6 text-sm">{req.data}</td>
-                    <td className="py-4 px-6 text-sm">
-                      <span className="bg-blue-50 text-blue-700 border border-blue-200 px-2 py-1 rounded text-xs font-semibold whitespace-nowrap">{req.torneo}</span>
-                    </td>
-                    <td className="py-4 px-6 font-bold" style={{color: "#0a1628"}}>{req.giocatori}</td>
-                    <td className="py-4 px-6 text-sm text-gray-500 whitespace-nowrap">{req.tel}</td>
-                    <td className="py-4 px-6">
-                      {req.stato === "In Attesa" ? (
-                        <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 w-max">
-                          <span className="w-2 h-2 rounded-full bg-yellow-500"></span>In Attesa
-                        </span>
-                      ) : (
-                        <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 w-max">
-                          <span className="w-2 h-2 rounded-full bg-green-500"></span>Approvata
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-4 px-6 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        {req.stato === "In Attesa" && (
-                          <button 
-                            onClick={() => handleApprove(req.id)}
-                            className="bg-green-500 hover:bg-green-600 text-white w-8 h-8 rounded-lg shadow-sm font-bold flex items-center justify-center transition-colors" 
-                            title="Approva"
-                          >
-                            ✓
-                          </button>
-                        )}
-                        <button 
-                          onClick={() => handleDelete(req.id)}
-                          className="bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-lg shadow-sm font-bold flex items-center justify-center transition-colors" 
-                          title="Elimina"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+        </div>
+
+        {/* Mobile Cards / Desktop Table Wrapper */}
+        <div className="space-y-4 md:space-y-0">
+            {/* Desktop Table Header (Visible only on MD+) */}
+            <div className="hidden md:grid grid-cols-6 bg-gray-50 p-4 rounded-t-[2rem] border-x border-t border-gray-100 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                <div className="px-4">Ricevuta</div>
+                <div className="px-4 col-span-2">Squadra / Torneo</div>
+                <div className="px-4">Contatto</div>
+                <div className="px-4">Stato</div>
+                <div className="px-4 text-right">Azioni</div>
+            </div>
+
+            {/* Content rows/cards */}
+            <div className="space-y-4 md:space-y-0 md:bg-white md:rounded-b-[2rem] md:shadow-xl md:border md:border-gray-100 md:divide-y">
+                {iscrizioni.map((req) => (
+                    <div key={req.id} className="bg-white p-6 rounded-[2rem] shadow-xl md:shadow-none md:rounded-none md:grid md:grid-cols-6 md:items-center hover:bg-blue-50/20 transition-all">
+                        {/* Mobile Header: Badge ID e Data */}
+                        <div className="flex justify-between items-center mb-4 md:mb-0 md:px-4">
+                            <span className="text-[10px] font-black text-gray-300 md:hidden">#{req.id}</span>
+                            <span className="text-sm font-bold text-gray-500">{req.data}</span>
+                        </div>
+
+                        {/* Squadra e Torneo */}
+                        <div className="mb-4 md:mb-0 md:col-span-2 md:px-4">
+                            <h4 className="text-lg font-black text-[#0a1628] leading-tight mb-1">{req.giocatori}</h4>
+                            <span className="inline-block px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-black uppercase border border-blue-100">
+                                {req.torneo}
+                            </span>
+                        </div>
+
+                        {/* Contatto */}
+                        <div className="mb-4 md:mb-0 md:px-4">
+                            <p className="text-xs font-bold text-gray-400 flex items-center gap-1">
+                                <span className="md:hidden">📞</span> {req.tel}
+                            </p>
+                        </div>
+
+                        {/* Stato */}
+                        <div className="mb-6 md:mb-0 md:px-4">
+                            {req.stato === "In Attesa" ? (
+                                <span className="inline-flex items-center gap-2 px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-[10px] font-black uppercase">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse"></span> In Attesa
+                                </span>
+                            ) : (
+                                <span className="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 rounded-full text-[10px] font-black uppercase">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> Approvata
+                                </span>
+                            )}
+                        </div>
+
+                        {/* Azioni */}
+                        <div className="flex gap-2 md:justify-end md:px-4">
+                            {req.stato === "In Attesa" && (
+                                <button 
+                                    onClick={() => handleApprove(req.id)}
+                                    className="flex-1 md:flex-none h-12 md:w-10 md:h-10 bg-green-500 text-white rounded-xl font-black text-lg flex items-center justify-center shadow-lg shadow-green-200 hover:scale-110 active:scale-95 transition-all"
+                                >
+                                    ✓
+                                </button>
+                            )}
+                            <button 
+                                onClick={() => handleDelete(req.id)}
+                                className="flex-1 md:flex-none h-12 md:w-10 md:h-10 bg-red-500 text-white rounded-xl font-black text-lg flex items-center justify-center shadow-lg shadow-red-200 hover:scale-110 active:scale-95 transition-all"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                    </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="p-4 text-center text-sm text-gray-500 bg-gray-50">
-            Mostrando {iscrizioni.length} su {iscrizioni.length} iscrizioni
-          </div>
+
+                {iscrizioni.length === 0 && (
+                    <div className="py-20 text-center text-gray-400 font-bold italic">
+                        Nessuna iscrizione trovata.
+                    </div>
+                )}
+            </div>
         </div>
       </div>
     </main>
