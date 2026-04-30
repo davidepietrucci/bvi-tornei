@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import StaffHeader from "@/app/components/StaffHeader";
 
 export default function NuovoTorneo() {

@@ -1,3 +1,7 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
 import StaffHeader from "@/app/components/StaffHeader";
 
 export default function ModificaTorneo() {
