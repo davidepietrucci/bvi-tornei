@@ -1,10 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function StaffClassifica() {
+function ClassificaContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const urlTour = searchParams.get("tour");
@@ -218,5 +218,13 @@ export default function StaffClassifica() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function StaffClassifica() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Caricamento...</div>}>
+      <ClassificaContent />
+    </Suspense>
   );
 }

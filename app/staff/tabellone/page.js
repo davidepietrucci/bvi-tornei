@@ -1,10 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function StaffTabellone() {
+function TabelloneContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const urlTour = searchParams.get("tour");
@@ -260,5 +260,13 @@ export default function StaffTabellone() {
         )}
       </div>
     </main>
+  );
+}
+
+export default function StaffTabellone() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Caricamento...</div>}>
+      <TabelloneContent />
+    </Suspense>
   );
 }

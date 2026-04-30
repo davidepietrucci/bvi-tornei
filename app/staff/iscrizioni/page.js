@@ -30,7 +30,7 @@ export default function StaffIscrizioni() {
   };
 
   const handleDelete = (id) => {
-    if (window.confirm("Sei sicuro di voler eliminare definitivamente questa iscrizione?")) {
+    if (typeof window !== "undefined" && window.confirm("Sei sicuro di voler eliminare definitivamente questa iscrizione?")) {
       const updated = iscrizioni.filter((isc) => isc.id !== id);
       setIscrizioni(updated);
       localStorage.setItem("bvi_iscrizioni", JSON.stringify(updated));
