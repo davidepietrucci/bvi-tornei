@@ -15,6 +15,18 @@ const geistMono = Geist_Mono({
 export const metadata = {
   title: "Beach Volley Institute",
   description: "Gestione tornei e iscrizioni Beach Volley Institute",
+  manifest: "/manifest.json",
+  themeColor: "#0a1628",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "BVI Tornei",
+  },
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+  },
 };
 
 export default function RootLayout({ children }) {

@@ -65,11 +65,11 @@ export default function Home() {
           <h3 className="text-xl font-bold mb-2" style={{color: "#0a1628"}}>Iscrizioni</h3>
           <p className="text-gray-500">Invia la tua richiesta di iscrizione e partecipa ai prossimi tornei BVI.</p>
         </a>
-        <div className="bg-white rounded-2xl shadow p-8 text-center border-t-4" style={{borderColor: "#FFD700"}}>
+        <a href="/gironi" className="bg-white rounded-2xl shadow p-8 text-center border-t-4 block transition-transform hover:-translate-y-2 hover:shadow-2xl cursor-pointer" style={{borderColor: "#FFD700"}}>
           <div className="text-5xl mb-4">🏆</div>
           <h3 className="text-xl font-bold mb-2" style={{color: "#0a1628"}}>Gironi & Bracket</h3>
-          <p className="text-gray-500">Genera automaticamente gironi e tabelloni ad eliminazione.</p>
-        </div>
+          <p className="text-gray-500">Visualizza i gironi e il calendario delle partite in tempo reale.</p>
+        </a>
         <a href="/classifica" className="bg-white rounded-2xl shadow p-8 text-center border-t-4 block transition-transform hover:-translate-y-2 hover:shadow-2xl cursor-pointer" style={{borderColor: "#FFD700"}}>
           <div className="text-5xl mb-4">📊</div>
           <h3 className="text-xl font-bold mb-2" style={{color: "#0a1628"}}>Classifica Live</h3>

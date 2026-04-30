@@ -1,93 +1,176 @@
-import Image from "next/image";
+"use client";
 
-export default function ClassificaLive() {
-  // Dati di esempio per la classifica
-  const squadre = [
-    { pos: 1, nome: "Beach Boys", punti: 15, giocate: 5, vinte: 5, perse: 0, setVinti: 10, setPersi: 1 },
-    { pos: 2, nome: "Sabbia Mobile", punti: 12, giocate: 5, vinte: 4, perse: 1, setVinti: 8, setPersi: 3 },
-    { pos: 3, nome: "Gli Schiacciatori", punti: 9, giocate: 5, vinte: 3, perse: 2, setVinti: 7, setPersi: 5 },
-    { pos: 4, nome: "Muri a Secco", punti: 6, giocate: 5, vinte: 2, perse: 3, setVinti: 4, setPersi: 7 },
-    { pos: 5, nome: "Bagheroni", punti: 3, giocate: 5, vinte: 1, perse: 4, setVinti: 3, setPersi: 8 },
-    { pos: 6, nome: "Fuori Forma", punti: 0, giocate: 5, vinte: 0, perse: 5, setVinti: 0, setPersi: 10 },
-  ];
+import Image from "next/image";
+import { useState, useEffect } from "react";
+
+export default function ClassificaPubblica() {
+  const [tornei, setTornei] = useState([]);
+  const [selectedTorneo, setSelectedTorneo] = useState("");
+  const [activeGirone, setActiveGirone] = useState("A");
+  const [config, setConfig] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const savedTornei = localStorage.getItem("bvi_tornei");
+    if (savedTornei) {
+      const parsed = JSON.parse(savedTornei);
+      setTornei(parsed);
+      if (parsed.length > 0) setSelectedTorneo(parsed[0].nome);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedTorneo) return;
+    const configKey = `bvi_gironi_v2_${selectedTorneo.toLowerCase().trim().replace(/\s+/g, '_')}`;
+    const savedConfig = localStorage.getItem(configKey);
+    if (savedConfig) {
+      setConfig(JSON.parse(savedConfig));
+    } else {
+      setConfig(null);
+    }
+  }, [selectedTorneo]);
+
+  const calculateRanking = () => {
+    if (!config || !config.gironeAssignments || !config.gironeAssignments[activeGirone]) return [];
+    
+    const assignments = config.gironeAssignments[activeGirone];
+    const teamCount = config.teamCounts[activeGirone] || 0;
+    const metadata = config.matchMetadata || {};
+    const isThreeSets = config.gironeSets?.[activeGirone] === "3 set";
+
+    const stats = {};
+    for (let i = 0; i < teamCount; i++) {
+      const name = assignments[i];
+      if (name && name !== "—" && name !== "Slot Libero") {
+        stats[name] = { nome: name, giocate: 0, vinte: 0, perse: 0, setVinti: 0, setPersi: 0, puntiFatti: 0, puntiSubiti: 0, score: 0 };
+      }
+    }
+
+    for (let i = 0; i < 20; i++) {
+        const meta = metadata[`${activeGirone}-${i}`];
+        if (!meta) continue;
+        
+        let teamL = "", teamR = "";
+        if (i === 0) { teamL = assignments[0]; teamR = assignments[3]; }
+        else if (i === 1) { teamL = assignments[1]; teamR = assignments[2]; }
+        
+        if (!stats[teamL] || !stats[teamR]) continue;
+
+        const s1L = parseInt(meta.s1L || 0), s1R = parseInt(meta.s1R || 0);
+        const s2L = parseInt(meta.s2L || 0), s2R = parseInt(meta.s2R || 0);
+        const s3L = parseInt(meta.s3L || 0), s3R = parseInt(meta.s3R || 0);
+        if (s1L === 0 && s1R === 0) continue;
+
+        stats[teamL].giocate++; stats[teamR].giocate++;
+        stats[teamL].puntiFatti += (s1L + s2L + s3L);
+        stats[teamL].puntiSubiti += (s1R + s2R + s3R);
+        stats[teamR].puntiFatti += (s1R + s2R + s3R);
+        stats[teamR].puntiSubiti += (s1L + s2L + s3L);
+
+        let matchWinL = 0;
+        if (isThreeSets) {
+            let setsL = 0, setsR = 0;
+            if (s1L > s1R) setsL++; else if (s1R > s1L) setsR++;
+            if (s2L > s2R) setsL++; else if (s2R > s2L) setsR++;
+            if (s3L > s3R) setsL++; else if (s3R > s3L) setsR++;
+            matchWinL = setsL > setsR ? 1 : 0;
+        } else {
+            matchWinL = s1L > s1R ? 1 : 0;
+        }
+        if (matchWinL) { stats[teamL].vinte++; stats[teamL].score++; stats[teamR].perse++; }
+        else { stats[teamR].vinte++; stats[teamR].score++; stats[teamL].perse++; }
+    }
+
+    return Object.values(stats).sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        const qzTeamA = a.puntiSubiti === 0 ? a.puntiFatti : a.puntiFatti / a.puntiSubiti;
+        const qzTeamB = b.puntiSubiti === 0 ? b.puntiFatti : b.puntiFatti / b.puntiSubiti;
+        return qzTeamB - qzTeamA;
+    });
+  };
+
+  const rankings = calculateRanking();
+  const gironiDisponibili = config ? Array.from({ length: config.numGironi || 0 }, (_, i) => String.fromCharCode(65 + i)) : [];
 
   return (
-    <main className="min-h-screen pb-12" style={{backgroundColor: "#f0f4ff"}}>
-      {/* Header */}
-      <header style={{backgroundColor: "#0a1628"}} className="text-white py-4 px-8 flex justify-between items-center shadow-md">
-        <div className="flex items-center gap-3">
-          <Image src="/logo.png" alt="BVI Logo" width={50} height={50} className="object-contain" />
-          <h1 className="text-2xl font-bold" style={{color: "#FFD700"}}>BVI Tornei</h1>
+    <main className="min-h-screen bg-gray-50 pb-20 text-[#0a1628]">
+      <header style={{backgroundColor: "#0a1628"}} className="text-white py-6 px-8 flex justify-between items-center shadow-lg border-b-4 border-[#FFD700]">
+        <div className="flex items-center gap-4">
+          <Image src="/logo.png" alt="BVI Logo" width={50} height={50} />
+          <div>
+            <h1 className="text-2xl font-black tracking-tighter uppercase">Classifica Live</h1>
+            <p className="text-[10px] text-yellow-400 font-bold uppercase tracking-[0.3em]">Real-time Rankings</p>
+          </div>
         </div>
-        <nav className="flex gap-4 items-center">
-          <a href="/" className="hover:underline font-medium text-white">Home</a>
-          <a href="/tornei" className="hover:underline font-medium text-white">Tornei</a>
-          <a href="/classifica" className="font-medium" style={{color: "#FFD700"}}>Classifica</a>
-        </nav>
+        <a href="/" className="bg-[#FFD700] text-[#0a1628] px-6 py-2 rounded-full font-black text-sm hover:scale-105 transition-transform">HOME</a>
       </header>
 
-      {/* Main Content */}
-      <div className="max-w-5xl mx-auto mt-12 px-4">
-        {/* Intestazione Sezione */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-          <div>
-            <h2 className="text-4xl font-extrabold" style={{color: "#0a1628"}}>Classifica Live 📊</h2>
-            <p className="text-gray-600 mt-2">Torneo Estivo BVI - Girone Unico</p>
-          </div>
-          <div className="flex items-center gap-2 bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-semibold self-start md:self-auto shadow-sm">
-            <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span>
-            Aggiornamento Live
-          </div>
-        </div>
-
-        {/* Tabella Classifica */}
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden border-t-4" style={{borderColor: "#FFD700"}}>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr style={{backgroundColor: "#0a1628"}} className="text-white">
-                  <th className="py-4 px-6 font-semibold">Pos</th>
-                  <th className="py-4 px-6 font-semibold min-w-[150px]">Squadra</th>
-                  <th className="py-4 px-6 font-semibold text-center">Punti</th>
-                  <th className="py-4 px-6 font-semibold text-center hidden md:table-cell">G</th>
-                  <th className="py-4 px-6 font-semibold text-center hidden sm:table-cell">V</th>
-                  <th className="py-4 px-6 font-semibold text-center hidden sm:table-cell">P</th>
-                  <th className="py-4 px-6 font-semibold text-center hidden lg:table-cell">SV</th>
-                  <th className="py-4 px-6 font-semibold text-center hidden lg:table-cell">SP</th>
-                </tr>
-              </thead>
-              <tbody>
-                {squadre.map((squadra, index) => (
-                  <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                    <td className="py-4 px-6 font-bold text-gray-700 whitespace-nowrap">
-                      {squadra.pos === 1 && "🥇 "}
-                      {squadra.pos === 2 && "🥈 "}
-                      {squadra.pos === 3 && "🥉 "}
-                      {squadra.pos > 3 && `${squadra.pos}°`}
-                    </td>
-                    <td className="py-4 px-6 font-bold" style={{color: "#0a1628"}}>{squadra.nome}</td>
-                    <td className="py-4 px-6 text-center font-extrabold text-2xl" style={{color: "#0a1628"}}>{squadra.punti}</td>
-                    <td className="py-4 px-6 text-center text-gray-500 hidden md:table-cell">{squadra.giocate}</td>
-                    <td className="py-4 px-6 text-center text-green-600 font-semibold hidden sm:table-cell">{squadra.vinte}</td>
-                    <td className="py-4 px-6 text-center text-red-600 font-semibold hidden sm:table-cell">{squadra.perse}</td>
-                    <td className="py-4 px-6 text-center text-gray-500 hidden lg:table-cell">{squadra.setVinti}</td>
-                    <td className="py-4 px-6 text-center text-gray-500 hidden lg:table-cell">{squadra.setPersi}</td>
-                  </tr>
+      <div className="max-w-6xl mx-auto mt-10 px-4">
+        <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 mb-10 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-3">
+                <span className="text-3xl">🏆</span>
+                <select className="bg-transparent text-2xl font-black focus:outline-none"
+                    value={selectedTorneo} onChange={(e) => setSelectedTorneo(e.target.value)}>
+                    {tornei.map(t => <option key={t.id} value={t.nome}>{t.nome}</option>)}
+                </select>
+            </div>
+            <div className="flex gap-2 bg-gray-100 p-1.5 rounded-2xl">
+                {gironiDisponibili.map(g => (
+                    <button key={g} onClick={() => setActiveGirone(g)}
+                        className={`px-6 py-2.5 rounded-xl font-black text-sm transition-all ${activeGirone === g ? 'bg-[#0a1628] text-white shadow-md' : 'text-gray-400 hover:text-[#0a1628]'}`}>
+                        GIRONE {g}
+                    </button>
                 ))}
-              </tbody>
+            </div>
+        </div>
+
+        <div className="bg-white rounded-[3rem] shadow-xl border border-gray-100 overflow-hidden">
+            <table className="w-full text-left">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                        <th className="px-8 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Pos</th>
+                        <th className="px-4 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Squadra</th>
+                        <th className="px-4 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">G</th>
+                        <th className="px-4 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">V/P</th>
+                        <th className="px-4 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">PF</th>
+                        <th className="px-4 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">PS</th>
+                        <th className="px-4 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Quoz.</th>
+                        <th className="px-8 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Punti</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                    {rankings.map((team, idx) => {
+                        const quotient = team.puntiSubiti === 0 ? team.puntiFatti : (team.puntiFatti / team.puntiSubiti).toFixed(3);
+                        return (
+                            <tr key={team.nome} className={`hover:bg-blue-50/30 transition-colors ${idx < 2 ? 'bg-yellow-50/20' : ''}`}>
+                                <td className="px-8 py-6">
+                                    <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm ${idx === 0 ? 'bg-yellow-400 text-white' : idx === 1 ? 'bg-gray-300 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                                        {idx + 1}
+                                    </span>
+                                </td>
+                                <td className="px-4 py-6">
+                                    <p className="font-bold text-lg">{team.nome}</p>
+                                    <p className="text-[9px] font-black text-gray-400 uppercase">{idx < 2 ? "Qualificata Gold" : "Qualificata Silver"}</p>
+                                </td>
+                                <td className="px-4 py-6 text-center font-bold text-gray-500">{team.giocate}</td>
+                                <td className="px-4 py-6 text-center font-black">
+                                    <span className="text-green-600">{team.vinte}</span>
+                                    <span className="mx-1 text-gray-200">/</span>
+                                    <span className="text-red-500">{team.perse}</span>
+                                </td>
+                                <td className="px-4 py-6 text-center font-bold text-gray-600">{team.puntiFatti}</td>
+                                <td className="px-4 py-6 text-center font-bold text-gray-400">{team.puntiSubiti}</td>
+                                <td className="px-4 py-6 text-center font-black text-[#0a1628] bg-gray-50/30">{quotient}</td>
+                                <td className="px-8 py-6 text-right">
+                                    <span className="text-2xl font-black text-[#0a1628]">{team.score}</span>
+                                </td>
+                            </tr>
+                        );
+                    })}
+                </tbody>
             </table>
-          </div>
         </div>
-
-        {/* Legenda */}
-        <div className="mt-6 flex flex-wrap gap-4 text-xs text-gray-500 justify-center">
-          <span className="flex items-center gap-1"><b className="text-gray-700">G:</b> Partite Giocate</span>
-          <span className="flex items-center gap-1"><b className="text-gray-700">V:</b> Vinte</span>
-          <span className="flex items-center gap-1"><b className="text-gray-700">P:</b> Perse</span>
-          <span className="flex items-center gap-1"><b className="text-gray-700">SV:</b> Set Vinti</span>
-          <span className="flex items-center gap-1"><b className="text-gray-700">SP:</b> Set Persi</span>
-        </div>
-
       </div>
     </main>
   );

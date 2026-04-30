@@ -29,6 +29,14 @@ export default function StaffIscrizioni() {
     localStorage.setItem("bvi_iscrizioni", JSON.stringify(updated));
   };
 
+  const handleDelete = (id) => {
+    if (window.confirm("Sei sicuro di voler eliminare definitivamente questa iscrizione?")) {
+      const updated = iscrizioni.filter((isc) => isc.id !== id);
+      setIscrizioni(updated);
+      localStorage.setItem("bvi_iscrizioni", JSON.stringify(updated));
+    }
+  };
+
   const exportToExcel = () => {
     const headers = ["ID", "Data", "Torneo", "Giocatori", "Contatto", "Stato"];
     const csvRows = [
@@ -67,8 +75,11 @@ export default function StaffIscrizioni() {
           <nav className="flex gap-2 bg-gray-50 p-1 rounded-xl border border-gray-200 overflow-x-auto">
             <a href="/staff/dashboard" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Dashboard</a>
             <a href="/staff/iscrizioni" className="px-4 py-2 rounded-lg text-sm font-bold bg-white text-[#0a1628] shadow-sm border border-gray-200 transition-all whitespace-nowrap">Iscrizioni</a>
+            <a href="/staff/atleti" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Anagrafica Atleti</a>
             <a href="/staff/tornei" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Tornei</a>
             <a href="/staff/gironi" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Gironi</a>
+            <a href="/staff/classifica" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Classifica</a>
+            <a href="/staff/tabellone" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Tabellone</a>
             <a href="/staff/pagamenti" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Pagamenti</a>
           </nav>
         </div>
@@ -139,7 +150,13 @@ export default function StaffIscrizioni() {
                             ✓
                           </button>
                         )}
-                        <button className="bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-lg shadow-sm font-bold flex items-center justify-center transition-colors" title="Rifiuta">✕</button>
+                        <button 
+                          onClick={() => handleDelete(req.id)}
+                          className="bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-lg shadow-sm font-bold flex items-center justify-center transition-colors" 
+                          title="Elimina"
+                        >
+                          ✕
+                        </button>
                       </div>
                     </td>
                   </tr>

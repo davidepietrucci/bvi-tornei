@@ -9,18 +9,30 @@ export default function StaffTornei() {
   const [tornei, setTornei] = useState([]);
 
   useEffect(() => {
-    const saved = localStorage.getItem("bvi_tornei");
-    if (saved) {
-      setTornei(JSON.parse(saved));
-    } else {
-      const initialData = [
+    let savedTornei = JSON.parse(localStorage.getItem("bvi_tornei") || "[]");
+    const savedIscrizioni = JSON.parse(localStorage.getItem("bvi_iscrizioni") || "[]");
+
+    if (savedTornei.length === 0) {
+      savedTornei = [
         { id: 1, nome: "Torneo di Ferragosto", data: "15 Agosto 2026", location: "Ostia Lido (RM)", categoria: "Misto 2x2", stato: "Iscrizioni Aperte", iscritti: 12, maxSquadre: 16 },
         { id: 2, nome: "BVI Summer Cup", data: "2 Settembre 2026", location: "Fregene", categoria: "Maschile 2x2 / Femminile 2x2", stato: "In Programmazione", iscritti: 4, maxSquadre: 24 },
         { id: 3, nome: "Spring Classic BVI", data: "10 Maggio 2026", location: "Roma - BVI Center", categoria: "Misto 4x4", stato: "Concluso", iscritti: 16, maxSquadre: 16 },
       ];
-      setTornei(initialData);
-      localStorage.setItem("bvi_tornei", JSON.stringify(initialData));
+      localStorage.setItem("bvi_tornei", JSON.stringify(savedTornei));
     }
+
+    // Calcoliamo gli iscritti effettivi dalla lista iscrizioni
+    const updatedWithActualCounts = savedTornei.map(torneo => {
+      // Contiamo quante iscrizioni ci sono per questo specifico torneo
+      const count = savedIscrizioni.filter(isc => isc.torneo === torneo.nome).length;
+      
+      // Se il torneo è uno di quelli iniziali mockati, sommiamo il count alle iscrizioni "base" 
+      // (oppure resettiamo e usiamo solo il count reale, a seconda della logica desiderata).
+      // Qui usiamo il count reale se sono presenti iscrizioni, altrimenti teniamo il mock.
+      return { ...torneo, iscritti: count > 0 ? count : torneo.iscritti };
+    });
+
+    setTornei(updatedWithActualCounts);
   }, []);
 
   return (
@@ -38,7 +50,10 @@ export default function StaffTornei() {
             <a href="/staff/dashboard" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Dashboard</a>
             <a href="/staff/iscrizioni" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Iscrizioni</a>
             <a href="/staff/tornei" className="px-4 py-2 rounded-lg text-sm font-bold bg-white text-[#0a1628] shadow-sm border border-gray-200 transition-all whitespace-nowrap">Tornei</a>
+            <a href="/staff/atleti" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Anagrafica Atleti</a>
             <a href="/staff/gironi" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Gironi</a>
+            <a href="/staff/classifica" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Classifica</a>
+            <a href="/staff/tabellone" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Tabellone</a>
             <a href="/staff/pagamenti" className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all whitespace-nowrap">Pagamenti</a>
           </nav>
         </div>

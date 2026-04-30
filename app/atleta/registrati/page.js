@@ -15,7 +15,16 @@ export default function AtletaRegistrati() {
 
   const handleRegister = (e) => {
     e.preventDefault();
-    // Simulazione di registrazione e login automatico nel prototipo
+    const newUser = {
+      id: Date.now().toString(),
+      nome: formData.nome,
+      cognome: formData.cognome,
+      email: formData.email,
+      dataRegistrazione: new Date().toLocaleDateString('it-IT')
+    };
+    
+    const existingUsers = JSON.parse(localStorage.getItem("bvi_users") || "[]");
+    localStorage.setItem("bvi_users", JSON.stringify([...existingUsers, newUser]));
     localStorage.setItem("bvi_atleta_logged_in", "true");
     router.push("/atleta/dashboard");
   };
