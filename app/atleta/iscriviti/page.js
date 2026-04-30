@@ -1,3 +1,7 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import AthleteHeader from "@/app/components/AthleteHeader";
 
 export default function AtletaIscriviti() {
