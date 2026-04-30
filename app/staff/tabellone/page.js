@@ -1,3 +1,7 @@
+"use client";
+
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import StaffHeader from "@/app/components/StaffHeader";
 
 function TabelloneContent() {
