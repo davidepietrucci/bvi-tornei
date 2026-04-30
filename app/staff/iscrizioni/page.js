@@ -1,3 +1,6 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import StaffHeader from "@/app/components/StaffHeader";
 
 export default function StaffIscrizioni() {
