@@ -1,80 +1,120 @@
+"use client";
+
 import Image from "next/image";
+import { useState, useEffect } from "react";
 
 export default function Home() {
+  const [torneiAperti, setTorneiAperti] = useState([]);
+
+  useEffect(() => {
+    // Leggi i tornei dal localStorage per mostrarli in home
+    const saved = localStorage.getItem("bvi_tornei");
+    if (saved) {
+      const allTornei = JSON.parse(saved);
+      // Mostriamo i tornei che non sono conclusi, dando priorità a quelli "Iscrizioni Aperte"
+      const aperti = allTornei.filter(t => t.stato === "Iscrizioni Aperte" || !t.stato);
+      setTorneiAperti(aperti.slice(0, 6)); // Mostriamo un massimo di 6 tornei in home
+    }
+  }, []);
+
   return (
     <main className="min-h-screen" style={{backgroundColor: "#f0f4ff"}}>
       
       {/* Header */}
-      <header style={{backgroundColor: "#0a1628"}} className="text-white py-4 px-8 flex justify-between items-center shadow-md">
+      <header style={{backgroundColor: "#0a1628"}} className="text-white py-4 px-8 flex flex-col sm:flex-row justify-between items-center shadow-md gap-4">
         <div className="flex items-center gap-3">
           <Image src="/logo.png" alt="BVI Logo" width={50} height={50} className="rounded-full" />
           <h1 className="text-2xl font-bold" style={{color: "#FFD700"}}>BVI Tornei</h1>
         </div>
-        <nav className="flex gap-4 items-center">
-          <a href="/tornei" className="hover:underline font-medium text-white">Tornei</a>
-          <a href="/classifica" className="hover:underline font-medium text-white">Classifica</a>
-          <a href="/login" className="px-4 py-1 rounded-full font-semibold" style={{backgroundColor: "#FFD700", color: "#0a1628"}}>Login</a>
+        <nav className="flex gap-6 items-center">
+          <a href="/gironi" className="hover:underline font-bold text-white hidden sm:block">I Gironi</a>
+          <div className="flex gap-4 border-l border-gray-600 pl-4 ml-2">
+            <a href="/atleta" className="hover:text-yellow-400 text-sm font-medium text-gray-300 transition-colors">Area Atleta</a>
+            <a href="/staff" className="hover:text-yellow-400 text-sm font-medium text-gray-300 transition-colors">Area Staff</a>
+          </div>
         </nav>
       </header>
 
-      {/* Hero / Login Section */}
-      <section className="py-24 px-8 flex justify-center">
-        <div className="bg-white border-t-4 rounded-2xl p-10 max-w-md w-full flex flex-col items-center shadow-lg" style={{borderColor: "#FFD700"}}>
-          
-          {/* Logo Section */}
-          <div className="mb-6 flex justify-center">
+      {/* Hero Section */}
+      <section className="py-20 px-4 sm:px-8 flex justify-center text-center">
+        <div className="max-w-3xl flex flex-col items-center">
+          <div className="mb-8 relative">
+            <div className="absolute inset-0 bg-yellow-400 blur-2xl opacity-20 rounded-full"></div>
             <Image 
               src="/logo.png" 
               alt="BVI Logo" 
-              width={180} 
-              height={100} 
-              className="object-contain"
+              width={160} 
+              height={160} 
+              className="object-contain relative drop-shadow-xl"
               priority
             />
           </div>
-
-          {/* Welcome Text */}
-          <h2 className="text-3xl font-extrabold mb-2" style={{color: "#0a1628"}}>Benvenuto</h2>
-          <p className="text-gray-500 mb-8 font-medium">Scegli il tuo accesso:</p>
-
-          {/* Action Buttons */}
-          <div className="flex gap-4 w-full">
+          <h2 className="text-4xl sm:text-5xl font-extrabold mb-6 leading-tight" style={{color: "#0a1628"}}>
+            #Live your passion
+          </h2>
+          <p className="text-lg sm:text-xl text-gray-600 mb-10 font-medium max-w-2xl leading-relaxed">
+            Iscriviti ai prossimi tornei senza bisogno di registrazione, scopri i tuoi avversari e segui l'andamento dei gironi in tempo reale.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto justify-center">
             <a 
-              href="/atleta" 
-              className="flex-1 py-3 px-4 rounded-full text-center text-lg font-semibold text-white hover:opacity-90 shadow-md transition-all"
+              href="/iscrizioni" 
+              className="py-4 px-10 rounded-full text-center text-xl font-extrabold text-white hover:-translate-y-1 shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
               style={{backgroundColor: "#0a1628"}}
             >
-              Atleta
+              📋 Iscriviti Ora
             </a>
             <a 
-              href="/staff" 
-              className="flex-1 py-3 px-4 rounded-full text-center text-lg font-semibold hover:opacity-90 shadow-sm transition-all"
+              href="/gironi" 
+              className="py-4 px-10 rounded-full text-center text-xl font-bold shadow-md hover:shadow-lg hover:-translate-y-1 transition-all bg-white flex items-center justify-center gap-2"
               style={{border: "2px solid #0a1628", color: "#0a1628"}}
             >
-              Staff
+              🏆 Guarda i Gironi
             </a>
           </div>
-
         </div>
       </section>
 
-      {/* Cards funzionalità */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-8 px-16 pb-24">
-        <a href="/atleta/iscriviti" className="bg-white rounded-2xl shadow p-8 text-center border-t-4 block transition-transform hover:-translate-y-2 hover:shadow-2xl cursor-pointer" style={{borderColor: "#FFD700"}}>
-          <div className="text-5xl mb-4">📋</div>
-          <h3 className="text-xl font-bold mb-2" style={{color: "#0a1628"}}>Iscrizioni</h3>
-          <p className="text-gray-500">Invia la tua richiesta di iscrizione e partecipa ai prossimi tornei BVI.</p>
-        </a>
-        <a href="/gironi" className="bg-white rounded-2xl shadow p-8 text-center border-t-4 block transition-transform hover:-translate-y-2 hover:shadow-2xl cursor-pointer" style={{borderColor: "#FFD700"}}>
-          <div className="text-5xl mb-4">🏆</div>
-          <h3 className="text-xl font-bold mb-2" style={{color: "#0a1628"}}>Gironi & Bracket</h3>
-          <p className="text-gray-500">Visualizza i gironi e il calendario delle partite in tempo reale.</p>
-        </a>
-        <a href="/classifica" className="bg-white rounded-2xl shadow p-8 text-center border-t-4 block transition-transform hover:-translate-y-2 hover:shadow-2xl cursor-pointer" style={{borderColor: "#FFD700"}}>
-          <div className="text-5xl mb-4">📊</div>
-          <h3 className="text-xl font-bold mb-2" style={{color: "#0a1628"}}>Classifica Live</h3>
-          <p className="text-gray-500">Segui la classifica aggiornata in tempo reale durante il torneo.</p>
-        </a>
+      {/* Sezione Tornei in Evidenza */}
+      <section className="px-4 sm:px-8 pb-24 max-w-6xl mx-auto">
+        <div className="flex items-center gap-4 mb-8 border-b-2 pb-4" style={{borderColor: "#FFD700"}}>
+          <span className="text-3xl">🔥</span>
+          <h3 className="text-2xl font-extrabold" style={{color: "#0a1628"}}>
+            Tornei in Evidenza
+          </h3>
+        </div>
+        
+        {torneiAperti.length === 0 ? (
+          <div className="bg-white p-12 rounded-3xl shadow-md text-center border border-gray-100 flex flex-col items-center">
+            <span className="text-6xl mb-4">🏖️</span>
+            <h4 className="text-xl font-bold text-gray-800 mb-2">Nessun torneo programmato</h4>
+            <p className="text-gray-500 font-medium">Al momento non ci sono tornei aperti per l'iscrizione. Torna a trovarci presto per non perderti i prossimi eventi!</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {torneiAperti.map((t, i) => (
+              <div key={i} className="bg-white rounded-3xl shadow-md hover:shadow-xl border border-gray-100 overflow-hidden flex flex-col transition-all hover:-translate-y-2">
+                <div className="p-6 flex-1 flex flex-col">
+                  <div className="flex justify-between items-start mb-4">
+                    <span className="px-3 py-1 bg-green-100 text-green-800 text-xs font-bold rounded-full uppercase tracking-wider flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                      Iscrizioni Aperte
+                    </span>
+                    <span className="text-sm font-semibold text-gray-400">{t.data}</span>
+                  </div>
+                  <h4 className="text-2xl font-black mb-2 leading-tight" style={{color: "#0a1628"}}>{t.nome}</h4>
+                  <p className="text-sm font-bold text-gray-500 mb-6 bg-gray-50 inline-block px-3 py-1 rounded-lg self-start">
+                    {t.categoria || 'Categoria Libera'}
+                  </p>
+                  <div className="mt-auto pt-6 border-t border-gray-100">
+                    <a href="/iscrizioni" className="block w-full py-3 text-center rounded-xl font-bold text-sm text-[#0a1628] hover:bg-gray-50 transition-colors border-2" style={{borderColor: "#0a1628"}}>
+                      Iscriviti a questo torneo
+                    </a>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
     </main>
