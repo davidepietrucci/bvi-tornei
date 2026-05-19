@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import StaffHeader from "@/app/components/StaffHeader";
+import { getTornei, getIscrizioni, saveIscrizioni } from "@/app/utils/db";
 
 export default function StaffPagamenti() {
   const router = useRouter();
@@ -10,15 +11,9 @@ export default function StaffPagamenti() {
   const [filtroTorneo, setFiltroTorneo] = useState("Tutti");
 
   useEffect(() => {
-    const savedIscrizioni = localStorage.getItem("bvi_iscrizioni");
-    const savedTornei = localStorage.getItem("bvi_tornei");
-
-    if (savedIscrizioni) {
-      const tornei = savedTornei ? JSON.parse(savedTornei) : [];
-      let data = JSON.parse(savedIscrizioni);
-      
-      data = data.map(isc => {
-        const torneoInfo = tornei.find(t => isc.torneo.includes(t.nome));
+    Promise.all([getIscrizioni(), getTornei()]).then(([iscrizioniList, torneiList]) => {
+      const data = iscrizioniList.map(isc => {
+        const torneoInfo = torneiList.find(t => isc.torneo.includes(t.nome));
         const quotaTorneo = torneoInfo?.quota !== undefined ? torneoInfo.quota : 40;
 
         return {
@@ -28,12 +23,12 @@ export default function StaffPagamenti() {
         };
       });
       setIscrizioni(data);
-    }
+    });
   }, []);
 
-  const salvaModifiche = (newData) => {
+  const salvaModifiche = async (newData) => {
     setIscrizioni(newData);
-    localStorage.setItem("bvi_iscrizioni", JSON.stringify(newData));
+    await saveIscrizioni(newData);
   };
 
   const segnaSaldato = (id) => {

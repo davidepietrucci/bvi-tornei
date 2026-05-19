@@ -22,6 +22,17 @@ if (isFirebaseConfigured) {
   }
 }
 
+// Safe JSON parse helper to prevent crashes
+function safeJsonParse(str, fallback) {
+  try {
+    if (!str || str === "undefined") return fallback;
+    return JSON.parse(str);
+  } catch (e) {
+    console.error("Failed to parse JSON:", str, e);
+    return fallback;
+  }
+}
+
 // Helper to check if using Firestore
 export function isUsingFirebase() {
   return db !== null;
@@ -42,7 +53,7 @@ export async function getTornei() {
   }
   if (typeof window !== "undefined") {
     const saved = localStorage.getItem("bvi_tornei");
-    return saved ? JSON.parse(saved) : [];
+    return safeJsonParse(saved, []);
   }
   return [];
 }
@@ -76,7 +87,7 @@ export async function getIscrizioni() {
   }
   if (typeof window !== "undefined") {
     const saved = localStorage.getItem("bvi_iscrizioni");
-    return saved ? JSON.parse(saved) : [];
+    return safeJsonParse(saved, []);
   }
   return [];
 }
@@ -111,7 +122,7 @@ export async function getGironi(slug) {
   }
   if (typeof window !== "undefined") {
     const saved = localStorage.getItem(key);
-    return saved ? JSON.parse(saved) : null;
+    return safeJsonParse(saved, null);
   }
   return null;
 }
@@ -147,7 +158,7 @@ export async function getBracket(slug) {
   }
   if (typeof window !== "undefined") {
     const saved = localStorage.getItem(key);
-    return saved ? JSON.parse(saved) : null;
+    return safeJsonParse(saved, null);
   }
   return null;
 }
@@ -182,7 +193,7 @@ export async function getUsers() {
   }
   if (typeof window !== "undefined") {
     const saved = localStorage.getItem("bvi_users");
-    return saved ? JSON.parse(saved) : [];
+    return safeJsonParse(saved, []);
   }
   return [];
 }

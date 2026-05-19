@@ -5,6 +5,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import StaffHeader from "@/app/components/StaffHeader";
+import { getTornei, getGironi } from "@/app/utils/db";
 
 function ClassificaContent() {
   const router = useRouter();
@@ -17,9 +18,7 @@ function ClassificaContent() {
   const [config, setConfig] = useState(null);
 
   useEffect(() => {
-    const savedTornei = localStorage.getItem("bvi_tornei");
-    if (savedTornei) {
-      const parsed = JSON.parse(savedTornei);
+    getTornei().then(parsed => {
       const attivi = parsed.filter(t => t.stato === "Iscrizioni Aperte" || t.stato === "In Programmazione");
       setTornei(attivi);
       
@@ -28,18 +27,15 @@ function ClassificaContent() {
       } else if (attivi.length > 0) {
         setSelectedTorneo(attivi[0].nome);
       }
-    }
+    });
   }, [urlTour]);
 
   useEffect(() => {
     if (!selectedTorneo) return;
-    const configKey = `bvi_gironi_v2_${selectedTorneo.toLowerCase().trim().replace(/\s+/g, '_')}`;
-    const savedConfig = localStorage.getItem(configKey);
-    if (savedConfig) {
-      setConfig(JSON.parse(savedConfig));
-    } else {
-      setConfig(null);
-    }
+    const slug = selectedTorneo.toLowerCase().trim().replace(/\s+/g, '_');
+    getGironi(slug).then(savedConfig => {
+      setConfig(savedConfig);
+    });
   }, [selectedTorneo]);
 
   const calculateRanking = () => {
