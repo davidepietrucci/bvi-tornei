@@ -1,20 +1,19 @@
 "use client";
 
-import Image from "next/image";
 import { useState, useEffect } from "react";
+import Image from "next/image";
+import { getTornei } from "@/app/utils/db";
 
 export default function Home() {
   const [torneiAperti, setTorneiAperti] = useState([]);
 
   useEffect(() => {
-    // Leggi i tornei dal localStorage per mostrarli in home
-    const saved = localStorage.getItem("bvi_tornei");
-    if (saved) {
-      const allTornei = JSON.parse(saved);
+    // Leggi i tornei dal database per mostrarli in home
+    getTornei().then(allTornei => {
       // Mostriamo i tornei che non sono conclusi, dando priorità a quelli "Iscrizioni Aperte"
       const aperti = allTornei.filter(t => t.stato === "Iscrizioni Aperte" || !t.stato);
       setTorneiAperti(aperti.slice(0, 6)); // Mostriamo un massimo di 6 tornei in home
-    }
+    });
   }, []);
 
   return (
@@ -53,7 +52,7 @@ export default function Home() {
             #Live your passion
           </h2>
           <p className="text-lg sm:text-xl text-gray-600 mb-10 font-medium max-w-2xl leading-relaxed">
-            Iscriviti ai prossimi tornei senza bisogno di registrazione, scopri i tuoi avversari e segui l'andamento dei gironi in tempo reale.
+            Qui puoi iscriverti ai tornei attivi e guardare i risultati in diretta
           </p>
           <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto justify-center">
             <a 

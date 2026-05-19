@@ -25,13 +25,14 @@ export default function AtletaProfilo() {
       return;
     }
     
-    if (session?.user) {
-      setUserData(prev => ({
-        ...prev,
-        name: session.user.name || prev.name,
-        email: session.user.email || prev.email
-      }));
-    }
+    const localName = typeof window !== "undefined" ? localStorage.getItem("bvi_atleta_name") : null;
+    const localEmail = typeof window !== "undefined" ? localStorage.getItem("bvi_atleta_email") : null;
+    
+    setUserData(prev => ({
+      ...prev,
+      name: session?.user?.name || localName || prev.name,
+      email: session?.user?.email || localEmail || prev.email
+    }));
   }, [router, status, session]);
 
   if (status === "loading") return (

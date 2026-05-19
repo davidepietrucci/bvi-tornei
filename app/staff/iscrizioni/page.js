@@ -2,46 +2,209 @@
 
 import { useState, useEffect } from "react";
 import StaffHeader from "@/app/components/StaffHeader";
+import { getTornei, getIscrizioni, saveIscrizioni } from "@/app/utils/db";
 
 export default function StaffIscrizioni() {
   const [iscrizioni, setIscrizioni] = useState([]);
+  const [tornei, setTornei] = useState([]);
+  
+  // Import Modal States
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importStep, setImportStep] = useState(1); // 1 = Input, 2 = Mapping & Preview
+  const [selectedTorneoImport, setSelectedTorneoImport] = useState("");
+  const [initialStatusImport, setInitialStatusImport] = useState("Approvata");
+  const [inputMethod, setInputMethod] = useState("paste"); // 'paste' or 'file'
+  const [pastedText, setPastedText] = useState("");
+  const [parsedHeaders, setParsedHeaders] = useState([]);
+  const [parsedRows, setParsedRows] = useState([]);
+  
+  // Column Mappings (index of column)
+  const [mapGiocatori, setMapGiocatori] = useState(0);
+  const [mapContatto, setMapContatto] = useState(1);
+  const [mapDate, setMapDate] = useState(-1); // -1 means none (use current date)
+  
+  // Filter by Tournament state
+  const [selectedTorneoFilter, setSelectedTorneoFilter] = useState("Tutti");
 
   useEffect(() => {
-    const saved = localStorage.getItem("bvi_iscrizioni");
-    if (saved) {
-      setIscrizioni(JSON.parse(saved));
-    } else {
-      const initialData = [
-        { id: "101", data: "Oggi, 10:45", torneo: "Torneo di Ferragosto - Misto 2x2", giocatori: "Davide P. & Elena M.", tel: "333 1234567", stato: "In Attesa" },
-        { id: "102", data: "Oggi, 09:12", torneo: "BVI Summer Cup - Maschile 2x2", giocatori: "Marco R. & Luca B.", tel: "333 7654321", stato: "Approvata" },
-        { id: "103", data: "Ieri, 18:30", torneo: "BVI Summer Cup - Femminile 2x2", giocatori: "Giulia M. & Sara L.", tel: "328 1122334", stato: "In Attesa" },
-      ];
-      setIscrizioni(initialData);
-      localStorage.setItem("bvi_iscrizioni", JSON.stringify(initialData));
-    }
+    getIscrizioni().then(data => {
+      setIscrizioni(data);
+    });
+
+    getTornei().then(parsed => {
+      setTornei(parsed);
+      if (parsed.length > 0) {
+        setSelectedTorneoImport(parsed[0].nome);
+      }
+    });
   }, []);
 
-  const handleApprove = (id) => {
+  const handleApprove = async (id) => {
     const updated = iscrizioni.map((isc) => 
       isc.id === id ? { ...isc, stato: "Approvata" } : isc
     );
     setIscrizioni(updated);
-    localStorage.setItem("bvi_iscrizioni", JSON.stringify(updated));
+    await saveIscrizioni(updated);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (typeof window !== "undefined" && window.confirm("Sei sicuro di voler eliminare definitivamente questa iscrizione?")) {
       const updated = iscrizioni.filter((isc) => isc.id !== id);
       setIscrizioni(updated);
-      localStorage.setItem("bvi_iscrizioni", JSON.stringify(updated));
+      await saveIscrizioni(updated);
     }
   };
 
+  const handleParseData = (text) => {
+    if (!text.trim()) {
+      alert("Inserisci del testo o carica un file prima di procedere.");
+      return;
+    }
+    
+    // Split into lines
+    const lines = text.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
+    if (lines.length < 2) {
+      alert("Il testo inserito deve contenere almeno una riga di intestazione e una riga di dati.");
+      return;
+    }
+    
+    // Detect separator
+    let separator = "\t";
+    if (lines[0].includes("\t")) {
+      separator = "\t";
+    } else if (lines[0].includes(";")) {
+      separator = ";";
+    } else if (lines[0].includes(",")) {
+      separator = ",";
+    }
+    
+    const parseCSVLine = (line, sep) => {
+      const result = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === sep && !inQuotes) {
+          result.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      result.push(current.trim());
+      return result;
+    };
+
+    const headers = parseCSVLine(lines[0], separator);
+    const rows = lines.slice(1).map(line => parseCSVLine(line, separator));
+    
+    setParsedHeaders(headers);
+    setParsedRows(rows);
+    
+    // Try to auto-map columns
+    let playersIdx = 0;
+    let contactIdx = 1;
+    let dateIdx = -1;
+    
+    headers.forEach((h, idx) => {
+      const lower = h.toLowerCase();
+      if (lower.includes("giocator") || lower.includes("squadra") || lower.includes("atlet") || lower.includes("team") || lower.includes("nomi")) {
+        playersIdx = idx;
+      } else if (lower.includes("tel") || lower.includes("contatt") || lower.includes("mail") || lower.includes("cell") || lower.includes("telefono")) {
+        contactIdx = idx;
+      } else if (lower.includes("timestamp") || lower.includes("data") || lower.includes("ora")) {
+        dateIdx = idx;
+      }
+    });
+    
+    setMapGiocatori(playersIdx);
+    setMapContatto(contactIdx);
+    setMapDate(dateIdx);
+    
+    setImportStep(2);
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const text = evt.target.result;
+      handleParseData(text);
+    };
+    reader.readAsText(file);
+  };
+
+  const handleConfirmImport = async () => {
+    if (!selectedTorneoImport) {
+      alert("Seleziona un torneo per le iscrizioni.");
+      return;
+    }
+    
+    if (parsedRows.length === 0) {
+      alert("Nessun dato da importare.");
+      return;
+    }
+    
+    const today = new Date().toISOString().split("T")[0];
+    
+    const newRegistrations = parsedRows.map((row, idx) => {
+      const playersVal = row[mapGiocatori] || "Sconosciuto";
+      const contactVal = row[mapContatto] || "Non specificato";
+      let dateVal = today;
+      if (mapDate !== -1 && row[mapDate]) {
+        const rawDate = row[mapDate];
+        if (rawDate.includes("/")) {
+          const parts = rawDate.split(" ")[0].split("/");
+          if (parts.length === 3) {
+            const dayStr = parts[0].padStart(2, '0');
+            const monthStr = parts[1].padStart(2, '0');
+            const yearStr = parts[2];
+            dateVal = `${yearStr}-${monthStr}-${dayStr}`;
+          } else {
+            dateVal = rawDate.split(" ")[0];
+          }
+        } else {
+          dateVal = rawDate.split(" ")[0] || today;
+        }
+      }
+      
+      return {
+        id: Date.now() + idx + Math.floor(Math.random() * 1000),
+        data: dateVal,
+        torneo: selectedTorneoImport,
+        giocatori: playersVal,
+        tel: contactVal,
+        stato: initialStatusImport
+      };
+    });
+    
+    const updated = [...newRegistrations, ...iscrizioni];
+    setIscrizioni(updated);
+    await saveIscrizioni(updated);
+    
+    // Reset and close
+    setIsImportModalOpen(false);
+    setImportStep(1);
+    setPastedText("");
+    setParsedHeaders([]);
+    setParsedRows([]);
+    
+    alert(`Importazione completata con successo! Inserite ${newRegistrations.length} iscrizioni.`);
+  };
+
   const exportToExcel = () => {
+    const targetIscrizioni = selectedTorneoFilter === "Tutti" 
+      ? iscrizioni 
+      : iscrizioni.filter(isc => isc.torneo === selectedTorneoFilter);
+
     const headers = ["ID", "Data", "Torneo", "Giocatori", "Contatto", "Stato"];
     const csvRows = [
       headers.join(","),
-      ...iscrizioni.map(isc => [
+      ...targetIscrizioni.map(isc => [
         isc.id, 
         `"${isc.data}"`, 
         `"${isc.torneo}"`, 
@@ -54,28 +217,70 @@ export default function StaffIscrizioni() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "iscrizioni_bvi.csv");
+    link.setAttribute("download", `iscrizioni_bvi_${selectedTorneoFilter.replace(/\s+/g, '_').toLowerCase()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
+
+  const filteredIscrizioni = selectedTorneoFilter === "Tutti" 
+    ? iscrizioni 
+    : iscrizioni.filter(isc => isc.torneo === selectedTorneoFilter);
 
   return (
     <main className="min-h-screen pb-20 bg-[#f8faff]">
       <StaffHeader />
 
       <div className="max-w-6xl mx-auto mt-6 md:mt-10 px-4">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 w-full">
             <div>
                 <h2 className="text-3xl md:text-5xl font-black text-[#0a1628] uppercase tracking-tighter">Iscrizioni 📝</h2>
                 <p className="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-widest mt-2">Approvazione e gestione richieste</p>
             </div>
-            <button 
-              onClick={exportToExcel}
-              className="w-full md:w-auto text-xs bg-[#0a1628] text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest shadow-lg hover:scale-105 transition-transform"
+            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                <button 
+                  onClick={() => setIsImportModalOpen(true)}
+                  className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest shadow-lg hover:scale-105 transition-transform"
+                >
+                  🟢 Importa da Google Modulo
+                </button>
+                <button 
+                  onClick={exportToExcel}
+                  className="text-xs bg-[#0a1628] text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest shadow-lg hover:scale-105 transition-transform"
+                >
+                  ⬇️ Scarica CSV
+                </button>
+            </div>
+        </div>
+
+        {/* Tournament Filter Pills */}
+        <div className="flex flex-wrap gap-2 mb-8 bg-white p-3 rounded-2xl shadow-sm border border-gray-100/80">
+            <button
+              onClick={() => setSelectedTorneoFilter("Tutti")}
+              className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+                selectedTorneoFilter === "Tutti"
+                  ? "bg-[#0a1628] text-white shadow-md shadow-[#0a1628]/10"
+                  : "bg-gray-50 text-gray-500 hover:bg-gray-100"
+              }`}
             >
-              ⬇️ Scarica CSV
+              Tutti i Tornei ({iscrizioni.length})
             </button>
+            {tornei.map(t => {
+              const count = iscrizioni.filter(isc => isc.torneo === t.nome).length;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setSelectedTorneoFilter(t.nome)}
+                  className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+                    selectedTorneoFilter === t.nome
+                      ? "bg-[#0a1628] text-white shadow-md shadow-[#0a1628]/10"
+                      : "bg-gray-50 text-gray-500 hover:bg-gray-100"
+                  }`}
+                >
+                  {t.nome} ({count})
+                </button>
+              );
+            })}
         </div>
 
         {/* Mobile Cards / Desktop Table Wrapper */}
@@ -91,7 +296,7 @@ export default function StaffIscrizioni() {
 
             {/* Content rows/cards */}
             <div className="space-y-4 md:space-y-0 md:bg-white md:rounded-b-[2rem] md:shadow-xl md:border md:border-gray-100 md:divide-y">
-                {iscrizioni.map((req) => (
+                {filteredIscrizioni.map((req) => (
                     <div key={req.id} className="bg-white p-6 rounded-[2rem] shadow-xl md:shadow-none md:rounded-none md:grid md:grid-cols-6 md:items-center hover:bg-blue-50/20 transition-all">
                         {/* Mobile Header: Badge ID e Data */}
                         <div className="flex justify-between items-center mb-4 md:mb-0 md:px-4">
@@ -147,7 +352,7 @@ export default function StaffIscrizioni() {
                     </div>
                 ))}
 
-                {iscrizioni.length === 0 && (
+                {filteredIscrizioni.length === 0 && (
                     <div className="py-20 text-center text-gray-400 font-bold italic">
                         Nessuna iscrizione trovata.
                     </div>
@@ -155,6 +360,232 @@ export default function StaffIscrizioni() {
             </div>
         </div>
       </div>
+
+      {/* Google Form Import Modal */}
+      {isImportModalOpen && (
+        <div className="fixed inset-0 bg-[#0a1628]/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl border border-gray-100 max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-10 relative">
+            <button 
+              onClick={() => { setIsImportModalOpen(false); setImportStep(1); }}
+              className="absolute top-6 right-6 text-gray-400 hover:text-[#0a1628] font-black text-xl w-10 h-10 flex items-center justify-center bg-gray-50 hover:bg-gray-100 rounded-full transition-all"
+            >
+              ✕
+            </button>
+
+            <h3 className="text-2xl font-black text-[#0a1628] uppercase tracking-tight mb-2">Importazione da Google Modulo 🟢</h3>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-6">
+              Carica le risposte del modulo o incolla i dati da Google Sheets
+            </p>
+
+            {importStep === 1 ? (
+              <div className="space-y-6 text-left">
+                {/* Select Torneo */}
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Seleziona Torneo di Destinazione</label>
+                  <select
+                    value={selectedTorneoImport}
+                    onChange={(e) => setSelectedTorneoImport(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 font-bold text-sm text-[#0a1628] outline-none focus:ring-4 focus:ring-blue-500/5 transition-all appearance-none"
+                  >
+                    {tornei.map(t => <option key={t.id} value={t.nome}>{t.nome}</option>)}
+                    {tornei.length === 0 && <option value="">Nessun torneo attivo</option>}
+                  </select>
+                </div>
+
+                {/* Select Stato Iniziale */}
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Stato Iniziale delle Iscrizioni</label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setInitialStatusImport("Approvata")}
+                      className={`p-4 rounded-2xl font-black text-xs uppercase tracking-wider border-2 transition-all ${initialStatusImport === "Approvata" ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-100 bg-gray-50 text-gray-400'}`}
+                    >
+                      Approvata (Subito in Classifica)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setInitialStatusImport("In Attesa")}
+                      className={`p-4 rounded-2xl font-black text-xs uppercase tracking-wider border-2 transition-all ${initialStatusImport === "In Attesa" ? 'border-yellow-500 bg-yellow-50 text-yellow-700' : 'border-gray-100 bg-gray-50 text-gray-400'}`}
+                    >
+                      In Attesa (Da approvare a mano)
+                    </button>
+                  </div>
+                </div>
+
+                {/* Input Method Selector */}
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Metodo di Inserimento</label>
+                  <div className="flex bg-gray-100 p-1 rounded-xl mb-4">
+                    <button
+                      type="button"
+                      onClick={() => setInputMethod("paste")}
+                      className={`flex-1 py-2 text-center rounded-lg font-bold text-xs uppercase tracking-wider transition-all ${inputMethod === "paste" ? 'bg-white text-[#0a1628] shadow-sm' : 'text-gray-400 hover:text-[#0a1628]'}`}
+                    >
+                      Copia-Incolla da Fogli
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setInputMethod("file")}
+                      className={`flex-1 py-2 text-center rounded-lg font-bold text-xs uppercase tracking-wider transition-all ${inputMethod === "file" ? 'bg-white text-[#0a1628] shadow-sm' : 'text-gray-400 hover:text-[#0a1628]'}`}
+                    >
+                      Carica CSV (.csv)
+                    </button>
+                  </div>
+
+                  {inputMethod === "paste" ? (
+                    <div>
+                      <textarea
+                        placeholder="Timestamp	Nomi Atleti	Numero Telefono&#13;19/05/2026 23:00:00	Marco Neri - Fabio Rossi	3331112233&#13;19/05/2026 23:05:00	Alice Gialli - Giulia Verdi	3334445566"
+                        value={pastedText}
+                        onChange={(e) => setPastedText(e.target.value)}
+                        rows={6}
+                        className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-5 font-mono text-xs text-[#0a1628] outline-none focus:ring-4 focus:ring-blue-500/5 transition-all resize-none"
+                      ></textarea>
+                      <p className="text-[10px] text-gray-400 font-semibold mt-2">
+                        💡 Seleziona le righe del tuo Google Sheets, copiale (Ctrl+C/Cmd+C) e incollale qui sopra. Le colonne verranno importate intatte!
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="border-4 border-dashed border-gray-100 rounded-3xl p-10 text-center bg-gray-50 hover:bg-gray-100/50 transition-all relative">
+                      <input
+                        type="file"
+                        accept=".csv"
+                        onChange={handleFileUpload}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      />
+                      <span className="text-4xl block mb-2">📁</span>
+                      <p className="text-xs font-bold text-[#0a1628] uppercase tracking-wider mb-1">Trascina o clicca per caricare</p>
+                      <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-widest">File CSV (.csv)</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-4 border-t border-gray-50 flex gap-4">
+                  <button
+                    onClick={() => { setIsImportModalOpen(false); setImportStep(1); }}
+                    className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 text-[#0a1628] font-black text-xs uppercase tracking-widest rounded-2xl transition-all"
+                  >
+                    Annulla
+                  </button>
+                  {inputMethod === "paste" && (
+                    <button
+                      onClick={() => handleParseData(pastedText)}
+                      className="flex-1 py-4 bg-[#0a1628] hover:bg-blue-900 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-lg transition-all"
+                    >
+                      Avanti ➡️
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-6 text-left">
+                <div className="bg-yellow-50 text-yellow-800 p-4 rounded-2xl text-[10px] font-bold leading-normal">
+                  ⚠️ Mappa le colonne del tuo Google Modulo alle proprietà corrette per completare l'importazione.
+                </div>
+
+                {/* Mapping Selectors */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {/* Giocatori */}
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Nomi Giocatori / Squadra</label>
+                    <select
+                      value={mapGiocatori}
+                      onChange={(e) => setMapGiocatori(parseInt(e.target.value))}
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 font-bold text-xs text-[#0a1628] outline-none"
+                    >
+                      {parsedHeaders.map((h, idx) => (
+                        <option key={idx} value={idx}>{h || `Colonna ${idx + 1}`}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Contatto */}
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Recapito (Telefono / Mail)</label>
+                    <select
+                      value={mapContatto}
+                      onChange={(e) => setMapContatto(parseInt(e.target.value))}
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 font-bold text-xs text-[#0a1628] outline-none"
+                    >
+                      {parsedHeaders.map((h, idx) => (
+                        <option key={idx} value={idx}>{h || `Colonna ${idx + 1}`}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Data/Timestamp */}
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Data / Timestamp</label>
+                    <select
+                      value={mapDate}
+                      onChange={(e) => setMapDate(parseInt(e.target.value))}
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 font-bold text-xs text-[#0a1628] outline-none"
+                    >
+                      <option value="-1">Usa data odierna</option>
+                      {parsedHeaders.map((h, idx) => (
+                        <option key={idx} value={idx}>{h || `Colonna ${idx + 1}`}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Preview Table */}
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Anteprima Squadre da Importare ({parsedRows.length})</label>
+                  <div className="border border-gray-100 rounded-2xl overflow-hidden max-h-[250px] overflow-y-auto bg-gray-50">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead className="bg-gray-100 text-[9px] font-black text-gray-400 uppercase tracking-widest border-b sticky top-0">
+                        <tr>
+                          <th className="px-4 py-2.5">Data</th>
+                          <th className="px-4 py-2.5">Squadra / Giocatori</th>
+                          <th className="px-4 py-2.5">Contatto</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 bg-white font-semibold text-gray-700">
+                        {parsedRows.slice(0, 10).map((row, idx) => (
+                          <tr key={idx}>
+                            <td className="px-4 py-2.5 text-gray-400">
+                              {mapDate === -1 ? "Oggi" : (row[mapDate] || "-")}
+                            </td>
+                            <td className="px-4 py-2.5 text-[#0a1628] font-bold">
+                              {row[mapGiocatori] || "—"}
+                            </td>
+                            <td className="px-4 py-2.5 text-gray-500">
+                              {row[mapContatto] || "—"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {parsedRows.length > 10 && (
+                      <div className="p-3 text-center text-[10px] text-gray-400 font-bold border-t bg-gray-50">
+                        ...e altri {parsedRows.length - 10} record
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="pt-4 border-t border-gray-50 flex gap-4">
+                  <button
+                    onClick={() => setImportStep(1)}
+                    className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 text-[#0a1628] font-black text-xs uppercase tracking-widest rounded-2xl transition-all"
+                  >
+                    ⬅️ Indietro
+                  </button>
+                  <button
+                    onClick={handleConfirmImport}
+                    className="flex-1 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-lg transition-all"
+                  >
+                    Importa Ora ✅
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </main>
   );
 }

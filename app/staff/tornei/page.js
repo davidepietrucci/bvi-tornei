@@ -3,30 +3,21 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import StaffHeader from "@/app/components/StaffHeader";
+import { getTornei, getIscrizioni } from "@/app/utils/db";
 
 export default function StaffTornei() {
   const router = useRouter();
   const [tornei, setTornei] = useState([]);
 
   useEffect(() => {
-    let savedTornei = JSON.parse(localStorage.getItem("bvi_tornei") || "[]");
-    const savedIscrizioni = JSON.parse(localStorage.getItem("bvi_iscrizioni") || "[]");
+    Promise.all([getTornei(), getIscrizioni()]).then(([savedTornei, savedIscrizioni]) => {
+      const updatedWithActualCounts = savedTornei.map(torneo => {
+        const count = savedIscrizioni.filter(isc => isc.torneo === torneo.nome).length;
+        return { ...torneo, iscritti: count > 0 ? count : torneo.iscritti };
+      });
 
-    if (savedTornei.length === 0) {
-      savedTornei = [
-        { id: 1, nome: "Torneo di Ferragosto", data: "15 Agosto 2026", location: "Ostia Lido (RM)", categoria: "Misto 2x2", stato: "Iscrizioni Aperte", iscritti: 12, maxSquadre: 16 },
-        { id: 2, nome: "BVI Summer Cup", data: "2 Settembre 2026", location: "Fregene", categoria: "Maschile 2x2 / Femminile 2x2", stato: "In Programmazione", iscritti: 4, maxSquadre: 24 },
-        { id: 3, nome: "Spring Classic BVI", data: "10 Maggio 2026", location: "Roma - BVI Center", categoria: "Misto 4x4", stato: "Concluso", iscritti: 16, maxSquadre: 16 },
-      ];
-      localStorage.setItem("bvi_tornei", JSON.stringify(savedTornei));
-    }
-
-    const updatedWithActualCounts = savedTornei.map(torneo => {
-      const count = savedIscrizioni.filter(isc => isc.torneo === torneo.nome).length;
-      return { ...torneo, iscritti: count > 0 ? count : torneo.iscritti };
+      setTornei(updatedWithActualCounts);
     });
-
-    setTornei(updatedWithActualCounts);
   }, []);
 
   return (

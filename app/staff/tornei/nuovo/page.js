@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import StaffHeader from "@/app/components/StaffHeader";
+import { getTornei, saveTornei } from "@/app/utils/db";
 
 export default function NuovoTorneo() {
   const router = useRouter();
@@ -16,10 +17,9 @@ export default function NuovoTorneo() {
     quota: 40
   });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const saved = localStorage.getItem("bvi_tornei");
-    const tornei = saved ? JSON.parse(saved) : [];
+    const tornei = await getTornei();
     const newId = tornei.length > 0 ? Math.max(...tornei.map(t => t.id)) + 1 : 1;
     
     const nuovoTorneo = {
@@ -29,7 +29,7 @@ export default function NuovoTorneo() {
     };
     
     const updatedTornei = [...tornei, nuovoTorneo];
-    localStorage.setItem("bvi_tornei", JSON.stringify(updatedTornei));
+    await saveTornei(updatedTornei);
     router.push("/staff/tornei");
   };
 

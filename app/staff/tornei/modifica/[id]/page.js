@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import StaffHeader from "@/app/components/StaffHeader";
+import { getTornei, saveTornei } from "@/app/utils/db";
 
 export default function ModificaTorneo() {
   const router = useRouter();
@@ -12,28 +13,23 @@ export default function ModificaTorneo() {
   const [formData, setFormData] = useState(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem("bvi_tornei");
-    if (saved) {
-      const tornei = JSON.parse(saved);
+    getTornei().then(tornei => {
       const torneoToEdit = tornei.find(t => t.id === torneoId);
       if (torneoToEdit) {
         setFormData(torneoToEdit);
       } else {
         router.push("/staff/tornei");
       }
-    } else {
+    }).catch(() => {
       router.push("/staff/tornei");
-    }
+    });
   }, [torneoId, router]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const saved = localStorage.getItem("bvi_tornei");
-    if (saved) {
-      let tornei = JSON.parse(saved);
-      tornei = tornei.map(t => t.id === torneoId ? { ...t, ...formData } : t);
-      localStorage.setItem("bvi_tornei", JSON.stringify(tornei));
-    }
+    const tornei = await getTornei();
+    const updated = tornei.map(t => t.id === torneoId ? { ...t, ...formData } : t);
+    await saveTornei(updated);
     router.push("/staff/tornei");
   };
 
@@ -45,14 +41,11 @@ export default function ModificaTorneo() {
     }));
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (confirm("Sei sicuro di voler eliminare definitivamente questo torneo?")) {
-      const saved = localStorage.getItem("bvi_tornei");
-      if (saved) {
-        let tornei = JSON.parse(saved);
-        tornei = tornei.filter(t => t.id !== torneoId);
-        localStorage.setItem("bvi_tornei", JSON.stringify(tornei));
-      }
+      const tornei = await getTornei();
+      const updated = tornei.filter(t => t.id !== torneoId);
+      await saveTornei(updated);
       router.push("/staff/tornei");
     }
   };

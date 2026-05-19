@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import AthleteHeader from "@/app/components/AthleteHeader";
+import { getIscrizioni } from "@/app/utils/db";
 
 export default function MieIscrizioni() {
   const { data: session, status } = useSession();
@@ -17,17 +18,15 @@ export default function MieIscrizioni() {
       return;
     }
 
-    const saved = localStorage.getItem("bvi_iscrizioni");
-    if (saved) {
-      const allIscrizioni = JSON.parse(saved);
-      const nomeUtente = session?.user?.name || "Davide P.";
-      const mie = allIscrizioni.filter(isc => isc.giocatori.includes(nomeUtente));
+    getIscrizioni().then(allIscrizioni => {
+      const nomeUtente = session?.user?.name || (typeof window !== "undefined" ? localStorage.getItem("bvi_atleta_name") : null) || "Davide Pietrucci";
+      const mie = allIscrizioni.filter(isc => isc.giocatori.toLowerCase().includes(nomeUtente.toLowerCase()));
       setIscrizioni(mie);
-    } else {
+    }).catch(() => {
       setIscrizioni([
         { id: "101", data: "15/08/2024", torneo: "Torneo di Ferragosto - Misto 2x2", giocatori: "Davide P. & Elena M.", stato: "In Attesa" }
       ]);
-    }
+    });
   }, [router, status, session]);
 
   const filteredIscrizioni = filter === "Tutte" 

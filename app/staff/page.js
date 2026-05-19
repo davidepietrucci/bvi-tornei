@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export default function StaffLogin() {
@@ -10,10 +10,27 @@ export default function StaffLogin() {
   const [error, setError] = useState("");
   const router = useRouter();
 
+  useEffect(() => {
+    if (localStorage.getItem("bvi_staff_logged_in") === "true") {
+      router.push("/staff/dashboard");
+    }
+  }, [router]);
+
   const handleLogin = (e) => {
     e.preventDefault();
     if (username === "admin" && password === "admin") {
       setError("");
+      localStorage.setItem("bvi_staff_logged_in", "true");
+      localStorage.setItem("bvi_staff_role", "admin");
+      router.push("/staff/dashboard");
+    } else if (
+      (username === "staff" && password === "staff") ||
+      (username === "vale" && password === "bvi2026") ||
+      (username === "davide" && password === "bvi2026")
+    ) {
+      setError("");
+      localStorage.setItem("bvi_staff_logged_in", "true");
+      localStorage.setItem("bvi_staff_role", "staff");
       router.push("/staff/dashboard");
     } else {
       setError("Credenziali errate. Riprova.");
@@ -46,7 +63,7 @@ export default function StaffLogin() {
               type="text" 
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400" 
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900 bg-white" 
               placeholder="Inserisci l'utente" 
               required
             />
@@ -57,7 +74,7 @@ export default function StaffLogin() {
               type="password" 
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400" 
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900 bg-white" 
               placeholder="••••••••" 
               required
             />

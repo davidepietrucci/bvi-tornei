@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import StaffHeader from "@/app/components/StaffHeader";
+import { getTornei, getIscrizioni, getGironi, saveGironi } from "@/app/utils/db";
 
 export default function StaffGironi() {
   const [numGironi, setNumGironi] = useState(4);
@@ -14,11 +15,13 @@ export default function StaffGironi() {
   const [gironeTypes, setGironeTypes] = useState({ A: "Pool", B: "Pool", C: "Pool", D: "Pool", E: "Pool", F: "Pool", G: "Pool", H: "Pool" });
   const [gironeSets, setGironeSets] = useState({ A: "1 set", B: "1 set", C: "1 set", D: "1 set", E: "1 set", F: "1 set", G: "1 set", H: "1 set" });
   const [matchMetadata, setMatchMetadata] = useState({});
+  const [isLoaded, setIsLoaded] = useState(false);
+  
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOverSlot, setDragOverSlot] = useState(null);
 
   useEffect(() => {
-    const savedTornei = localStorage.getItem("bvi_tornei");
-    if (savedTornei) {
-      const parsedTornei = JSON.parse(savedTornei);
+    getTornei().then(parsedTornei => {
       const attivi = parsedTornei.filter(t => t.stato === "Iscrizioni Aperte" || t.stato === "In Programmazione");
       setTorneiAttivi(attivi);
       
@@ -30,16 +33,11 @@ export default function StaffGironi() {
       } else if (attivi.length > 0) {
         setSelectedTorneo(attivi[0].nome);
       }
-    } else {
-      const fallbackTornei = [{ id: 1, nome: "Torneo di Ferragosto", stato: "Iscrizioni Aperte" }, { id: 2, nome: "BVI Summer Cup", stato: "Iscrizioni Aperte" }];
-      setTorneiAttivi(fallbackTornei);
-      setSelectedTorneo(fallbackTornei[0].nome);
-    }
+    });
 
-    const savedIscrizioni = localStorage.getItem("bvi_iscrizioni");
-    if (savedIscrizioni) {
-      setTutteLeIscrizioni(JSON.parse(savedIscrizioni));
-    }
+    getIscrizioni().then(data => {
+      setTutteLeIscrizioni(data);
+    });
   }, []);
 
   const getConfigKey = (nomeTorneo) => {
@@ -49,27 +47,52 @@ export default function StaffGironi() {
 
   useEffect(() => {
     if (!selectedTorneo) return;
+    setIsLoaded(false);
     
-    const configKey = getConfigKey(selectedTorneo);
-    const savedConfig = localStorage.getItem(configKey);
-    
-    if (savedConfig) {
-      const config = JSON.parse(savedConfig);
-      setNumGironi(config.numGironi || 4);
-      setTeamCounts(config.teamCounts || { A: 4, B: 4, C: 4, D: 4, E: 4, F: 4, G: 4, H: 4 });
-      setGironeTypes(config.gironeTypes || { A: "Pool", B: "Pool", C: "Pool", D: "Pool", E: "Pool", F: "Pool", G: "Pool", H: "Pool" });
-      setGironeSets(config.gironeSets || { A: "1 set", B: "1 set", C: "1 set", D: "1 set", E: "1 set", F: "1 set", G: "1 set", H: "1 set" });
-      setGironeAssignments(config.gironeAssignments || {});
-      setMatchMetadata(config.matchMetadata || {});
-    } else {
-      setNumGironi(4);
-      setTeamCounts({ A: 4, B: 4, C: 4, D: 4, E: 4, F: 4, G: 4, H: 4 });
-      setGironeTypes({ A: "Pool", B: "Pool", C: "Pool", D: "Pool", E: "Pool", F: "Pool", G: "Pool", H: "Pool" });
-      setGironeSets({ A: "1 set", B: "1 set", C: "1 set", D: "1 set", E: "1 set", F: "1 set", G: "1 set", H: "1 set" });
-      setGironeAssignments({});
-      setMatchMetadata({});
-    }
+    const slug = selectedTorneo.toLowerCase().trim().replace(/\s+/g, '_');
+    getGironi(slug).then(config => {
+      if (config) {
+        setNumGironi(config.numGironi || 4);
+        setTeamCounts(config.teamCounts || { A: 4, B: 4, C: 4, D: 4, E: 4, F: 4, G: 4, H: 4 });
+        setGironeTypes(config.gironeTypes || { A: "Pool", B: "Pool", C: "Pool", D: "Pool", E: "Pool", F: "Pool", G: "Pool", H: "Pool" });
+        setGironeSets(config.gironeSets || { A: "1 set", B: "1 set", C: "1 set", D: "1 set", E: "1 set", F: "1 set", G: "1 set", H: "1 set" });
+        setGironeAssignments(config.gironeAssignments || {});
+        setMatchMetadata(config.matchMetadata || {});
+      } else {
+        setNumGironi(4);
+        setTeamCounts({ A: 4, B: 4, C: 4, D: 4, E: 4, F: 4, G: 4, H: 4 });
+        setGironeTypes({ A: "Pool", B: "Pool", C: "Pool", D: "Pool", E: "Pool", F: "Pool", G: "Pool", H: "Pool" });
+        setGironeSets({ A: "1 set", B: "1 set", C: "1 set", D: "1 set", E: "1 set", F: "1 set", G: "1 set", H: "1 set" });
+        setGironeAssignments({});
+        setMatchMetadata({});
+      }
+      setIsLoaded(true);
+    });
   }, [selectedTorneo]);
+
+  // Auto-save whenever configurations change (after they have been fully loaded)
+  useEffect(() => {
+    if (!selectedTorneo || !isLoaded) return;
+    const config = {
+      numGironi,
+      teamCounts,
+      gironeTypes,
+      gironeSets,
+      gironeAssignments,
+      matchMetadata
+    };
+    
+    // Immediate save to localStorage
+    localStorage.setItem(getConfigKey(selectedTorneo), JSON.stringify(config));
+
+    // Debounced save to cloud db
+    const handler = setTimeout(() => {
+      const slug = selectedTorneo.toLowerCase().trim().replace(/\s+/g, '_');
+      saveGironi(slug, config);
+    }, 1000);
+
+    return () => clearTimeout(handler);
+  }, [numGironi, teamCounts, gironeTypes, gironeSets, gironeAssignments, matchMetadata, selectedTorneo, isLoaded]);
 
   const giocatoriFiltrati = tutteLeIscrizioni.filter(isc => {
     const tName = (isc.torneo || "").toLowerCase();
@@ -85,6 +108,43 @@ export default function StaffGironi() {
         [slotIdx]: playerName
       }
     }));
+  };
+
+  const handleDragStart = (e, playerName, sourceGirone = null, sourceSlot = null) => {
+    e.dataTransfer.setData("text/plain", playerName);
+    if (sourceGirone !== null && sourceSlot !== null) {
+      e.dataTransfer.setData("sourceGirone", sourceGirone);
+      e.dataTransfer.setData("sourceSlot", sourceSlot.toString());
+    }
+    setIsDragging(true);
+  };
+
+  const handleDrop = (e, targetGironeId, targetSlotIdx) => {
+    e.preventDefault();
+    const playerName = e.dataTransfer.getData("text/plain");
+    const sourceGirone = e.dataTransfer.getData("sourceGirone");
+    const sourceSlot = e.dataTransfer.getData("sourceSlot");
+
+    if (playerName) {
+      if (sourceGirone && sourceSlot) {
+        const srcIdx = parseInt(sourceSlot, 10);
+        handleAssignmentChange(sourceGirone, srcIdx, "—");
+      }
+      handleAssignmentChange(targetGironeId, targetSlotIdx, playerName);
+    }
+    setDragOverSlot(null);
+    setIsDragging(false);
+  };
+
+  const handleSidebarDrop = (e) => {
+    e.preventDefault();
+    const sourceGirone = e.dataTransfer.getData("sourceGirone");
+    const sourceSlot = e.dataTransfer.getData("sourceSlot");
+    if (sourceGirone && sourceSlot) {
+      const srcIdx = parseInt(sourceSlot, 10);
+      handleAssignmentChange(sourceGirone, srcIdx, "—");
+    }
+    setIsDragging(false);
   };
 
   const handleTypeChange = (gironeId, type) => {
@@ -105,7 +165,7 @@ export default function StaffGironi() {
     }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!selectedTorneo) return;
     
     const configKey = getConfigKey(selectedTorneo);
@@ -119,6 +179,8 @@ export default function StaffGironi() {
     };
     
     localStorage.setItem(configKey, JSON.stringify(config));
+    const slug = selectedTorneo.toLowerCase().trim().replace(/\s+/g, '_');
+    await saveGironi(slug, config);
     alert(`Configurazione salvata per "${selectedTorneo}"! 🏐`);
   };
 
@@ -281,7 +343,7 @@ export default function StaffGironi() {
                                             <select 
                                                 value={gironeTypes[g.id]} 
                                                 onChange={(e) => handleTypeChange(g.id, e.target.value)}
-                                                className={`${c.inputBg} text-[10px] rounded-lg py-1 px-2 font-black border-none focus:ring-1 focus:ring-white`}
+                                                className={`${c.inputBg} text-[10px] rounded-lg py-1 px-2 font-black border-none focus:ring-1 focus:ring-white text-white`}
                                             >
                                                 <option value="Pool">Pool</option>
                                                 <option value="Girone all'italiana">Italiana</option>
@@ -290,26 +352,60 @@ export default function StaffGironi() {
                                                 type="number" 
                                                 value={teamCounts[g.id]} 
                                                 onChange={(e) => handleTeamCountChange(g.id, e.target.value)}
-                                                className={`w-10 text-center ${c.inputBg} rounded-lg py-1 font-black border-none text-[10px] focus:ring-1 focus:ring-white`} 
+                                                className={`w-10 text-center ${c.inputBg} rounded-lg py-1 font-black border-none text-[10px] focus:ring-1 focus:ring-white text-white`} 
                                             />
                                         </div>
                                     </div>
                                     <div className="p-5 space-y-3">
-                                        {Array.from({ length: teamCount }).map((_, idx) => (
-                                            <div key={idx} className="flex items-center gap-3">
-                                                <span className="text-[10px] font-black text-gray-300 w-4">{idx + 1}</span>
-                                                <select 
-                                                    className="flex-1 bg-gray-50 border-none rounded-xl py-2 px-4 text-xs font-bold text-gray-700 focus:ring-2 focus:ring-[#0a1628]"
-                                                    value={gironeAssignments[g.id]?.[idx] || "—"}
-                                                    onChange={(e) => handleAssignmentChange(g.id, idx, e.target.value)}
+                                        {Array.from({ length: teamCount }).map((_, idx) => {
+                                            const playerInSlot = gironeAssignments[g.id]?.[idx] || "—";
+                                            const hasPlayer = playerInSlot !== "—";
+                                            const slotKey = `${g.id}-${idx}`;
+                                            return (
+                                                <div 
+                                                    key={idx} 
+                                                    className={`flex items-center gap-3 p-1.5 rounded-2xl transition-all border-2 ${
+                                                        dragOverSlot === slotKey 
+                                                            ? `border-dashed ${c.border} ${c.light} scale-[1.02] shadow-sm` 
+                                                            : 'border-transparent'
+                                                    }`}
+                                                    draggable={hasPlayer}
+                                                    onDragStart={(e) => handleDragStart(e, playerInSlot, g.id, idx)}
+                                                    onDragEnd={() => {
+                                                        setIsDragging(false);
+                                                        setDragOverSlot(null);
+                                                    }}
+                                                    onDragOver={(e) => {
+                                                        e.preventDefault();
+                                                        setDragOverSlot(slotKey);
+                                                    }}
+                                                    onDragLeave={() => setDragOverSlot(null)}
+                                                    onDrop={(e) => handleDrop(e, g.id, idx)}
                                                 >
-                                                    <option value="—">—</option>
-                                                    {giocatoriFiltrati.map(gf => (
-                                                        <option key={gf.id} value={gf.giocatori}>{gf.giocatori}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        ))}
+                                                    <span className="text-[10px] font-black text-gray-300 w-4 cursor-default select-none">{idx + 1}</span>
+                                                    <select 
+                                                        className="flex-1 bg-gray-50 border-none rounded-xl py-2 px-4 text-xs font-bold text-gray-900 focus:ring-2 focus:ring-[#0a1628]"
+                                                        value={playerInSlot}
+                                                        onChange={(e) => handleAssignmentChange(g.id, idx, e.target.value)}
+                                                    >
+                                                        <option value="—">—</option>
+                                                        {giocatoriFiltrati.map(gf => (
+                                                            <option key={gf.id} value={gf.giocatori}>{gf.giocatori}</option>
+                                                        ))}
+                                                    </select>
+                                                    {hasPlayer && (
+                                                        <button 
+                                                            onClick={() => handleAssignmentChange(g.id, idx, "—")}
+                                                            className="text-gray-400 hover:text-red-500 text-xs font-bold px-1 transition-colors"
+                                                            title="Rimuovi dal girone"
+                                                            type="button"
+                                                        >
+                                                            ✕
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             );
@@ -342,8 +438,8 @@ export default function StaffGironi() {
                                                     <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-1">
                                                         <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Gara {idx + 1}</span>
                                                         <div className="flex gap-2">
-                                                            <input type="text" placeholder="hh:mm" value={meta.time || ""} onChange={(e) => handleMetadataChange(g.id, idx, 'time', e.target.value)} className="w-12 bg-white border border-gray-200 rounded-lg text-[10px] py-1 text-center font-bold" />
-                                                            <input type="text" placeholder="C." value={meta.court || ""} onChange={(e) => handleMetadataChange(g.id, idx, 'court', e.target.value)} className="w-8 bg-white border border-gray-200 rounded-lg text-[10px] py-1 text-center font-bold" />
+                                                            <input type="text" placeholder="hh:mm" value={meta.time || ""} onChange={(e) => handleMetadataChange(g.id, idx, 'time', e.target.value)} className="w-12 bg-white border border-gray-200 rounded-lg text-[10px] py-1 text-center font-bold text-gray-900" />
+                                                            <input type="text" placeholder="C." value={meta.court || ""} onChange={(e) => handleMetadataChange(g.id, idx, 'court', e.target.value)} className="w-8 bg-white border border-gray-200 rounded-lg text-[10px] py-1 text-center font-bold text-gray-900" />
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center justify-between gap-4">
@@ -366,20 +462,46 @@ export default function StaffGironi() {
             </div>
 
             {/* Sidebar Giocatori - Hidden on mobile if preferred, or at bottom */}
-            <div className="w-full lg:w-80 bg-white rounded-[2.5rem] shadow-xl border border-gray-100 p-6 h-fit sticky top-10">
+            <div 
+                className={`w-full lg:w-80 bg-white rounded-[2.5rem] shadow-xl border p-6 h-fit sticky top-10 transition-all duration-300 ${
+                    isDragging 
+                        ? 'border-dashed border-red-300 bg-red-50/20' 
+                        : 'border-gray-100'
+                }`}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleSidebarDrop}
+            >
                 <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-gray-400">Iscritti Approvati</h3>
+                    <h3 className="text-sm font-black uppercase tracking-widest text-gray-400 transition-colors">
+                        {isDragging ? "Rilascia qui per rimuovere 🗑️" : "Iscritti Approvati"}
+                    </h3>
                     <span className="bg-green-100 text-green-700 text-[10px] font-black px-3 py-1 rounded-full">{giocatoriFiltrati.length}</span>
                 </div>
                 <div className="space-y-3 max-h-[500px] overflow-y-auto no-scrollbar">
-                    {giocatoriFiltrati.map((g, i) => (
-                        <div key={i} className="bg-gray-50 p-4 rounded-2xl border border-gray-100 transition-all hover:border-blue-200 group">
-                            <div className="flex justify-between items-start">
-                                <span className="font-bold text-xs text-[#0a1628]">{g.giocatori}</span>
-                                <span className="text-[10px] text-blue-600 font-black">#{g.id}</span>
+                    {giocatoriFiltrati.map((g, i) => {
+                        const isAssigned = Object.values(gironeAssignments).some(slots => 
+                            Object.values(slots).includes(g.giocatori)
+                        );
+                        return (
+                            <div 
+                                key={i} 
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, g.giocatori)}
+                                onDragEnd={() => setIsDragging(false)}
+                                className={`bg-gray-50 p-4 rounded-2xl border transition-all cursor-grab active:cursor-grabbing flex justify-between items-center group ${
+                                    isAssigned 
+                                        ? 'opacity-40 border-gray-100 hover:border-gray-100' 
+                                        : 'border-gray-100 hover:border-blue-200 hover:bg-white hover:shadow-md'
+                                }`}
+                            >
+                                <div className="flex items-center gap-2">
+                                    <span className="text-gray-300 group-hover:text-blue-500 transition-colors select-none">⋮⋮</span>
+                                    <span className={`font-bold text-xs ${isAssigned ? 'text-gray-400 line-through' : 'text-[#0a1628]'}`}>{g.giocatori}</span>
+                                </div>
+                                <span className={`text-[10px] font-black ${isAssigned ? 'text-gray-300' : 'text-blue-600'}`}>#{g.id}</span>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
         </div>

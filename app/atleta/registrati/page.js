@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { getUsers, saveUsers } from "@/app/utils/db";
 
 export default function AtletaRegistrati() {
   const [formData, setFormData] = useState({
@@ -13,7 +14,7 @@ export default function AtletaRegistrati() {
   });
   const router = useRouter();
 
-  const handleRegister = (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
     const newUser = {
       id: Date.now().toString(),
@@ -23,15 +24,22 @@ export default function AtletaRegistrati() {
       dataRegistrazione: new Date().toLocaleDateString('it-IT')
     };
     
-    const existingUsers = JSON.parse(localStorage.getItem("bvi_users") || "[]");
-    localStorage.setItem("bvi_users", JSON.stringify([...existingUsers, newUser]));
+    const existingUsers = await getUsers();
+    const updated = [...existingUsers, newUser];
+    await saveUsers(updated);
+    
     localStorage.setItem("bvi_atleta_logged_in", "true");
+    localStorage.setItem("bvi_atleta_name", `${formData.nome} ${formData.cognome}`);
+    localStorage.setItem("bvi_atleta_email", formData.email);
+    
     router.push("/atleta/dashboard");
   };
 
   const handleGoogleAuth = () => {
     // Simulazione di registrazione/login con Google nel prototipo
     localStorage.setItem("bvi_atleta_logged_in", "true");
+    localStorage.setItem("bvi_atleta_name", "Davide Pietrucci");
+    localStorage.setItem("bvi_atleta_email", "davide@example.com");
     router.push("/atleta/dashboard");
   };
 
@@ -78,8 +86,7 @@ export default function AtletaRegistrati() {
               <input 
                 type="text" 
                 name="nome"
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2" 
-                style={{focusRingColor: "#0a1628"}}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#0a1628] text-gray-900 bg-white" 
                 placeholder="es. Mario" 
                 value={formData.nome}
                 onChange={handleChange}
@@ -91,8 +98,7 @@ export default function AtletaRegistrati() {
               <input 
                 type="text" 
                 name="cognome"
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2" 
-                style={{focusRingColor: "#0a1628"}}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#0a1628] text-gray-900 bg-white" 
                 placeholder="es. Rossi" 
                 value={formData.cognome}
                 onChange={handleChange}
@@ -106,8 +112,7 @@ export default function AtletaRegistrati() {
             <input 
               type="email" 
               name="email"
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2" 
-              style={{focusRingColor: "#0a1628"}}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#0a1628] text-gray-900 bg-white" 
               placeholder="es. mario.rossi@email.com" 
               value={formData.email}
               onChange={handleChange}
@@ -120,8 +125,7 @@ export default function AtletaRegistrati() {
             <input 
               type="password" 
               name="password"
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2" 
-              style={{focusRingColor: "#0a1628"}}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#0a1628] text-gray-900 bg-white" 
               placeholder="Crea una password sicura" 
               value={formData.password}
               onChange={handleChange}

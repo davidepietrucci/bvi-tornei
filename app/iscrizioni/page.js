@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { getTornei, getIscrizioni, saveIscrizioni, saveTornei } from "@/app/utils/db";
 
 export default function Iscrizioni() {
   const router = useRouter();
@@ -21,9 +22,7 @@ export default function Iscrizioni() {
   });
 
   useEffect(() => {
-    const saved = localStorage.getItem("bvi_tornei");
-    if (saved) {
-      const allTornei = JSON.parse(saved);
+    getTornei().then(allTornei => {
       // Mostriamo solo i tornei aperti se possibile
       const aperti = allTornei.filter(t => t.stato === "Iscrizioni Aperte" || !t.stato);
       const daMostrare = aperti.length > 0 ? aperti : allTornei;
@@ -33,7 +32,7 @@ export default function Iscrizioni() {
       if (daMostrare.length > 0) {
         setFormData(prev => ({ ...prev, torneo: daMostrare[0].nome }));
       }
-    }
+    });
   }, []);
 
   const handleChange = (e) => {
@@ -41,11 +40,10 @@ export default function Iscrizioni() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const savedIscrizioni = localStorage.getItem("bvi_iscrizioni");
-    const iscrizioni = savedIscrizioni ? JSON.parse(savedIscrizioni) : [];
+    const iscrizioni = await getIscrizioni();
     
     // Generiamo ID numerico
     const numericIds = iscrizioni.map(i => parseInt(i.id)).filter(id => !isNaN(id));
@@ -68,20 +66,17 @@ export default function Iscrizioni() {
 
     // Salvataggio
     const updatedIscrizioni = [...iscrizioni, nuovaIscrizione];
-    localStorage.setItem("bvi_iscrizioni", JSON.stringify(updatedIscrizioni));
+    await saveIscrizioni(updatedIscrizioni);
 
     // Aumentiamo il contatore di iscritti del torneo selezionato
-    const savedTornei = localStorage.getItem("bvi_tornei");
-    if (savedTornei) {
-      const tornei = JSON.parse(savedTornei);
-      const updatedTornei = tornei.map(t => {
-        if (t.nome === formData.torneo) {
-          return { ...t, iscritti: (t.iscritti || 0) + 1 };
-        }
-        return t;
-      });
-      localStorage.setItem("bvi_tornei", JSON.stringify(updatedTornei));
-    }
+    const tornei = await getTornei();
+    const updatedTornei = tornei.map(t => {
+      if (t.nome === formData.torneo) {
+        return { ...t, iscritti: (t.iscritti || 0) + 1 };
+      }
+      return t;
+    });
+    await saveTornei(updatedTornei);
 
     setShowModal(true);
   };
@@ -96,7 +91,7 @@ export default function Iscrizioni() {
         </div>
         <nav className="flex gap-4 items-center">
           <a href="/" className="hover:underline font-medium text-white">Home</a>
-          <a href="/tornei" className="hover:underline font-medium text-white">Tornei</a>
+          <a href="/gironi" className="hover:underline font-medium text-white">Gironi</a>
           <a href="/classifica" className="hover:underline font-medium text-white">Classifica</a>
         </nav>
       </header>
@@ -143,16 +138,16 @@ export default function Iscrizioni() {
                     {/* Giocatore 1 */}
                     <div className="space-y-3 bg-gray-50 p-4 rounded-xl border border-gray-100">
                       <h4 className="font-semibold text-gray-800">Giocatore 1 (Referente)</h4>
-                      <input type="text" name="giocatore1" value={formData.giocatore1} onChange={handleChange} required className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" placeholder="Nome e Cognome" />
-                      <input type="email" name="email1" value={formData.email1} onChange={handleChange} required className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" placeholder="Email" />
-                      <input type="tel" name="tel1" value={formData.tel1} onChange={handleChange} required className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" placeholder="Telefono (WhatsApp)" />
+                      <input type="text" name="giocatore1" value={formData.giocatore1} onChange={handleChange} required className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900 bg-white" placeholder="Nome e Cognome" />
+                      <input type="email" name="email1" value={formData.email1} onChange={handleChange} required className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900 bg-white" placeholder="Email" />
+                      <input type="tel" name="tel1" value={formData.tel1} onChange={handleChange} required className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900 bg-white" placeholder="Telefono (WhatsApp)" />
                     </div>
                     {/* Giocatore 2 */}
                     <div className="space-y-3 bg-gray-50 p-4 rounded-xl border border-gray-100">
                       <h4 className="font-semibold text-gray-800">Giocatore 2</h4>
-                      <input type="text" name="giocatore2" value={formData.giocatore2} onChange={handleChange} required className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" placeholder="Nome e Cognome" />
-                      <input type="email" name="email2" value={formData.email2} onChange={handleChange} className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" placeholder="Email (Opzionale)" />
-                      <input type="tel" name="tel2" value={formData.tel2} onChange={handleChange} className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" placeholder="Telefono (Opzionale)" />
+                      <input type="text" name="giocatore2" value={formData.giocatore2} onChange={handleChange} required className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900 bg-white" placeholder="Nome e Cognome" />
+                      <input type="email" name="email2" value={formData.email2} onChange={handleChange} className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900 bg-white" placeholder="Email (Opzionale)" />
+                      <input type="tel" name="tel2" value={formData.tel2} onChange={handleChange} className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900 bg-white" placeholder="Telefono (Opzionale)" />
                     </div>
                   </div>
                 </div>

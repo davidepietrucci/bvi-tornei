@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import AthleteHeader from "@/app/components/AthleteHeader";
+import { getTornei, saveTornei, getIscrizioni, saveIscrizioni } from "@/app/utils/db";
 
 export default function AtletaIscriviti() {
   const router = useRouter();
@@ -23,15 +24,19 @@ export default function AtletaIscriviti() {
       return;
     }
 
-    const saved = localStorage.getItem("bvi_tornei");
-    if (saved) {
-      const allTornei = JSON.parse(saved);
+    const localName = typeof window !== "undefined" ? localStorage.getItem("bvi_atleta_name") : null;
+    const localEmail = typeof window !== "undefined" ? localStorage.getItem("bvi_atleta_email") : null;
+    if (localName) {
+      setFormData(prev => ({ ...prev, giocatore1: localName, email: localEmail || prev.email }));
+    }
+
+    getTornei().then(allTornei => {
       const aperti = allTornei.filter(t => t.stato === "Iscrizioni Aperte");
       setTorneiAperti(aperti);
       if (aperti.length > 0) {
         setFormData(prev => ({ ...prev, torneo: aperti[0].nome }));
       }
-    }
+    });
   }, [router]);
 
   const handleChange = (e) => {
@@ -39,10 +44,9 @@ export default function AtletaIscriviti() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const savedIscrizioni = localStorage.getItem("bvi_iscrizioni");
-    const iscrizioni = savedIscrizioni ? JSON.parse(savedIscrizioni) : [];
+    const iscrizioni = await getIscrizioni();
     const numericIds = iscrizioni.map(i => parseInt(i.id)).filter(id => !isNaN(id));
     const newId = numericIds.length > 0 ? Math.max(...numericIds) + 1 : 100;
     const oggi = new Date();
@@ -60,19 +64,16 @@ export default function AtletaIscriviti() {
     };
 
     const updatedIscrizioni = [...iscrizioni, nuovaIscrizione];
-    localStorage.setItem("bvi_iscrizioni", JSON.stringify(updatedIscrizioni));
+    await saveIscrizioni(updatedIscrizioni);
 
-    const savedTornei = localStorage.getItem("bvi_tornei");
-    if (savedTornei) {
-      const tornei = JSON.parse(savedTornei);
-      const updatedTornei = tornei.map(t => {
-        if (t.nome === formData.torneo) {
-          return { ...t, iscritti: (t.iscritti || 0) + 1 };
-        }
-        return t;
-      });
-      localStorage.setItem("bvi_tornei", JSON.stringify(updatedTornei));
-    }
+    const tornei = await getTornei();
+    const updatedTornei = tornei.map(t => {
+      if (t.nome === formData.torneo) {
+        return { ...t, iscritti: (t.iscritti || 0) + 1 };
+      }
+      return t;
+    });
+    await saveTornei(updatedTornei);
 
     setShowModal(true);
   };

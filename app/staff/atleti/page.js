@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import StaffHeader from "@/app/components/StaffHeader";
+import { getUsers } from "@/app/utils/db";
 
 export default function StaffAtleti() {
   const router = useRouter();
@@ -10,18 +11,20 @@ export default function StaffAtleti() {
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    const savedUsers = localStorage.getItem("bvi_users");
-    if (savedUsers) {
-      setAtleti(JSON.parse(savedUsers));
-    } else {
-        const mock = [
-            { id: "1", nome: "Davide", cognome: "Pietrucci", email: "davide@example.com", dataRegistrazione: "01/01/2024" },
-            { id: "2", nome: "Marco", cognome: "Rossi", email: "marco@example.com", dataRegistrazione: "15/02/2024" }
-        ];
-        setAtleti(mock);
-        localStorage.setItem("bvi_users", JSON.stringify(mock));
+    if (localStorage.getItem("bvi_staff_logged_in") !== "true") {
+      router.push("/staff");
+      return;
     }
-  }, []);
+    const savedRole = localStorage.getItem("bvi_staff_role");
+    if (savedRole !== "admin") {
+      router.push("/staff/dashboard");
+      return;
+    }
+
+    getUsers().then(users => {
+      setAtleti(users);
+    });
+  }, [router]);
 
   const filteredAtleti = atleti.filter(a => {
     const fullName = `${a.nome || ""} ${a.cognome || ""}`.toLowerCase();
@@ -44,7 +47,7 @@ export default function StaffAtleti() {
                 <input 
                     type="text" 
                     placeholder="Cerca per nome o email..." 
-                    className="w-full pl-12 pr-4 py-4 bg-white border-2 border-gray-100 rounded-[1.5rem] focus:border-[#0a1628] outline-none transition-all shadow-xl text-sm font-bold"
+                    className="w-full pl-12 pr-4 py-4 bg-white border-2 border-gray-100 rounded-[1.5rem] focus:border-[#0a1628] outline-none transition-all shadow-xl text-sm font-bold text-gray-900"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />

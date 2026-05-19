@@ -1,13 +1,35 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 
 export default function StaffHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
+  const [role, setRole] = useState("admin");
+
+  useEffect(() => {
+    if (localStorage.getItem("bvi_staff_logged_in") !== "true") {
+      router.push("/staff");
+      return;
+    }
+    const savedRole = localStorage.getItem("bvi_staff_role");
+    if (savedRole) {
+      setRole(savedRole);
+      if (savedRole !== "admin" && pathname === "/staff/atleti") {
+        router.push("/staff/dashboard");
+      }
+    }
+  }, [router, pathname]);
+
+  const handleLogout = (e) => {
+    e.preventDefault();
+    localStorage.removeItem("bvi_staff_logged_in");
+    localStorage.removeItem("bvi_staff_role");
+    router.push("/staff");
+  };
 
   const menuItems = [
     { name: "Dashboard", path: "/staff/dashboard" },
@@ -20,6 +42,13 @@ export default function StaffHeader() {
     { name: "Pagamenti", path: "/staff/pagamenti" },
   ];
 
+  const filteredMenuItems = menuItems.filter(item => {
+    if (role === "staff" && item.name === "Anagrafica Atleti") {
+      return false;
+    }
+    return true;
+  });
+
   return (
     <header className="bg-white py-3 px-4 md:px-8 flex justify-between items-center shadow-md border-b-4 sticky top-0 z-[100]" style={{borderColor: "#0a1628"}}>
       <div className="flex items-center gap-3">
@@ -29,7 +58,7 @@ export default function StaffHeader() {
 
       {/* Desktop Navigation */}
       <nav className="hidden xl:flex gap-1 bg-gray-50 p-1 rounded-xl border border-gray-200">
-        {menuItems.map((item) => (
+        {filteredMenuItems.map((item) => (
           <a
             key={item.path}
             href={item.path}
@@ -45,7 +74,7 @@ export default function StaffHeader() {
       </nav>
 
       <div className="flex items-center gap-4">
-        <a href="/" className="hidden sm:block hover:underline font-bold text-red-500 text-xs uppercase tracking-widest">Esci</a>
+        <button onClick={handleLogout} className="hidden sm:block hover:underline font-bold text-red-500 text-xs uppercase tracking-widest cursor-pointer bg-transparent border-none">Esci</button>
         
         {/* Mobile Menu Button */}
         <button 
@@ -65,7 +94,7 @@ export default function StaffHeader() {
                 <button onClick={() => setIsMenuOpen(false)} className="text-2xl">✕</button>
             </div>
             <nav className="flex flex-col gap-2">
-              {menuItems.map((item) => (
+              {filteredMenuItems.map((item) => (
                 <a
                   key={item.path}
                   href={item.path}
@@ -81,9 +110,9 @@ export default function StaffHeader() {
               ))}
             </nav>
             <div className="mt-auto pt-6 border-t">
-                <a href="/" className="flex items-center justify-center p-4 bg-red-50 text-red-600 rounded-2xl font-black text-xs uppercase tracking-widest">
+                <button onClick={handleLogout} className="w-full flex items-center justify-center p-4 bg-red-50 text-red-600 rounded-2xl font-black text-xs uppercase tracking-widest cursor-pointer border-none">
                     Esci dal Portale
-                </a>
+                </button>
             </div>
           </div>
         </div>

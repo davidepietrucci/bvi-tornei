@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import AthleteHeader from "@/app/components/AthleteHeader";
+import { getIscrizioni } from "@/app/utils/db";
 
 export default function AtletaDashboard() {
   const { data: session, status } = useSession();
@@ -16,17 +17,15 @@ export default function AtletaDashboard() {
       return;
     }
 
-    const saved = localStorage.getItem("bvi_iscrizioni");
-    if (saved) {
-      const allIscrizioni = JSON.parse(saved);
-      const nomeUtente = session?.user?.name || "Davide P.";
-      const mie = allIscrizioni.filter(isc => isc.giocatori.includes(nomeUtente));
+    getIscrizioni().then(allIscrizioni => {
+      const nomeUtente = session?.user?.name || (typeof window !== "undefined" ? localStorage.getItem("bvi_atleta_name") : null) || "Davide Pietrucci";
+      const mie = allIscrizioni.filter(isc => isc.giocatori.toLowerCase().includes(nomeUtente.toLowerCase()));
       setLeMieIscrizioni(mie);
-    } else {
+    }).catch(() => {
       setLeMieIscrizioni([
         { id: "101", data: "Oggi, 10:45", torneo: "Torneo di Ferragosto - Misto 2x2", giocatori: "Davide P. & Elena M.", tel: "333 1234567", stato: "In Attesa" }
       ]);
-    }
+    });
   }, [router, status, session]);
 
   if (status === "loading") return (
@@ -136,11 +135,11 @@ export default function AtletaDashboard() {
               <div className="grid grid-cols-2 gap-6">
                 <a href="/atleta/iscriviti" className="flex flex-col items-center justify-center p-8 rounded-3xl bg-gray-50 border-2 border-transparent hover:border-[#0a1628] hover:bg-white transition-all group">
                   <span className="text-4xl mb-4 group-hover:scale-110 transition-transform">🏆</span>
-                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest group-hover:text-[#0a1628]">Iscriviti</span>
+                  <span className="text-[10px] font-black text-[#0a1628] uppercase tracking-widest">Iscriviti</span>
                 </a>
                 <a href="/atleta/profilo" className="flex flex-col items-center justify-center p-8 rounded-3xl bg-gray-50 border-2 border-transparent hover:border-[#0a1628] hover:bg-white transition-all group">
                   <span className="text-4xl mb-4 group-hover:scale-110 transition-transform">📂</span>
-                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest group-hover:text-[#0a1628]">Documenti</span>
+                  <span className="text-[10px] font-black text-[#0a1628] uppercase tracking-widest">Documenti</span>
                 </a>
               </div>
             </div>
