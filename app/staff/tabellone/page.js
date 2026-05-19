@@ -670,6 +670,17 @@ function TabelloneContent() {
                 <p className="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-widest mt-2">Progressione Automatica Vincitori</p>
             </div>
             <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                <select 
+                    className="flex-1 md:flex-none bg-white border-2 border-gray-100 rounded-xl px-4 py-3 font-bold text-[#0a1628] text-sm shadow-xl"
+                    value={selectedTorneo}
+                    onChange={(e) => setSelectedTorneo(e.target.value)}
+                >
+                    {torneiAttivi.length > 0 ? torneiAttivi.map(t => (
+                        <option key={t.id} value={t.nome}>{t.nome}</option>
+                    )) : (
+                        <option value="">Nessun torneo attivo</option>
+                    )}
+                </select>
                 <select className="flex-1 md:flex-none bg-white border-2 border-gray-100 rounded-xl px-4 py-3 font-bold text-[#0a1628] text-sm shadow-xl" value={phaseType} onChange={e=>setPhaseType(e.target.value)}>
                     <option value="double">Doppia Elim.</option>
                     <option value="gold_silver">Gold & Silver</option>
@@ -680,12 +691,26 @@ function TabelloneContent() {
                       <option value="groups">🔄 Gironi Intermedi + Finali</option>
                   </select>
                 )}
-                <button onClick={handleAutoFill} className="flex-1 md:flex-none bg-[#FFD700] text-[#0a1628] px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all">🔄 GENERA</button>
-                <button onClick={handleSave} className="flex-1 md:flex-none bg-[#10B981] hover:bg-[#059669] text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all">💾 SALVA</button>
+                <button onClick={handleAutoFill} disabled={!selectedTorneo} className="flex-1 md:flex-none bg-[#FFD700] text-[#0a1628] px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all disabled:opacity-50">🔄 GENERA</button>
+                <button onClick={handleSave} disabled={!selectedTorneo} className="flex-1 md:flex-none bg-[#10B981] hover:bg-[#059669] text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all disabled:opacity-50">💾 SALVA</button>
             </div>
         </div>
 
-        {phaseType === "double" ? (
+        {!isLoaded ? (
+            <div className="min-h-[400px] flex items-center justify-center">
+                <div className="w-16 h-16 border-4 border-[#0a1628] border-t-transparent rounded-full animate-spin"></div>
+            </div>
+        ) : torneiAttivi.length === 0 ? (
+            <div className="bg-white p-12 md:p-24 rounded-[3.5rem] shadow-2xl border border-gray-100 text-center relative overflow-hidden mt-10">
+                <div className="relative z-10">
+                    <div className="text-9xl mb-10 inline-block">🏆</div>
+                    <h3 className="text-3xl md:text-5xl font-black text-[#0a1628] uppercase tracking-tighter mb-6">Nessun Torneo Attivo</h3>
+                    <p className="text-gray-400 mb-12 max-w-lg mx-auto text-sm md:text-lg font-bold uppercase tracking-widest leading-relaxed">
+                        Crea un nuovo torneo nella sezione gestione o imposta lo stato su "Iscrizioni Aperte" o "In Programmazione" per configurare il tabellone.
+                    </p>
+                </div>
+            </div>
+        ) : phaseType === "double" ? (
             <div className="space-y-16">
                 {renderSection("wb", "Winners Bracket 🏆", "blue")}
                 <div className="bg-gray-100/30 p-6 md:p-10 rounded-[2.5rem] border border-gray-100">{renderSection("lb", "Losers Bracket 🔄", "silver")}</div>
