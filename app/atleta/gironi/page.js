@@ -34,21 +34,27 @@ export default function AtletaGironi() {
     if (!selectedTorneo) return;
     const slug = selectedTorneo.toLowerCase().trim().replace(/\s+/g, '_');
     
-    getGironi(slug).then(parsed => {
-      if (parsed) {
-        setConfig(parsed);
-        const gDisponibili = parsed.numGironi ? Array.from({ length: parsed.numGironi }, (_, i) => String.fromCharCode(65 + i)) : [];
-        if (gDisponibili.length > 0 && !gDisponibili.includes(activeGirone)) {
-          setActiveGirone(gDisponibili[0]);
+    const fetchLive = () => {
+      getGironi(slug).then(parsed => {
+        if (parsed) {
+          setConfig(parsed);
+          const gDisponibili = parsed.numGironi ? Array.from({ length: parsed.numGironi }, (_, i) => String.fromCharCode(65 + i)) : [];
+          if (gDisponibili.length > 0 && !gDisponibili.includes(activeGirone)) {
+            setActiveGirone(gDisponibili[0]);
+          }
+        } else {
+          setConfig(null);
         }
-      } else {
-        setConfig(null);
-      }
-    });
+      });
 
-    getBracket(slug).then(bSaved => {
-      if (bSaved) setBracketConfig(bSaved); else setBracketConfig(null);
-    });
+      getBracket(slug).then(bSaved => {
+        if (bSaved) setBracketConfig(bSaved); else setBracketConfig(null);
+      });
+    };
+
+    fetchLive();
+    const interval = setInterval(fetchLive, 10000);
+    return () => clearInterval(interval);
   }, [selectedTorneo]);
 
   const getSchedule = (numTeams, gironeId, assignments = {}) => {

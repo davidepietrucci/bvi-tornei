@@ -22,9 +22,16 @@ export default function ClassificaPubblica() {
   useEffect(() => {
     if (!selectedTorneo) return;
     const slug = selectedTorneo.toLowerCase().trim().replace(/\s+/g, '_');
-    getGironi(slug).then(data => {
-      setConfig(data);
-    });
+    
+    const fetchLive = () => {
+      getGironi(slug).then(data => {
+        setConfig(data);
+      });
+    };
+
+    fetchLive();
+    const interval = setInterval(fetchLive, 10000);
+    return () => clearInterval(interval);
   }, [selectedTorneo]);
 
   const calculateRanking = () => {

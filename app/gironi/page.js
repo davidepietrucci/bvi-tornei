@@ -30,13 +30,18 @@ export default function GironiPubblici() {
     setActiveTab("iniziali");
     const slug = getSlug(selectedTorneo);
     
-    getGironi(slug).then(data => {
-      setConfig(data);
-    });
+    const fetchLive = () => {
+      getGironi(slug).then(data => {
+        setConfig(data);
+      });
+      getBracket(slug).then(data => {
+        setBracketConfig(data);
+      });
+    };
 
-    getBracket(slug).then(data => {
-      setBracketConfig(data);
-    });
+    fetchLive();
+    const interval = setInterval(fetchLive, 10000);
+    return () => clearInterval(interval);
   }, [selectedTorneo]);
 
   const gironiDisponibili = config ? Array.from({ length: config.numGironi || 0 }, (_, i) => String.fromCharCode(65 + i)) : [];
