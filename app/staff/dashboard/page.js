@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import StaffHeader from "@/app/components/StaffHeader";
-import { getTornei, getIscrizioni, saveTornei, saveIscrizioni, saveUsers } from "@/app/utils/db";
+import { getTornei, getIscrizioni, saveTornei, saveIscrizioni, saveUsers, saveGironi } from "@/app/utils/db";
 
 export default function StaffDashboard() {
   const router = useRouter();
@@ -53,7 +53,7 @@ export default function StaffDashboard() {
     }
   };
 
-  const handleLoadDemoData = () => {
+  const handleLoadDemoData = async () => {
     if (typeof window !== "undefined" && window.confirm("Vuoi caricare i dati di esempio per testare il sito con dati pre-compilati?")) {
       const mockTornei = [
         { id: 1, nome: "Torneo di Ferragosto", data: "15 Agosto 2026", location: "Ostia Lido (RM)", categoria: "Misto 2x2", stato: "Iscrizioni Aperte", iscritti: 16, maxSquadre: 16 },
@@ -136,10 +136,18 @@ export default function StaffDashboard() {
         }
       };
 
+      // Salva nel database (Cloud o LocalStorage Fallback)
+      await saveTornei(mockTornei);
+      await saveIscrizioni(mockIscrizioni);
+      await saveUsers(mockUsers);
+      await saveGironi("torneo_di_ferragosto", mockGironiConfig);
+
+      // Sincronizza anche localmente per sicurezza/backward compatibility
       localStorage.setItem("bvi_tornei", JSON.stringify(mockTornei));
       localStorage.setItem("bvi_iscrizioni", JSON.stringify(mockIscrizioni));
       localStorage.setItem("bvi_users", JSON.stringify(mockUsers));
       localStorage.setItem("bvi_gironi_v2_torneo_di_ferragosto", JSON.stringify(mockGironiConfig));
+      
       alert("Dati di esempio e risultati dei gironi caricati con successo!");
       window.location.reload();
     }
