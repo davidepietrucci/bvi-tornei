@@ -26,8 +26,7 @@ export default function Home() {
           <h1 className="text-2xl font-bold" style={{color: "#FFD700"}}>BVI Tornei</h1>
         </div>
         <nav className="flex gap-6 items-center">
-          <a href="/gironi" className="hover:underline font-bold text-white hidden sm:block">I Gironi</a>
-          <div className="flex gap-4 border-l border-gray-600 pl-4 ml-2">
+          <div className="flex gap-4">
             <a href="/atleta" className="hover:text-yellow-400 text-sm font-medium text-gray-300 transition-colors">Area Atleta</a>
             <a href="/staff" className="hover:text-yellow-400 text-sm font-medium text-gray-300 transition-colors">Area Staff</a>
           </div>
@@ -61,13 +60,6 @@ export default function Home() {
               style={{backgroundColor: "#0a1628"}}
             >
               📋 Iscriviti Ora
-            </a>
-            <a 
-              href="/gironi" 
-              className="py-4 px-10 rounded-full text-center text-xl font-bold shadow-md hover:shadow-lg hover:-translate-y-1 transition-all bg-white flex items-center justify-center gap-2"
-              style={{border: "2px solid #0a1628", color: "#0a1628"}}
-            >
-              🏆 Guarda i Gironi
             </a>
           </div>
         </div>
