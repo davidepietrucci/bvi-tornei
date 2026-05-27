@@ -49,6 +49,13 @@ export default function StaffPagamenti() {
     salvaModifiche(newData);
   };
 
+  const azzeraPagamento = (id) => {
+    const newData = iscrizioni.map(isc => 
+      isc.id === id ? { ...isc, quotaPagata: 0 } : isc
+    );
+    salvaModifiche(newData);
+  };
+
   const torneiDisponibili = ["Tutti", ...new Set(iscrizioni.map(i => i.torneo))];
 
   const iscrizioniFiltrate = filtroTorneo === "Tutti" 
@@ -137,6 +144,18 @@ export default function StaffPagamenti() {
                 </div>
 
                 <div className="flex gap-2">
+                  {isc.quotaPagata > 0 && (
+                    <button 
+                      onClick={() => {
+                        if (window.confirm(`Sei sicuro di voler azzerare il pagamento per "${isc.giocatori}"?`)) {
+                          azzeraPagamento(isc.id);
+                        }
+                      }}
+                      className="flex-1 md:flex-none bg-red-50 text-red-600 hover:bg-red-100 px-6 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95"
+                    >
+                      Azzera 🔄
+                    </button>
+                  )}
                   {!isSaldato && (
                     <>
                       <button 
