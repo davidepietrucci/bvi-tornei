@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { isUsingFirebase } from "@/app/utils/db";
 
 export default function StaffHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -10,8 +11,11 @@ export default function StaffHeader() {
   const pathname = usePathname();
   const [role, setRole] = useState("admin");
   const [username, setUsername] = useState("");
+  const [dbConnected, setDbConnected] = useState(false);
 
   useEffect(() => {
+    setDbConnected(isUsingFirebase());
+    
     if (localStorage.getItem("bvi_staff_logged_in") !== "true") {
       router.push("/staff");
       return;
@@ -57,7 +61,12 @@ export default function StaffHeader() {
     <header className="bg-white py-3 px-4 md:px-8 flex justify-between items-center shadow-md border-b-4 sticky top-0 z-[100]" style={{borderColor: "#0a1628"}}>
       <div className="flex items-center gap-3">
         <Image src="/logo.png" alt="BVI Logo" width={40} height={40} className="object-contain" />
-        <h1 className="text-xl font-black uppercase tracking-tighter" style={{color: "#0a1628"}}>BVI Staff</h1>
+        <div className="flex flex-col">
+          <h1 className="text-xl font-black uppercase tracking-tighter leading-none" style={{color: "#0a1628"}}>BVI Staff</h1>
+          <span className={`text-[8px] font-black uppercase tracking-widest mt-1 ${dbConnected ? 'text-green-600' : 'text-amber-600'}`}>
+            {dbConnected ? "Database: Cloud ☁️" : "Database: Locale ⚠️"}
+          </span>
+        </div>
       </div>
 
       {/* Desktop Navigation */}
