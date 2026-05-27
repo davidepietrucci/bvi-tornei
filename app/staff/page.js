@@ -26,7 +26,8 @@ export default function StaffLogin() {
     } else if (
       (username === "staff" && password === "staff") ||
       (username === "vale" && password === "bvi2026") ||
-      (username === "davide" && password === "bvi2026")
+      (username === "davide" && password === "bvi2026") ||
+      (username === "fra.b" && password === "Bvi2026")
     ) {
       setError("");
       localStorage.setItem("bvi_staff_logged_in", "true");
