@@ -9,6 +9,7 @@ export default function StaffHeader() {
   const router = useRouter();
   const pathname = usePathname();
   const [role, setRole] = useState("admin");
+  const [username, setUsername] = useState("");
 
   useEffect(() => {
     if (localStorage.getItem("bvi_staff_logged_in") !== "true") {
@@ -22,12 +23,15 @@ export default function StaffHeader() {
         router.push("/staff/dashboard");
       }
     }
+    const savedUsername = localStorage.getItem("bvi_staff_username") || savedRole || "Staff";
+    setUsername(savedUsername);
   }, [router, pathname]);
 
   const handleLogout = (e) => {
     e.preventDefault();
     localStorage.removeItem("bvi_staff_logged_in");
     localStorage.removeItem("bvi_staff_role");
+    localStorage.removeItem("bvi_staff_username");
     router.push("/staff");
   };
 
@@ -74,6 +78,7 @@ export default function StaffHeader() {
       </nav>
 
       <div className="flex items-center gap-4">
+        {username && <span className="text-gray-500 hidden sm:inline text-xs font-bold uppercase tracking-widest">Ciao, {username}</span>}
         <button onClick={handleLogout} className="hidden sm:block hover:underline font-bold text-red-500 text-xs uppercase tracking-widest cursor-pointer bg-transparent border-none">Esci</button>
         
         {/* Mobile Menu Button */}
@@ -109,7 +114,8 @@ export default function StaffHeader() {
                 </a>
               ))}
             </nav>
-            <div className="mt-auto pt-6 border-t">
+            <div className="mt-auto pt-6 border-t flex flex-col gap-2">
+                {username && <span className="text-xs font-bold text-gray-500 text-center uppercase tracking-widest">Ciao, {username}</span>}
                 <button onClick={handleLogout} className="w-full flex items-center justify-center p-4 bg-red-50 text-red-600 rounded-2xl font-black text-xs uppercase tracking-widest cursor-pointer border-none">
                     Esci dal Portale
                 </button>

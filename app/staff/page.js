@@ -22,6 +22,7 @@ export default function StaffLogin() {
       setError("");
       localStorage.setItem("bvi_staff_logged_in", "true");
       localStorage.setItem("bvi_staff_role", "admin");
+      localStorage.setItem("bvi_staff_username", username);
       router.push("/staff/dashboard");
     } else if (
       (username === "staff" && password === "staff") ||
@@ -32,6 +33,7 @@ export default function StaffLogin() {
       setError("");
       localStorage.setItem("bvi_staff_logged_in", "true");
       localStorage.setItem("bvi_staff_role", "staff");
+      localStorage.setItem("bvi_staff_username", username);
       router.push("/staff/dashboard");
     } else {
       setError("Credenziali errate. Riprova.");
