@@ -61,6 +61,13 @@ export default function Home() {
             >
               📋 Iscriviti Ora
             </a>
+            <a 
+              href="/gironi" 
+              className="py-4 px-10 rounded-full text-center text-xl font-bold shadow-md hover:shadow-lg hover:-translate-y-1 transition-all bg-white flex items-center justify-center gap-2"
+              style={{border: "2px solid #0a1628", color: "#0a1628"}}
+            >
+              🏆 Guarda i Gironi
+            </a>
           </div>
         </div>
       </section>
