@@ -498,6 +498,19 @@ function TabelloneContent() {
     alert(`Salvataggio completato! 🏆`);
   };
 
+  const handleDeleteBracket = async () => {
+    if (!window.confirm("Sei sicuro di voler eliminare completamente il tabellone di questo torneo? Tutti i dati inseriti andranno persi.")) return;
+    const slug = selectedTorneo.toLowerCase().trim().replace(/\s+/g, '_');
+    setBracketAssignments({});
+    setBracketMetadata({});
+    setPhaseType("gold_silver");
+    setSubPhaseType("direct");
+    setBracketSize(8);
+    localStorage.removeItem(`bvi_bracket_v1_${slug}`);
+    await saveBracket(slug, null);
+    alert("Tabellone eliminato con successo! 🗑️");
+  };
+
   const handleMetadataChange = (matchId, field, value) => {
     setBracketMetadata(prev => ({ ...prev, [matchId]: { ...(prev[matchId] || {}), [field]: value } }));
   };
@@ -713,6 +726,7 @@ function TabelloneContent() {
                 )}
                 <button onClick={handleAutoFill} disabled={!selectedTorneo} className="flex-1 md:flex-none bg-[#FFD700] text-[#0a1628] px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all disabled:opacity-50">🔄 GENERA</button>
                 <button onClick={handleSave} disabled={!selectedTorneo} className="flex-1 md:flex-none bg-[#10B981] hover:bg-[#059669] text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all disabled:opacity-50">💾 SALVA</button>
+                <button onClick={handleDeleteBracket} disabled={!selectedTorneo} className="flex-1 md:flex-none bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all disabled:opacity-50">🗑️ ELIMINA</button>
             </div>
         </div>
 

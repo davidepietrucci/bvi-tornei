@@ -184,6 +184,43 @@ export default function StaffGironi() {
     alert(`Configurazione salvata per "${selectedTorneo}"! 🏐`);
   };
 
+  const handleRandomizeGironi = () => {
+    if (giocatoriFiltrati.length === 0) {
+      alert("Nessun iscritto approvato per questo torneo!");
+      return;
+    }
+    if (!window.confirm("Sei sicuro di voler mescolare e riassegnare casualmente tutti gli iscritti nei gironi? La configurazione attuale verrà sovrascritta.")) return;
+    
+    // 1. Get and shuffle teams
+    const shuffledTeams = [...giocatoriFiltrati.map(gf => gf.giocatori)];
+    for (let i = shuffledTeams.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledTeams[i], shuffledTeams[j]] = [shuffledTeams[j], shuffledTeams[i]];
+    }
+    
+    // 2. Build new assignments
+    const newAssignments = { ...gironeAssignments };
+    let teamIdx = 0;
+    
+    // Loop through all active gironi
+    const activeGironiIds = allGironi.slice(0, numGironi).map(g => g.id);
+    activeGironiIds.forEach(gid => {
+      const count = teamCounts[gid] || 0;
+      newAssignments[gid] = {};
+      for (let idx = 0; idx < count; idx++) {
+        if (teamIdx < shuffledTeams.length) {
+          newAssignments[gid][idx] = shuffledTeams[teamIdx];
+          teamIdx++;
+        } else {
+          newAssignments[gid][idx] = "—";
+        }
+      }
+    });
+    
+    setGironeAssignments(newAssignments);
+    alert("Sorteggio completato con successo! Ricordati di cliccare su SALVA TUTTO per rendere permanente il sorteggio. 🎲");
+  };
+
   const allGironi = [
     { id: 'A', colorClass: 'blue' },
     { id: 'B', colorClass: 'red' },
@@ -306,8 +343,16 @@ export default function StaffGironi() {
                     )}
                 </select>
                 <button 
+                    onClick={handleRandomizeGironi}
+                    disabled={!selectedTorneo}
+                    className="flex-1 md:flex-none bg-[#FFD700] text-[#0a1628] px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all disabled:opacity-50"
+                >
+                    🎲 Sorteggia Coppie
+                </button>
+                <button 
                     onClick={handleSave}
-                    className="flex-1 md:flex-none bg-[#0a1628] text-white px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all"
+                    disabled={!selectedTorneo}
+                    className="flex-1 md:flex-none bg-[#0a1628] text-white px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all disabled:opacity-50"
                 >
                     Salva Tutto
                 </button>
