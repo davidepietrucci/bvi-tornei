@@ -222,6 +222,7 @@ export default function StaffGironi() {
   };
 
   const handleExportInstagram = () => {
+    if (!selectedTorneo) return;
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
     
@@ -285,7 +286,6 @@ export default function StaffGironi() {
       c.beginPath();
       c.moveTo(x + radius, y);
       c.lineTo(x + width - radius, y);
-      c.quadraticCurveTo(x + width, y, c.arc ? radius : y + radius); // fallback or direct draw
       c.arcTo(x + width, y, x + width, y + radius, radius);
       c.arcTo(x + width, y + height, x + width - radius, y + height, radius);
       c.arcTo(x, y + height, x, y + height - radius, radius);
