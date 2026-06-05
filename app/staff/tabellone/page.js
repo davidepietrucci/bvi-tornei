@@ -333,44 +333,36 @@ function TabelloneContent() {
       const getRankedInt = (rankArr, pos, fallback) => rankArr?.[pos] || fallback;
 
       if (currentNumGoldGironi === 2) {
-        // Gold Semis
         update("gold-s1-L", getRankedInt(gA_rank, 0, "1° Gold A"));
         update("gold-s1-R", getRankedInt(gB_rank, 1, "2° Gold B"));
         update("gold-s2-L", getRankedInt(gB_rank, 0, "1° Gold B"));
         update("gold-s2-R", getRankedInt(gA_rank, 1, "2° Gold A"));
-
-        // Gold Finals
-        update("gold-f1-L", resolveWinner("gold-s1"));
-        update("gold-f1-R", resolveWinner("gold-s2"));
-        update("gold-f3-L", resolveLoser("gold-s1"));
-        update("gold-f3-R", resolveLoser("gold-s2"));
       } else {
-        // Gold Finals direct
-        update("gold-f1-L", getRankedInt(gA_rank, 0, "1° Gold"));
-        update("gold-f1-R", getRankedInt(gA_rank, 1, "2° Gold"));
-        update("gold-f3-L", getRankedInt(gA_rank, 2, "3° Gold"));
-        update("gold-f3-R", getRankedInt(gA_rank, 3, "4° Gold"));
+        update("gold-s1-L", getRankedInt(gA_rank, 0, "1° Gold"));
+        update("gold-s1-R", getRankedInt(gA_rank, 3, "4° Gold"));
+        update("gold-s2-L", getRankedInt(gA_rank, 1, "2° Gold"));
+        update("gold-s2-R", getRankedInt(gA_rank, 2, "3° Gold"));
       }
+      update("gold-f1-L", resolveWinner("gold-s1"));
+      update("gold-f1-R", resolveWinner("gold-s2"));
+      update("gold-f3-L", resolveLoser("gold-s1"));
+      update("gold-f3-R", resolveLoser("gold-s2"));
 
       if (currentNumSilverGironi === 2) {
-        // Silver Semis
         update("silver-s1-L", getRankedInt(sA_rank, 0, "1° Silver A"));
         update("silver-s1-R", getRankedInt(sB_rank, 1, "2° Silver B"));
         update("silver-s2-L", getRankedInt(sB_rank, 0, "1° Silver B"));
         update("silver-s2-R", getRankedInt(sA_rank, 1, "2° Silver A"));
-
-        // Silver Finals
-        update("silver-f1-L", resolveWinner("silver-s1"));
-        update("silver-f1-R", resolveWinner("silver-s2"));
-        update("silver-f3-L", resolveLoser("silver-s1"));
-        update("silver-f3-R", resolveLoser("silver-s2"));
       } else {
-        // Silver Finals direct
-        update("silver-f1-L", getRankedInt(sA_rank, 0, "1° Silver"));
-        update("silver-f1-R", getRankedInt(sA_rank, 1, "2° Silver"));
-        update("silver-f3-L", getRankedInt(sA_rank, 2, "3° Silver"));
-        update("silver-f3-R", getRankedInt(sA_rank, 3, "4° Silver"));
+        update("silver-s1-L", getRankedInt(sA_rank, 0, "1° Silver"));
+        update("silver-s1-R", getRankedInt(sA_rank, 3, "4° Silver"));
+        update("silver-s2-L", getRankedInt(sA_rank, 1, "2° Silver"));
+        update("silver-s2-R", getRankedInt(sA_rank, 2, "3° Silver"));
       }
+      update("silver-f1-L", resolveWinner("silver-s1"));
+      update("silver-f1-R", resolveWinner("silver-s2"));
+      update("silver-f3-L", resolveLoser("silver-s1"));
+      update("silver-f3-R", resolveLoser("silver-s2"));
     }
 
     if (phaseType === "double") {
@@ -730,27 +722,13 @@ function TabelloneContent() {
   };
 
   const renderFinalsForGroups = (p, title, color) => {
-    let slots = 0;
-    for (let i = 0; i < numGironi; i++) {
-      const gid = String.fromCharCode(65 + i);
-      const count = teamCounts[gid] || 0;
-      if (p === "gold") {
-        slots += Math.min(2, count);
-      } else {
-        slots += Math.max(0, count - 2);
-      }
-    }
-    const numTargetGironi = slots > 4 ? 2 : 1;
-
     return (
       <div className="mb-16">
         <h3 className={`text-xl font-black uppercase mb-6 ${color==='gold'?'text-yellow-600':'text-gray-500'}`}>{title}</h3>
-        {numTargetGironi === 2 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-4xl mb-10">
-            <div><h4 className="text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest">Semifinale 1</h4>{renderMatch(`${p}-s1`,'SF1',color)}</div>
-            <div><h4 className="text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest">Semifinale 2</h4>{renderMatch(`${p}-s2`,'SF2',color)}</div>
-          </div>
-        )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-4xl mb-10">
+          <div><h4 className="text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest">Semifinale 1</h4>{renderMatch(`${p}-s1`,'SF1',color)}</div>
+          <div><h4 className="text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest">Semifinale 2</h4>{renderMatch(`${p}-s2`,'SF2',color)}</div>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-4xl">
           <div><h4 className="text-[10px] font-black text-red-400 mb-2 uppercase tracking-widest">Finale 3°/4°</h4>{renderMatch(`${p}-f3`,'BRONZO',color)}</div>
           <div><h4 className="text-[10px] font-black text-yellow-500 mb-2 uppercase tracking-widest">Finale 1°/2°</h4>{renderMatch(`${p}-f1`,'ORO',color)}</div>
