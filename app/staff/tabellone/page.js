@@ -74,6 +74,18 @@ function TabelloneContent() {
   const [bracketMetadata, setBracketMetadata] = useState({});
   const [isLoaded, setIsLoaded] = useState(false);
   const [numGironi, setNumGironi] = useState(4);
+  const [teamCounts, setTeamCounts] = useState({ A: 4, B: 4, C: 4, D: 4, E: 4, F: 4, G: 4, H: 4 });
+
+  let goldSlots = 0;
+  let silverSlots = 0;
+  for (let i = 0; i < numGironi; i++) {
+    const gid = String.fromCharCode(65 + i);
+    const count = teamCounts[gid] || 0;
+    goldSlots += Math.min(2, count);
+    silverSlots += Math.max(0, count - 2);
+  }
+  const numGoldGironi = goldSlots > 4 ? 2 : 1;
+  const numSilverGironi = silverSlots > 4 ? 2 : 1;
 
   useEffect(() => {
     getTornei().then(parsed => {
@@ -93,8 +105,10 @@ function TabelloneContent() {
     getGironi(slug).then(gConfig => {
       if (gConfig) {
         setNumGironi(gConfig.numGironi || 4);
+        setTeamCounts(gConfig.teamCounts || { A: 4, B: 4, C: 4, D: 4, E: 4, F: 4, G: 4, H: 4 });
       } else {
         setNumGironi(4);
+        setTeamCounts({ A: 4, B: 4, C: 4, D: 4, E: 4, F: 4, G: 4, H: 4 });
       }
     });
 
@@ -129,60 +143,6 @@ function TabelloneContent() {
     return () => clearTimeout(handler);
   }, [phaseType, subPhaseType, bracketSize, bracketAssignments, bracketMetadata, selectedTorneo, isLoaded]);
 
-  const getIntermediateRanking = (groupKey) => {
-    const stats = {};
-    const teams = [
-      bracketAssignments[`${groupKey}-0`],
-      bracketAssignments[`${groupKey}-1`],
-      bracketAssignments[`${groupKey}-2`],
-      bracketAssignments[`${groupKey}-3`]
-    ];
-
-    teams.forEach(t => {
-      if (t && t !== "—" && t !== "Slot Libero") {
-        stats[t] = { nome: t, punti: 0, pf: 0, ps: 0 };
-      }
-    });
-
-    const pairMaps = [
-      [0, 3],
-      [1, 2],
-      [0, 2],
-      [1, 3],
-      [0, 1],
-      [2, 3]
-    ];
-
-    pairMaps.forEach((pair, idx) => {
-      const teamL = teams[pair[0]];
-      const teamR = teams[pair[1]];
-      if (!teamL || !teamR || !stats[teamL] || !stats[teamR]) return;
-
-      const mKey = `${groupKey}-m${idx}`;
-      const meta = bracketMetadata[mKey] || {};
-      const s1L = parseInt(meta.scoreL || 0);
-      const s1R = parseInt(meta.scoreR || 0);
-      if (s1L === 0 && s1R === 0) return;
-
-      stats[teamL].pf += s1L;
-      stats[teamR].pf += s1R;
-      stats[teamL].ps += s1R;
-      stats[teamR].ps += s1L;
-
-      if (s1L > s1R) {
-        stats[teamL].punti++;
-      } else {
-        stats[teamR].punti++;
-      }
-    });
-
-    return Object.values(stats).sort((a, b) => {
-      if (b.punti !== a.punti) return b.punti - a.punti;
-      const qzA = a.ps === 0 ? a.pf : a.pf / a.ps;
-      const qzB = b.ps === 0 ? b.pf : b.pf / b.ps;
-      return qzB - qzA;
-    }).map(s => s.nome);
-  };
 
   const getIntermediateGroupStats = (groupKey) => {
     const stats = {};
@@ -248,6 +208,61 @@ function TabelloneContent() {
     const newAssignments = { ...bracketAssignments };
     let changed = false;
 
+    const getIntermediateRanking = (groupKey) => {
+      const stats = {};
+      const teams = [
+        bracketAssignments[`${groupKey}-0`],
+        bracketAssignments[`${groupKey}-1`],
+        bracketAssignments[`${groupKey}-2`],
+        bracketAssignments[`${groupKey}-3`]
+      ];
+
+      teams.forEach(t => {
+        if (t && t !== "—" && t !== "Slot Libero") {
+          stats[t] = { nome: t, punti: 0, pf: 0, ps: 0 };
+        }
+      });
+
+      const pairMaps = [
+        [0, 3],
+        [1, 2],
+        [0, 2],
+        [1, 3],
+        [0, 1],
+        [2, 3]
+      ];
+
+      pairMaps.forEach((pair, idx) => {
+        const teamL = teams[pair[0]];
+        const teamR = teams[pair[1]];
+        if (!teamL || !teamR || !stats[teamL] || !stats[teamR]) return;
+
+        const mKey = `${groupKey}-m${idx}`;
+        const meta = bracketMetadata[mKey] || {};
+        const s1L = parseInt(meta.scoreL || 0);
+        const s1R = parseInt(meta.scoreR || 0);
+        if (s1L === 0 && s1R === 0) return;
+
+        stats[teamL].pf += s1L;
+        stats[teamR].pf += s1R;
+        stats[teamL].ps += s1R;
+        stats[teamR].ps += s1L;
+
+        if (s1L > s1R) {
+          stats[teamL].punti++;
+        } else {
+          stats[teamR].punti++;
+        }
+      });
+
+      return Object.values(stats).sort((a, b) => {
+        if (b.punti !== a.punti) return b.punti - a.punti;
+        const qzA = a.ps === 0 ? a.pf : a.pf / a.ps;
+        const qzB = b.ps === 0 ? b.pf : b.pf / b.ps;
+        return qzB - qzA;
+      }).map(s => s.nome);
+    };
+
     const resolveWinner = (matchId) => {
       const left = bracketAssignments[`${matchId}-L`];
       const right = bracketAssignments[`${matchId}-R`];
@@ -299,14 +314,25 @@ function TabelloneContent() {
     }
 
     if (phaseType === "gold_silver" && subPhaseType === "groups") {
+      let currentGoldSlots = 0;
+      let currentSilverSlots = 0;
+      for (let i = 0; i < numGironi; i++) {
+        const gid = String.fromCharCode(65 + i);
+        const count = teamCounts[gid] || 0;
+        currentGoldSlots += Math.min(2, count);
+        currentSilverSlots += Math.max(0, count - 2);
+      }
+      const currentNumGoldGironi = currentGoldSlots > 4 ? 2 : 1;
+      const currentNumSilverGironi = currentSilverSlots > 4 ? 2 : 1;
+
       const gA_rank = getIntermediateRanking("gold-A");
-      const gB_rank = numGironi === 4 ? getIntermediateRanking("gold-B") : [];
+      const gB_rank = currentNumGoldGironi === 2 ? getIntermediateRanking("gold-B") : [];
       const sA_rank = getIntermediateRanking("silver-A");
-      const sB_rank = numGironi === 4 ? getIntermediateRanking("silver-B") : [];
+      const sB_rank = currentNumSilverGironi === 2 ? getIntermediateRanking("silver-B") : [];
 
       const getRankedInt = (rankArr, pos, fallback) => rankArr?.[pos] || fallback;
 
-      if (numGironi === 4) {
+      if (currentNumGoldGironi === 2) {
         // Gold Semis
         update("gold-s1-L", getRankedInt(gA_rank, 0, "1° Gold A"));
         update("gold-s1-R", getRankedInt(gB_rank, 1, "2° Gold B"));
@@ -318,7 +344,15 @@ function TabelloneContent() {
         update("gold-f1-R", resolveWinner("gold-s2"));
         update("gold-f3-L", resolveLoser("gold-s1"));
         update("gold-f3-R", resolveLoser("gold-s2"));
+      } else {
+        // Gold Finals direct
+        update("gold-f1-L", getRankedInt(gA_rank, 0, "1° Gold"));
+        update("gold-f1-R", getRankedInt(gA_rank, 1, "2° Gold"));
+        update("gold-f3-L", getRankedInt(gA_rank, 2, "3° Gold"));
+        update("gold-f3-R", getRankedInt(gA_rank, 3, "4° Gold"));
+      }
 
+      if (currentNumSilverGironi === 2) {
         // Silver Semis
         update("silver-s1-L", getRankedInt(sA_rank, 0, "1° Silver A"));
         update("silver-s1-R", getRankedInt(sB_rank, 1, "2° Silver B"));
@@ -331,14 +365,7 @@ function TabelloneContent() {
         update("silver-f3-L", resolveLoser("silver-s1"));
         update("silver-f3-R", resolveLoser("silver-s2"));
       } else {
-        // numGironi === 2
-        // Gold Finals
-        update("gold-f1-L", getRankedInt(gA_rank, 0, "1° Gold"));
-        update("gold-f1-R", getRankedInt(gA_rank, 1, "2° Gold"));
-        update("gold-f3-L", getRankedInt(gA_rank, 2, "3° Gold"));
-        update("gold-f3-R", getRankedInt(gA_rank, 3, "4° Gold"));
-
-        // Silver Finals
+        // Silver Finals direct
         update("silver-f1-L", getRankedInt(sA_rank, 0, "1° Silver"));
         update("silver-f1-R", getRankedInt(sA_rank, 1, "2° Silver"));
         update("silver-f3-L", getRankedInt(sA_rank, 2, "3° Silver"));
@@ -356,7 +383,7 @@ function TabelloneContent() {
     }
 
     if (changed) setBracketAssignments(newAssignments);
-  }, [bracketMetadata, bracketAssignments, isLoaded, phaseType, subPhaseType, numGironi]);
+  }, [bracketMetadata, bracketAssignments, isLoaded, phaseType, subPhaseType, numGironi, teamCounts]);
 
   const handleAutoFill = async () => {
     const slug = selectedTorneo.toLowerCase().trim().replace(/\s+/g, '_');
@@ -429,36 +456,82 @@ function TabelloneContent() {
       });
       setBracketMetadata(cleanedMetadata);
 
-      if (numGironi === 2) {
-        newAssignments['gold-A-0'] = getRanked('A', 0);
-        newAssignments['gold-A-1'] = getRanked('B', 0);
-        newAssignments['gold-A-2'] = getRanked('A', 1);
-        newAssignments['gold-A-3'] = getRanked('B', 1);
+      // Clean existing assignments for all gold & silver group slots first
+      for (const p of ["gold", "silver"]) {
+        for (const g of ["A", "B"]) {
+          for (let i = 0; i < 4; i++) {
+            delete newAssignments[`${p}-${g}-${i}`];
+          }
+        }
+      }
 
-        newAssignments['silver-A-0'] = getRanked('A', 2);
-        newAssignments['silver-A-1'] = getRanked('B', 2);
-        newAssignments['silver-A-2'] = getRanked('A', 3);
-        newAssignments['silver-A-3'] = getRanked('B', 3);
-      } else if (numGironi === 4) {
-        newAssignments['gold-A-0'] = getRanked('A', 0);
-        newAssignments['gold-A-1'] = getRanked('B', 1);
-        newAssignments['gold-A-2'] = getRanked('C', 0);
-        newAssignments['gold-A-3'] = getRanked('D', 1);
+      // Calculate dynamically the target groups count
+      let currentGoldSlots = 0;
+      let currentSilverSlots = 0;
+      for (let i = 0; i < numGironi; i++) {
+        const gid = String.fromCharCode(65 + i);
+        const count = gConfig.teamCounts[gid] || 0;
+        currentGoldSlots += Math.min(2, count);
+        currentSilverSlots += Math.max(0, count - 2);
+      }
+      const currentNumGoldGironi = currentGoldSlots > 4 ? 2 : 1;
+      const currentNumSilverGironi = currentSilverSlots > 4 ? 2 : 1;
 
-        newAssignments['gold-B-0'] = getRanked('B', 0);
-        newAssignments['gold-B-1'] = getRanked('A', 1);
-        newAssignments['gold-B-2'] = getRanked('D', 0);
-        newAssignments['gold-B-3'] = getRanked('C', 1);
+      // 1. Gold Assignments
+      const goldFilled = Array(currentNumGoldGironi).fill(0);
+      for (let rank = 0; rank < 2; rank++) {
+        for (let gIdx = 0; gIdx < numGironi; gIdx++) {
+          const gid = String.fromCharCode(65 + gIdx);
+          const count = gConfig.teamCounts[gid] || 0;
+          if (rank < count) {
+            const team = getRanked(gid, rank);
+            const targetGroupIdx = (gIdx + rank) % currentNumGoldGironi;
+            const targetLetter = String.fromCharCode(65 + targetGroupIdx);
+            const slotIdx = goldFilled[targetGroupIdx];
+            if (slotIdx < 4) {
+              newAssignments[`gold-${targetLetter}-${slotIdx}`] = team;
+              goldFilled[targetGroupIdx]++;
+            }
+          }
+        }
+      }
 
-        newAssignments['silver-A-0'] = getRanked('A', 2);
-        newAssignments['silver-A-1'] = getRanked('B', 3);
-        newAssignments['silver-A-2'] = getRanked('C', 2);
-        newAssignments['silver-A-3'] = getRanked('D', 3);
+      // 2. Silver Assignments
+      const silverFilled = Array(currentNumSilverGironi).fill(0);
+      let maxTeams = 0;
+      for (let i = 0; i < numGironi; i++) {
+        const gid = String.fromCharCode(65 + i);
+        maxTeams = Math.max(maxTeams, gConfig.teamCounts[gid] || 0);
+      }
+      for (let rank = 2; rank < maxTeams; rank++) {
+        for (let gIdx = 0; gIdx < numGironi; gIdx++) {
+          const gid = String.fromCharCode(65 + gIdx);
+          const count = gConfig.teamCounts[gid] || 0;
+          if (rank < count) {
+            const team = getRanked(gid, rank);
+            const targetGroupIdx = (gIdx + rank) % currentNumSilverGironi;
+            const targetLetter = String.fromCharCode(65 + targetGroupIdx);
+            const slotIdx = silverFilled[targetGroupIdx];
+            if (slotIdx < 4) {
+              newAssignments[`silver-${targetLetter}-${slotIdx}`] = team;
+              silverFilled[targetGroupIdx]++;
+            }
+          }
+        }
+      }
 
-        newAssignments['silver-B-0'] = getRanked('B', 2);
-        newAssignments['silver-B-1'] = getRanked('A', 3);
-        newAssignments['silver-B-2'] = getRanked('D', 2);
-        newAssignments['silver-B-3'] = getRanked('C', 3);
+      // Pad remainder with "—" up to 4 teams
+      for (let targetGroupIdx = 0; targetGroupIdx < currentNumGoldGironi; targetGroupIdx++) {
+        const targetLetter = String.fromCharCode(65 + targetGroupIdx);
+        for (let slotIdx = goldFilled[targetGroupIdx]; slotIdx < 4; slotIdx++) {
+          newAssignments[`gold-${targetLetter}-${slotIdx}`] = "—";
+        }
+      }
+      for (let targetGroupIdx = 0; targetGroupIdx < currentNumSilverGironi; targetGroupIdx++) {
+        const targetLetter = String.fromCharCode(65 + targetGroupIdx);
+        for (let slotIdx = silverFilled[targetGroupIdx]; slotIdx < 4; slotIdx++) {
+          newAssignments[`silver-${targetLetter}-${slotIdx}`] = "—";
+        }
       }
     } else {
       if (numGironi === 2) {
@@ -657,10 +730,22 @@ function TabelloneContent() {
   };
 
   const renderFinalsForGroups = (p, title, color) => {
+    let slots = 0;
+    for (let i = 0; i < numGironi; i++) {
+      const gid = String.fromCharCode(65 + i);
+      const count = teamCounts[gid] || 0;
+      if (p === "gold") {
+        slots += Math.min(2, count);
+      } else {
+        slots += Math.max(0, count - 2);
+      }
+    }
+    const numTargetGironi = slots > 4 ? 2 : 1;
+
     return (
       <div className="mb-16">
         <h3 className={`text-xl font-black uppercase mb-6 ${color==='gold'?'text-yellow-600':'text-gray-500'}`}>{title}</h3>
-        {numGironi === 4 && (
+        {numTargetGironi === 2 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-4xl mb-10">
             <div><h4 className="text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest">Semifinale 1</h4>{renderMatch(`${p}-s1`,'SF1',color)}</div>
             <div><h4 className="text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest">Semifinale 2</h4>{renderMatch(`${p}-s2`,'SF2',color)}</div>
@@ -759,7 +844,7 @@ function TabelloneContent() {
                 <section>
                   <h2 className="text-2xl md:text-4xl font-black text-yellow-600 uppercase tracking-tighter mb-8">🏆 Gironi Intermedi GOLD</h2>
                   {renderIntermediateGroup("gold-A", "Girone Gold A", "gold")}
-                  {numGironi === 4 && renderIntermediateGroup("gold-B", "Girone Gold B", "gold")}
+                  {numGoldGironi === 2 && renderIntermediateGroup("gold-B", "Girone Gold B", "gold")}
                   {renderFinalsForGroups("gold", "Fasi Finali GOLD 🏆", "gold")}
                 </section>
 
@@ -768,7 +853,7 @@ function TabelloneContent() {
                 <section>
                   <h2 className="text-2xl md:text-4xl font-black text-gray-500 uppercase tracking-tighter mb-8">🥈 Gironi Intermedi SILVER</h2>
                   {renderIntermediateGroup("silver-A", "Girone Silver A", "silver")}
-                  {numGironi === 4 && renderIntermediateGroup("silver-B", "Girone Silver B", "silver")}
+                  {numSilverGironi === 2 && renderIntermediateGroup("silver-B", "Girone Silver B", "silver")}
                   {renderFinalsForGroups("silver", "Fasi Finali SILVER 🥈", "silver")}
                 </section>
             </div>
