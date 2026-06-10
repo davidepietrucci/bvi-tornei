@@ -29,6 +29,43 @@ export default function StaffIscrizioni() {
   // Detail modal for custom fields
   const [selectedIscrizioneDetail, setSelectedIscrizioneDetail] = useState(null);
 
+  // Edit Modal States
+  const [editingIscrizione, setEditingIscrizione] = useState(null);
+  const [editFormData, setEditFormData] = useState({
+    giocatori: "",
+    tel: "",
+    email: ""
+  });
+
+  const startEdit = (req) => {
+    setEditingIscrizione(req);
+    setEditFormData({
+      giocatori: req.giocatori || "",
+      tel: req.tel || "",
+      email: req.email || ""
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editFormData.giocatori.trim()) {
+      alert("Il campo Giocatori non può essere vuoto.");
+      return;
+    }
+    const updated = iscrizioni.map((isc) => 
+      isc.id === editingIscrizione.id 
+        ? { 
+            ...isc, 
+            giocatori: editFormData.giocatori.trim(),
+            tel: editFormData.tel.trim(),
+            email: editFormData.email.trim()
+          } 
+        : isc
+    );
+    setIscrizioni(updated);
+    await saveIscrizioni(updated);
+    setEditingIscrizione(null);
+  };
+
   useEffect(() => {
     getIscrizioni().then(data => {
       setIscrizioni(data);
@@ -360,6 +397,13 @@ export default function StaffIscrizioni() {
 
                         {/* Azioni */}
                         <div className="flex gap-2 md:justify-end md:px-4">
+                            <button 
+                                onClick={() => startEdit(req)}
+                                className="flex-1 md:flex-none h-12 md:w-10 md:h-10 bg-blue-500 text-white rounded-xl font-black text-sm flex items-center justify-center shadow-lg shadow-blue-200 hover:scale-110 active:scale-95 transition-all"
+                                title="Modifica Iscrizione"
+                            >
+                                ✏️
+                            </button>
                             {req.stato === "In Attesa" && (
                                 <button 
                                     onClick={() => handleApprove(req.id)}
@@ -681,6 +725,72 @@ export default function StaffIscrizioni() {
                 className="px-8 py-3 bg-[#0a1628] hover:bg-blue-900 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-lg transition-all"
               >
                 Chiudi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editingIscrizione && (
+        <div className="fixed inset-0 bg-[#0a1628]/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl border border-gray-100 max-w-md w-full p-6 sm:p-10 relative">
+            <button 
+              onClick={() => setEditingIscrizione(null)}
+              className="absolute top-6 right-6 text-gray-400 hover:text-[#0a1628] font-black text-xl w-10 h-10 flex items-center justify-center bg-gray-50 hover:bg-gray-100 rounded-full transition-all"
+            >
+              ✕
+            </button>
+
+            <h3 className="text-2xl font-black text-[#0a1628] uppercase tracking-tight mb-1">Modifica Iscrizione ✏️</h3>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-6">
+              Modifica i dettagli del contatto e dei giocatori
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Nomi Giocatori / Squadra</label>
+                <input 
+                  type="text"
+                  value={editFormData.giocatori}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, giocatori: e.target.value }))}
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 font-bold text-sm text-[#0a1628] outline-none focus:ring-4 focus:ring-blue-500/5 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Recapito Telefonico</label>
+                <input 
+                  type="text"
+                  value={editFormData.tel}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, tel: e.target.value }))}
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 font-bold text-sm text-[#0a1628] outline-none focus:ring-4 focus:ring-blue-500/5 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Indirizzo Email</label>
+                <input 
+                  type="email"
+                  value={editFormData.email}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, email: e.target.value }))}
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 font-bold text-sm text-[#0a1628] outline-none focus:ring-4 focus:ring-blue-500/5 transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="pt-6 border-t border-gray-100 mt-6 flex gap-4">
+              <button
+                onClick={() => setEditingIscrizione(null)}
+                className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 text-[#0a1628] font-black text-xs uppercase tracking-widest rounded-2xl transition-all"
+              >
+                Annulla
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                className="flex-1 py-4 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-lg transition-all"
+              >
+                Salva Modifiche ✅
               </button>
             </div>
           </div>
