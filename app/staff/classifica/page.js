@@ -341,10 +341,14 @@ function ClassificaContent() {
             </select>
         </div>
 
-        {isConcluso ? (
-          renderFinalStandings()
-        ) : (
-          <div className="bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-white">
+        {isConcluso && (
+          <div className="mb-10">
+            {renderFinalStandings()}
+          </div>
+        )}
+
+        <div className="bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-white">
+            {gironiDisponibili.length > 0 && (
               <div className="bg-gray-50/50 p-4 border-b flex gap-2 overflow-x-auto no-scrollbar">
                   {gironiDisponibili.map(g => (
                       <button
@@ -356,64 +360,64 @@ function ClassificaContent() {
                       </button>
                   ))}
               </div>
+            )}
 
-              <div className="overflow-x-auto no-scrollbar">
-                  <table className="w-full text-left min-w-[800px] md:min-w-0">
-                      <thead className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b bg-white">
-                          <tr>
-                              <th className="px-6 py-6">Pos</th>
-                              <th className="px-6 py-6">Squadra</th>
-                              <th className="px-4 py-6 text-center">G</th>
-                              <th className="px-4 py-6 text-center">V / P</th>
-                              <th className="px-4 py-6 text-center">PF</th>
-                              <th className="px-4 py-6 text-center">PS</th>
-                              <th className="px-4 py-6 text-center bg-gray-50/30">Quoz.</th>
-                              <th className="px-6 py-6 text-right">Punti</th>
-                          </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-50">
-                          {rankings.map((team, idx) => {
-                              const quotient = team.puntiSubiti === 0 ? team.puntiFatti : (team.puntiFatti / team.puntiSubiti).toFixed(3);
-                              return (
-                                  <tr key={team.nome} className={`hover:bg-blue-50/20 transition-all ${idx < 2 ? 'bg-yellow-50/30' : ''}`}>
-                                      <td className="px-6 py-6">
-                                          <span className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs shadow-sm ${idx < 2 ? 'bg-yellow-400 text-white' : 'bg-gray-100 text-gray-400'}`}>
-                                              {idx + 1}
-                                          </span>
-                                      </td>
-                                      <td className="px-6 py-6">
-                                          <p className="font-black text-[#0a1628] text-lg leading-none mb-1">{team.nome}</p>
-                                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                                              {idx < 2 ? "Qualificato Gold" : "Qualificato Silver"}
-                                          </p>
-                                      </td>
-                                      <td className="px-4 py-6 text-center font-bold text-gray-400">{team.giocate}</td>
-                                      <td className="px-4 py-6 text-center whitespace-nowrap">
-                                          <span className="text-green-600 font-black">{team.vinte}</span>
-                                          <span className="mx-1 text-gray-200">/</span>
-                                          <span className="text-red-500 font-black">{team.perse}</span>
-                                      </td>
-                                      <td className="px-4 py-6 text-center font-bold text-gray-600">{team.puntiFatti}</td>
-                                      <td className="px-4 py-6 text-center font-bold text-gray-400">{team.puntiSubiti}</td>
-                                      <td className="px-4 py-6 text-center font-black text-[#0a1628] bg-gray-50/30">{quotient}</td>
-                                      <td className="px-6 py-6 text-right">
-                                          <span className="text-3xl font-black text-[#0a1628]">{team.score}</span>
-                                      </td>
-                                  </tr>
-                              );
-                          })}
-                          {rankings.length === 0 && (
-                              <tr>
-                                  <td colSpan="8" className="py-20 text-center text-gray-400 font-bold italic">
-                                      Nessun dato disponibile. Inserisci i risultati nei gironi.
-                                  </td>
-                              </tr>
-                          )}
-                      </tbody>
-                  </table>
-              </div>
-          </div>
-        )}
+            <div className="overflow-x-auto no-scrollbar">
+                <table className="w-full text-left min-w-[800px] md:min-w-0">
+                    <thead className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b bg-white">
+                        <tr>
+                            <th className="px-6 py-6">Pos</th>
+                            <th className="px-6 py-6">Squadra</th>
+                            <th className="px-4 py-6 text-center">G</th>
+                            <th className="px-4 py-6 text-center">V / P</th>
+                            <th className="px-4 py-6 text-center">PF</th>
+                            <th className="px-4 py-6 text-center">PS</th>
+                            <th className="px-4 py-6 text-center bg-gray-50/30">Quoz.</th>
+                            <th className="px-6 py-6 text-right">Punti</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                        {rankings.map((team, idx) => {
+                            const quotient = team.puntiSubiti === 0 ? team.puntiFatti : (team.puntiFatti / team.puntiSubiti).toFixed(3);
+                            return (
+                                <tr key={team.nome} className={`hover:bg-blue-50/20 transition-all ${idx < 2 ? 'bg-yellow-50/30' : ''}`}>
+                                    <td className="px-6 py-6">
+                                        <span className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs shadow-sm ${idx < 2 ? 'bg-yellow-400 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                                            {idx + 1}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-6">
+                                        <p className="font-black text-[#0a1628] text-lg leading-none mb-1">{team.nome}</p>
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                                            {idx < 2 ? "Qualificato Gold" : "Qualificato Silver"}
+                                        </p>
+                                    </td>
+                                    <td className="px-4 py-6 text-center font-bold text-gray-400">{team.giocate}</td>
+                                    <td className="px-4 py-6 text-center whitespace-nowrap">
+                                        <span className="text-green-600 font-black">{team.vinte}</span>
+                                        <span className="mx-1 text-gray-200">/</span>
+                                        <span className="text-red-500 font-black">{team.perse}</span>
+                                    </td>
+                                    <td className="px-4 py-6 text-center font-bold text-gray-600">{team.puntiFatti}</td>
+                                    <td className="px-4 py-6 text-center font-bold text-gray-400">{team.puntiSubiti}</td>
+                                    <td className="px-4 py-6 text-center font-black text-[#0a1628] bg-gray-50/30">{quotient}</td>
+                                    <td className="px-6 py-6 text-right">
+                                        <span className="text-3xl font-black text-[#0a1628]">{team.score}</span>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                        {rankings.length === 0 && (
+                            <tr>
+                                <td colSpan="8" className="py-20 text-center text-gray-400 font-bold italic">
+                                    Nessun dato disponibile. Inserisci i risultati nei gironi.
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </div>
       </div>
     </main>
   );

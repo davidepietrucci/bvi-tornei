@@ -24,9 +24,21 @@ export default function AtletaGironi() {
       router.push("/atleta"); return;
     }
     getTornei().then(parsed => {
-      const attivi = parsed.filter(t => t.stato === "Iscrizioni Aperte" || t.stato === "In Programmazione");
-      setTorneiAttivi(attivi);
-      if (attivi.length > 0) setSelectedTorneo(attivi[0].nome);
+      setTorneiAttivi(parsed);
+      
+      const params = new URLSearchParams(window.location.search);
+      const urlTour = params.get("tour");
+      
+      if (urlTour && parsed.some(t => t.nome === urlTour)) {
+        setSelectedTorneo(urlTour);
+      } else {
+        const attivi = parsed.filter(t => t.stato === "Iscrizioni Aperte" || t.stato === "In Programmazione");
+        if (attivi.length > 0) {
+          setSelectedTorneo(attivi[0].nome);
+        } else if (parsed.length > 0) {
+          setSelectedTorneo(parsed[0].nome);
+        }
+      }
     });
   }, [router, status]);
 
@@ -226,7 +238,7 @@ export default function AtletaGironi() {
     if (!bracketConfig || !bracketConfig.bracketAssignments) return [];
     const assignments = bracketConfig.bracketAssignments;
     const metadata = bracketConfig.bracketMetadata || {};
-    const isGroups = bracketConfig.subPhaseType === "groups";
+    const isGroups = bracketConfig?.subPhaseType === "groups";
 
     const matchIds = Object.keys(assignments)
       .map(k => k.replace(/-L$|-R$/, ''))
@@ -493,7 +505,7 @@ export default function AtletaGironi() {
                 >
                   Gironi Iniziali 📋
                 </button>
-                {bracketConfig.phaseType === "gold_silver" && bracketConfig.subPhaseType === "groups" && (
+                {bracketConfig?.phaseType === "gold_silver" && bracketConfig?.subPhaseType === "groups" && (
                   <button
                     onClick={() => setActiveTab("intermedi")}
                     className={`flex-1 py-3 text-center rounded-xl font-black text-[10px] sm:text-xs uppercase tracking-wider transition-all ${activeTab === "intermedi" ? 'bg-[#0a1628] text-white shadow-md' : 'text-gray-500 hover:text-[#0a1628]'}`}
@@ -628,7 +640,7 @@ export default function AtletaGironi() {
             )}
 
             {/* Gironi Intermedi */}
-            {activeTab === "intermedi" && bracketConfig && bracketConfig.phaseType === "gold_silver" && bracketConfig.subPhaseType === "groups" && (
+            {activeTab === "intermedi" && bracketConfig?.phaseType === "gold_silver" && bracketConfig?.subPhaseType === "groups" && (
               <div className="space-y-12 text-left">
                 <div>
                   <h2 className="text-xl font-black text-yellow-600 uppercase tracking-tighter mb-6 text-center">🏆 Gironi Intermedi GOLD</h2>

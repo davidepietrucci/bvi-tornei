@@ -29,16 +29,20 @@ export default function GironiPubblici() {
 
   useEffect(() => {
     getTornei().then(parsed => {
-      const attivi = parsed.filter(t => t.stato === "Iscrizioni Aperte" || t.stato === "In Programmazione");
-      setTornei(attivi);
+      setTornei(parsed);
       
       const params = new URLSearchParams(window.location.search);
       const urlTour = params.get("tour");
       
-      if (urlTour && attivi.some(t => t.nome === urlTour)) {
+      if (urlTour && parsed.some(t => t.nome === urlTour)) {
         setSelectedTorneo(urlTour);
-      } else if (attivi.length > 0) {
-        setSelectedTorneo(attivi[0].nome);
+      } else {
+        const attivi = parsed.filter(t => t.stato === "Iscrizioni Aperte" || t.stato === "In Programmazione");
+        if (attivi.length > 0) {
+          setSelectedTorneo(attivi[0].nome);
+        } else if (parsed.length > 0) {
+          setSelectedTorneo(parsed[0].nome);
+        }
       }
     });
   }, []);
@@ -72,6 +76,8 @@ export default function GironiPubblici() {
   }, [selectedTorneo]);
 
   const gironiDisponibili = config ? Array.from({ length: config.numGironi || 0 }, (_, i) => String.fromCharCode(65 + i)) : [];
+  const selectedTorneoObj = tornei.find(t => t.nome === selectedTorneo);
+  const isConcluso = selectedTorneoObj?.stato === "Concluso";
 
   const getSchedule = (numTeams, gironeId, assignments = {}) => {
     const getName = (idx) => assignments[idx] && assignments[idx] !== "—" && assignments[idx] !== "Slot Libero" ? assignments[idx] : `Slot ${idx + 1}`;
@@ -487,7 +493,8 @@ export default function GironiPubblici() {
   };
 
   const renderGoldSilverFinals = () => {
-    const isGroups = bracketConfig.subPhaseType === "groups";
+    if (!bracketConfig) return null;
+    const isGroups = bracketConfig?.subPhaseType === "groups";
     
     return (
       <div className="space-y-12">
@@ -518,7 +525,7 @@ export default function GironiPubblici() {
           ) : (
             // Direct Elimination Gold
             <div className="space-y-8">
-              {bracketConfig.bracketSize === 8 && (
+              {bracketConfig?.bracketSize === 8 && (
                 <div>
                   <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Quarti di Finale</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -574,7 +581,7 @@ export default function GironiPubblici() {
           ) : (
             // Direct Elimination Silver
             <div className="space-y-8">
-              {bracketConfig.bracketSize === 8 && (
+              {bracketConfig?.bracketSize === 8 && (
                 <div>
                   <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Quarti di Finale</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -607,6 +614,7 @@ export default function GironiPubblici() {
   };
 
   const renderDoubleEliminationFinals = () => {
+    if (!bracketConfig) return null;
     return (
       <div className="space-y-12">
         {/* Winners Bracket */}
@@ -616,7 +624,7 @@ export default function GironiPubblici() {
             <h3 className="text-base font-black uppercase text-blue-600 tracking-tight">Winners Bracket</h3>
           </div>
           <div className="space-y-6">
-            {bracketConfig.bracketSize === 8 && (
+            {bracketConfig?.bracketSize === 8 && (
               <div>
                 <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Quarti di Finale</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -697,10 +705,17 @@ export default function GironiPubblici() {
       <div className="max-w-4xl mx-auto mt-8 px-4">
         {/* Header Sezione */}
         <div className="mb-10 text-center">
-          <div className="inline-flex items-center gap-2 bg-green-100 text-green-800 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest mb-4">
-            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-            Torneo Attivo
-          </div>
+          {isConcluso ? (
+            <div className="inline-flex items-center gap-2 bg-gray-100 text-gray-800 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest mb-4 border border-gray-200">
+              <span className="w-2 h-2 rounded-full bg-gray-400"></span>
+              Torneo Concluso
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-2 bg-green-100 text-green-800 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest mb-4">
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+              Torneo Attivo
+            </div>
+          )}
           <h2 className="text-4xl md:text-5xl font-black text-[#0a1628] uppercase tracking-tighter">{selectedTorneo || "Nessun Torneo"}</h2>
           <p className="text-gray-500 font-bold mt-2 uppercase text-xs tracking-[0.3em]">Gironi & Calendario</p>
         </div>
@@ -716,7 +731,7 @@ export default function GironiPubblici() {
                 >
                   Gironi Iniziali 📋
                 </button>
-                {bracketConfig.phaseType === "gold_silver" && bracketConfig.subPhaseType === "groups" && (
+                {bracketConfig?.phaseType === "gold_silver" && bracketConfig?.subPhaseType === "groups" && (
                   <button
                     onClick={() => setActiveTab("intermedi")}
                     className={`flex-1 py-3 text-center rounded-xl font-black text-[10px] sm:text-xs uppercase tracking-wider transition-all ${activeTab === "intermedi" ? 'bg-[#0a1628] text-white shadow-md' : 'text-gray-500 hover:text-[#0a1628]'}`}
@@ -847,7 +862,7 @@ export default function GironiPubblici() {
             )}
 
             {/* Gironi Intermedi */}
-            {activeTab === "intermedi" && bracketConfig && bracketConfig.phaseType === "gold_silver" && bracketConfig.subPhaseType === "groups" && (
+            {activeTab === "intermedi" && bracketConfig?.phaseType === "gold_silver" && bracketConfig?.subPhaseType === "groups" && (
               <div className="space-y-12 text-left">
                 <div>
                   <h2 className="text-xl font-black text-yellow-600 uppercase tracking-tighter mb-6 text-center">🏆 Gironi Intermedi GOLD</h2>
@@ -869,7 +884,7 @@ export default function GironiPubblici() {
             {activeTab === "finali" && bracketConfig && (
               <div className="space-y-6 text-left">
                 {bracketMatches.length > 0 ? (
-                  bracketConfig.phaseType === "double" ? (
+                  bracketConfig?.phaseType === "double" ? (
                     renderDoubleEliminationFinals()
                   ) : (
                     renderGoldSilverFinals()
