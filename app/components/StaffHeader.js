@@ -42,6 +42,7 @@ export default function StaffHeader() {
   const menuItems = [
     { name: "Dashboard", path: "/staff/dashboard" },
     { name: "Iscrizioni", path: "/staff/iscrizioni" },
+    { name: "Moduli Iscrizione", path: "/staff/moduli" },
     { name: "Anagrafica Atleti", path: "/staff/atleti" },
     { name: "Tornei", path: "/staff/tornei" },
     { name: "Gironi", path: "/staff/gironi" },

@@ -211,3 +211,38 @@ export async function saveUsers(list) {
     localStorage.setItem("bvi_users", JSON.stringify(list));
   }
 }
+
+// 6. Moduli (Custom Form Configurations)
+export async function getModuli() {
+  if (db) {
+    try {
+      const docRef = doc(db, "config", "moduli");
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        return docSnap.data().list || [];
+      }
+    } catch (e) {
+      console.error("Firestore read moduli error:", e);
+    }
+  }
+  if (typeof window !== "undefined") {
+    const saved = localStorage.getItem("bvi_moduli");
+    return safeJsonParse(saved, []);
+  }
+  return [];
+}
+
+export async function saveModuli(list) {
+  if (db) {
+    try {
+      const docRef = doc(db, "config", "moduli");
+      await setDoc(docRef, { list });
+    } catch (e) {
+      console.error("Firestore write moduli error:", e);
+    }
+  }
+  if (typeof window !== "undefined") {
+    localStorage.setItem("bvi_moduli", JSON.stringify(list));
+  }
+}
+

@@ -3,13 +3,18 @@
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getTornei, getIscrizioni, saveIscrizioni, saveTornei } from "@/app/utils/db";
+import { getTornei, getIscrizioni, saveIscrizioni, saveTornei, getModuli } from "@/app/utils/db";
 
 export default function Iscrizioni() {
   const router = useRouter();
   const [torneiAperti, setTorneiAperti] = useState([]);
+  const [moduli, setModuli] = useState([]);
   const [showModal, setShowModal] = useState(false);
   
+  // Modulo custom attivo (se presente)
+  const [activeModulo, setActiveModulo] = useState(null);
+  
+  // Risposte per i campi standard
   const [formData, setFormData] = useState({
     torneo: "",
     giocatore1: "",
@@ -21,23 +26,71 @@ export default function Iscrizioni() {
     note: ""
   });
 
+  // Risposte per i campi custom
+  const [customAnswers, setCustomAnswers] = useState({});
+
   useEffect(() => {
-    getTornei().then(allTornei => {
+    Promise.all([getTornei(), getModuli()]).then(([allTornei, allModuli]) => {
       // Mostriamo solo i tornei aperti se possibile
       const aperti = allTornei.filter(t => t.stato === "Iscrizioni Aperte" || !t.stato);
       const daMostrare = aperti.length > 0 ? aperti : allTornei;
       
       setTorneiAperti(daMostrare);
+      setModuli(allModuli);
       
       if (daMostrare.length > 0) {
-        setFormData(prev => ({ ...prev, torneo: daMostrare[0].nome }));
+        const firstTorneo = daMostrare[0];
+        setFormData(prev => ({ ...prev, torneo: firstTorneo.nome }));
+        
+        // Verifica modulo custom
+        updateActiveModulo(firstTorneo, allModuli);
       }
     });
   }, []);
 
+  const updateActiveModulo = (torneo, allModuli) => {
+    if (torneo && torneo.moduloIscrizioneId) {
+      const mod = allModuli.find(m => m.id === torneo.moduloIscrizioneId);
+      setActiveModulo(mod || null);
+      if (mod) {
+        const initialAnswers = {};
+        mod.campi.forEach(c => {
+          initialAnswers[c.id] = c.tipo === "checkbox" ? [] : "";
+        });
+        setCustomAnswers(initialAnswers);
+      } else {
+        setCustomAnswers({});
+      }
+    } else {
+      setActiveModulo(null);
+      setCustomAnswers({});
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    
+    if (name === "torneo") {
+      const selectedTorneo = torneiAperti.find(t => t.nome === value);
+      updateActiveModulo(selectedTorneo, moduli);
+    }
+  };
+
+  const handleCustomAnswerChange = (fieldId, val, isCheckbox = false, isChecked = false) => {
+    setCustomAnswers(prev => {
+      if (isCheckbox) {
+        const currentList = prev[fieldId] || [];
+        let newList;
+        if (isChecked) {
+          newList = [...currentList, val];
+        } else {
+          newList = currentList.filter(item => item !== val);
+        }
+        return { ...prev, [fieldId]: newList };
+      }
+      return { ...prev, [fieldId]: val };
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -52,16 +105,94 @@ export default function Iscrizioni() {
     const oggi = new Date();
     const dataFormatted = `${oggi.getDate().toString().padStart(2, '0')}/${(oggi.getMonth() + 1).toString().padStart(2, '0')}/${oggi.getFullYear()}`;
 
+    let giocatoriVal = "";
+    let telVal = "";
+    let emailVal = "";
+    let noteVal = "";
+    let risposteSalvate = null;
+
+    if (activeModulo) {
+      // Validazione risposte campi obbligatori del modulo custom
+      const missingFields = [];
+      activeModulo.campi.forEach(c => {
+        if (c.obbligatorio) {
+          const ans = customAnswers[c.id];
+          if (c.tipo === "checkbox") {
+            if (!ans || ans.length === 0) {
+              missingFields.push(c.label);
+            }
+          } else {
+            if (!ans || ans.toString().trim() === "") {
+              missingFields.push(c.label);
+            }
+          }
+        }
+      });
+
+      if (missingFields.length > 0) {
+        alert("Si prega di completare i seguenti campi obbligatori:\n" + missingFields.map(f => `- ${f}`).join("\n"));
+        return;
+      }
+
+      // Mappatura campi
+      activeModulo.campi.forEach(c => {
+        const val = customAnswers[c.id];
+        const formattedVal = Array.isArray(val) ? val.join(", ") : val;
+        
+        if (c.mappaStato === "giocatori") {
+          giocatoriVal = formattedVal;
+        } else if (c.mappaStato === "tel") {
+          telVal = formattedVal;
+        } else if (c.mappaStato === "email") {
+          emailVal = formattedVal;
+        }
+      });
+
+      // Fallback robusti se manca la mappatura
+      if (!giocatoriVal) {
+        const textCampo = activeModulo.campi.find(c => c.tipo === "text");
+        giocatoriVal = textCampo ? customAnswers[textCampo.id] : "Sconosciuto";
+      }
+      if (!telVal) {
+        const telCampo = activeModulo.campi.find(c => c.tipo === "tel");
+        telVal = telCampo ? customAnswers[telCampo.id] : "Non inserito";
+      }
+      if (!emailVal) {
+        const emailCampo = activeModulo.campi.find(c => c.tipo === "email");
+        emailVal = emailCampo ? customAnswers[emailCampo.id] : "Non inserita";
+      }
+
+      noteVal = "Compilato tramite modulo personalizzato.";
+      
+      risposteSalvate = activeModulo.campi.map(c => {
+        const val = customAnswers[c.id];
+        return {
+          label: c.label,
+          valore: Array.isArray(val) ? val.join(", ") : (val || "")
+        };
+      });
+    } else {
+      // Modulo standard
+      giocatoriVal = `${formData.giocatore1} & ${formData.giocatore2}`;
+      telVal = formData.tel1 || formData.tel2 || "Non inserito";
+      emailVal = formData.email1 || formData.email2 || "Non inserita";
+      noteVal = formData.note;
+    }
+
     const nuovaIscrizione = {
       id: newId.toString(),
       data: dataFormatted,
       torneo: formData.torneo,
-      giocatori: `${formData.giocatore1} & ${formData.giocatore2}`,
-      tel: formData.tel1 || formData.tel2 || "Non inserito",
-      email: formData.email1 || formData.email2 || "Non inserita",
-      note: formData.note,
+      giocatori: giocatoriVal,
+      tel: telVal,
+      email: emailVal,
+      note: noteVal,
       stato: "In Attesa",
-      quotaPagata: 0
+      quotaPagata: 0,
+      ...(activeModulo ? { 
+        moduloIscrizioneId: activeModulo.id,
+        risposte: risposteSalvate
+      } : {})
     };
 
     // Salvataggio
@@ -82,7 +213,7 @@ export default function Iscrizioni() {
   };
 
   return (
-    <main className="min-h-screen pb-12 relative" style={{ backgroundColor: "#f0f4ff" }}>
+    <main className="min-h-screen pb-20 relative" style={{ backgroundColor: "#f0f4ff" }}>
       {/* Header */}
       <header style={{ backgroundColor: "#0a1628" }} className="text-white py-4 px-8 flex justify-between items-center shadow-md">
         <div className="flex items-center gap-3">
@@ -98,41 +229,180 @@ export default function Iscrizioni() {
 
       {/* Form Section */}
       <div className="max-w-3xl mx-auto mt-12 px-4">
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden border-t-4" style={{ borderColor: "#FFD700" }}>
-          <div className="p-8 md:p-12">
-            <h2 className="text-3xl font-extrabold mb-2" style={{ color: "#0a1628" }}>Modulo d'Iscrizione al Torneo 📝</h2>
-            <p className="text-gray-500 mb-8 font-medium">Compila i dati della tua squadra per richiedere la partecipazione. Lo staff valuterà la richiesta e ti invierà la conferma via email o telefono.</p>
+        {torneiAperti.length === 0 ? (
+          <div className="bg-white rounded-2xl shadow-xl overflow-hidden p-8 border-t-4 text-center" style={{ borderColor: "#FFD700" }}>
+            <h3 className="text-xl font-bold text-gray-800 mb-2">Nessun torneo aperto</h3>
+            <p className="text-gray-500">Al momento non ci sono tornei con iscrizioni aperte. Torna a controllare più tardi!</p>
+          </div>
+        ) : (
+          <form className="space-y-6 animate-fade-in" onSubmit={handleSubmit}>
+            {/* Card Selezione Torneo */}
+            <div className="bg-white rounded-2xl shadow-xl p-8 border-t-8" style={{ borderColor: "#0a1628" }}>
+              <h2 className="text-3xl font-extrabold mb-2" style={{ color: "#0a1628" }}>Modulo d'Iscrizione al Torneo 📝</h2>
+              <p className="text-gray-500 mb-6 font-medium text-sm">Seleziona il torneo a cui intendi iscriverti per caricare i dettagli.</p>
+              
+              <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl">
+                <label className="block text-xs font-black text-[#0a1628] uppercase tracking-wider mb-2">Torneo Attivo</label>
+                <select 
+                  name="torneo"
+                  required
+                  value={formData.torneo}
+                  onChange={handleChange}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white font-semibold text-gray-800 shadow-sm cursor-pointer"
+                >
+                  {torneiAperti.map((t, idx) => (
+                    <option key={idx} value={t.nome}>{t.nome} - {t.data} {t.categoria ? `(${t.categoria})` : ''}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
-            {torneiAperti.length === 0 ? (
-               <div className="bg-blue-50 border border-blue-100 p-8 rounded-xl text-center">
-                 <h3 className="text-xl font-bold text-gray-800 mb-2">Nessun torneo aperto</h3>
-                 <p className="text-gray-500">Al momento non ci sono tornei con iscrizioni aperte. Torna a controllare più tardi!</p>
-               </div>
-            ) : (
-              <form className="space-y-6" onSubmit={handleSubmit}>
-                {/* Selezione Torneo */}
-                <div>
-                  <h3 className="text-xl font-bold border-b pb-2 mb-4" style={{ color: "#0a1628" }}>Selezione Torneo</h3>
-                  <div className="grid grid-cols-1 gap-5">
-                    <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl">
-                      <label className="block text-sm font-bold text-[#0a1628] mb-2">Tornei Attivi </label>
-                      <select 
-                        name="torneo"
-                        required
-                        value={formData.torneo}
-                        onChange={handleChange}
-                        className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white font-semibold text-gray-800 shadow-sm cursor-pointer"
-                      >
-                        {torneiAperti.map((t, idx) => (
-                          <option key={idx} value={t.nome}>{t.nome} - {t.data} {t.categoria ? `(${t.categoria})` : ''}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
+            {/* Rendering Modulo Custom o Modulo Standard */}
+            {activeModulo ? (
+              // MODULO PERSONALIZZATO (Google Forms Style)
+              <div className="space-y-6">
+                {/* Dynamic Style Tag for Custom Theme Color */}
+                <style dangerouslySetInnerHTML={{__html: `
+                  .custom-focus-input:focus {
+                    border-color: ${activeModulo.coloreTema || "#673ab7"} !important;
+                  }
+                  .custom-radio-input:checked {
+                    background-color: ${activeModulo.coloreTema || "#673ab7"} !important;
+                    border-color: ${activeModulo.coloreTema || "#673ab7"} !important;
+                  }
+                  .custom-checkbox-input:checked {
+                    background-color: ${activeModulo.coloreTema || "#673ab7"} !important;
+                    border-color: ${activeModulo.coloreTema || "#673ab7"} !important;
+                  }
+                `}} />
+                {/* Intestazione Modulo Custom */}
+                <div className="bg-white rounded-2xl shadow-xl p-8 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 right-0 h-3" style={{ backgroundColor: activeModulo.coloreTema || "#673ab7" }}></div>
+                  <h3 className="text-3xl font-black text-[#0a1628] mb-2">{activeModulo.titolo}</h3>
+                  <p className="text-sm font-medium text-gray-500">{activeModulo.descrizione}</p>
+                  <p className="text-[10px] text-red-500 font-bold mt-4">* Indica un campo obbligatorio</p>
                 </div>
 
+                {/* Domande del Modulo Custom */}
+                {activeModulo.campi.map((campo) => (
+                  <div key={campo.id} className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 relative overflow-hidden space-y-3">
+                    <label className="block text-sm font-bold text-gray-800">
+                      {campo.label} {campo.obbligatorio && <span className="text-red-500 font-bold">*</span>}
+                    </label>
+
+                    {/* Rendering Input specifici in base al tipo */}
+                    {campo.tipo === "text" && (
+                      <input 
+                        type="text" 
+                        required={campo.obbligatorio}
+                        value={customAnswers[campo.id] || ""}
+                        onChange={(e) => handleCustomAnswerChange(campo.id, e.target.value)}
+                        placeholder="La tua risposta"
+                        className="w-full border-b border-gray-200 focus:outline-none py-2 text-sm font-semibold text-gray-800 bg-transparent transition-colors custom-focus-input"
+                      />
+                    )}
+
+                    {campo.tipo === "email" && (
+                      <input 
+                        type="email" 
+                        required={campo.obbligatorio}
+                        value={customAnswers[campo.id] || ""}
+                        onChange={(e) => handleCustomAnswerChange(campo.id, e.target.value)}
+                        placeholder="Nome@esempio.com"
+                        className="w-full border-b border-gray-200 focus:outline-none py-2 text-sm font-semibold text-gray-800 bg-transparent transition-colors custom-focus-input"
+                      />
+                    )}
+
+                    {campo.tipo === "tel" && (
+                      <input 
+                        type="tel" 
+                        required={campo.obbligatorio}
+                        value={customAnswers[campo.id] || ""}
+                        onChange={(e) => handleCustomAnswerChange(campo.id, e.target.value)}
+                        placeholder="Numero di telefono"
+                        className="w-full border-b border-gray-200 focus:outline-none py-2 text-sm font-semibold text-gray-800 bg-transparent transition-colors custom-focus-input"
+                      />
+                    )}
+
+                    {campo.tipo === "number" && (
+                      <input 
+                        type="number" 
+                        required={campo.obbligatorio}
+                        value={customAnswers[campo.id] || ""}
+                        onChange={(e) => handleCustomAnswerChange(campo.id, e.target.value)}
+                        placeholder="Risposta numerica"
+                        className="w-full border-b border-gray-200 focus:outline-none py-2 text-sm font-semibold text-gray-800 bg-transparent transition-colors custom-focus-input"
+                      />
+                    )}
+
+                    {campo.tipo === "textarea" && (
+                      <textarea 
+                        required={campo.obbligatorio}
+                        value={customAnswers[campo.id] || ""}
+                        onChange={(e) => handleCustomAnswerChange(campo.id, e.target.value)}
+                        placeholder="Risposta dettagliata"
+                        rows={3}
+                        className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none text-sm font-semibold text-gray-800 bg-transparent transition-colors resize-none custom-focus-input"
+                      />
+                    )}
+
+                    {campo.tipo === "select" && (
+                      <select 
+                        required={campo.obbligatorio}
+                        value={customAnswers[campo.id] || ""}
+                        onChange={(e) => handleCustomAnswerChange(campo.id, e.target.value)}
+                        className="w-full max-w-xs border border-gray-200 rounded-xl px-4 py-2.5 bg-white text-sm font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-indigo-600 cursor-pointer shadow-sm"
+                      >
+                        <option value="">Scegli opzione</option>
+                        {(campo.opzioni || []).map((opt, oIdx) => (
+                          <option key={oIdx} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    )}
+
+                    {campo.tipo === "radio" && (
+                      <div className="space-y-2 pt-1">
+                        {(campo.opzioni || []).map((opt, oIdx) => (
+                          <label key={oIdx} className="flex items-center gap-3 cursor-pointer group py-1">
+                            <input 
+                              type="radio" 
+                              name={campo.id} 
+                              required={campo.obbligatorio && !customAnswers[campo.id]}
+                              value={opt}
+                              checked={customAnswers[campo.id] === opt}
+                              onChange={() => handleCustomAnswerChange(campo.id, opt)}
+                              className="w-4 h-4 border-gray-300 cursor-pointer custom-radio-input"
+                            />
+                            <span className="text-sm font-semibold text-gray-600 group-hover:text-[#0a1628] transition-colors">{opt}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+
+                    {campo.tipo === "checkbox" && (
+                      <div className="space-y-2 pt-1">
+                        {(campo.opzioni || []).map((opt, oIdx) => (
+                          <label key={oIdx} className="flex items-center gap-3 cursor-pointer group py-1">
+                            <input 
+                              type="checkbox" 
+                              value={opt}
+                              checked={(customAnswers[campo.id] || []).includes(opt)}
+                              onChange={(e) => handleCustomAnswerChange(campo.id, opt, true, e.target.checked)}
+                              className="w-4 h-4 rounded border-gray-300 cursor-pointer custom-checkbox-input"
+                            />
+                            <span className="text-sm font-semibold text-gray-600 group-hover:text-[#0a1628] transition-colors">{opt}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              // MODULO STANDARD
+              <div className="bg-white rounded-2xl shadow-xl overflow-hidden p-8 border-t-4 space-y-6" style={{ borderColor: "#FFD700" }}>
                 {/* Giocatori */}
-                <div className="pt-4">
+                <div>
                   <h3 className="text-xl font-bold border-b pb-2 mb-4" style={{ color: "#0a1628" }}>Anagrafica Giocatori</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Giocatore 1 */}
@@ -157,17 +427,21 @@ export default function Iscrizioni() {
                   <label className="block text-sm font-semibold text-gray-700 mb-1">Note / Richieste per lo Staff</label>
                   <textarea name="note" value={formData.note} onChange={handleChange} rows="3" className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-400" placeholder="Es. Arriveremo con 30 minuti di ritardo..."></textarea>
                 </div>
-
-                {/* Submit */}
-                <div className="pt-6">
-                  <button type="submit" className="w-full py-4 rounded-full font-bold text-white text-lg transition-all shadow-md hover:opacity-90 hover:shadow-lg" style={{ backgroundColor: "#0a1628" }}>
-                    Invia Richiesta di Iscrizione
-                  </button>
-                </div>
-              </form>
+              </div>
             )}
-          </div>
-        </div>
+
+            {/* Invia */}
+            <div className="pt-6">
+              <button 
+                type="submit" 
+                className="w-full py-4 rounded-full font-bold text-white text-lg transition-all shadow-md hover:opacity-90 hover:shadow-lg" 
+                style={{ backgroundColor: activeModulo ? (activeModulo.coloreTema || "#673ab7") : "#0a1628" }}
+              >
+                Invia Richiesta di Iscrizione
+              </button>
+            </div>
+          </form>
+        )}
       </div>
 
       {/* POPUP MODAL DI SUCCESSO */}
@@ -187,7 +461,7 @@ export default function Iscrizioni() {
                 router.push("/");
               }}
               className="w-full py-4 rounded-xl font-bold text-white shadow-md hover:opacity-90 transition-all text-lg"
-              style={{backgroundColor: "#0a1628"}}
+              style={{ backgroundColor: activeModulo ? (activeModulo.coloreTema || "#673ab7") : "#0a1628" }}
             >
               Torna alla Home
             </button>

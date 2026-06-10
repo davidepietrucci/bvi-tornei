@@ -26,6 +26,9 @@ export default function StaffIscrizioni() {
   // Filter by Tournament state
   const [selectedTorneoFilter, setSelectedTorneoFilter] = useState("Tutti");
 
+  // Detail modal for custom fields
+  const [selectedIscrizioneDetail, setSelectedIscrizioneDetail] = useState(null);
+
   useEffect(() => {
     getIscrizioni().then(data => {
       setIscrizioni(data);
@@ -320,9 +323,19 @@ export default function StaffIscrizioni() {
                         {/* Squadra e Torneo */}
                         <div className="mb-4 md:mb-0 md:col-span-2 md:px-4">
                             <h4 className="text-lg font-black text-[#0a1628] leading-tight mb-1">{req.giocatori}</h4>
-                            <span className="inline-block px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-black uppercase border border-blue-100">
-                                {req.torneo}
-                            </span>
+                            <div className="flex flex-wrap gap-1.5 items-center">
+                                <span className="inline-block px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-black uppercase border border-blue-100">
+                                    {req.torneo}
+                                </span>
+                                {req.risposte && req.risposte.length > 0 && (
+                                    <button 
+                                        onClick={() => setSelectedIscrizioneDetail(req)}
+                                        className="px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded text-[9px] font-black uppercase border border-indigo-100 transition-colors"
+                                    >
+                                        📋 Info Modulo
+                                    </button>
+                                )}
+                            </div>
                         </div>
 
                         {/* Contatto */}
@@ -614,6 +627,62 @@ export default function StaffIscrizioni() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Details Modal */}
+      {selectedIscrizioneDetail && (
+        <div className="fixed inset-0 bg-[#0a1628]/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl border border-gray-100 max-w-xl w-full p-6 sm:p-10 relative">
+            <button 
+              onClick={() => setSelectedIscrizioneDetail(null)}
+              className="absolute top-6 right-6 text-gray-400 hover:text-[#0a1628] font-black text-xl w-10 h-10 flex items-center justify-center bg-gray-50 hover:bg-gray-100 rounded-full transition-all"
+            >
+              ✕
+            </button>
+
+            <h3 className="text-2xl font-black text-[#0a1628] uppercase tracking-tight mb-1">Dettagli Iscrizione 📋</h3>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-6">
+              Risposte fornite nel modulo personalizzato
+            </p>
+
+            <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl mb-6">
+               <p className="text-[10px] font-black text-blue-600 uppercase tracking-wider mb-1">Squadra / Atleti</p>
+               <h4 className="text-lg font-black text-[#0a1628]">{selectedIscrizioneDetail.giocatori}</h4>
+               <p className="text-xs text-gray-500 font-bold mt-1 uppercase">Torneo: {selectedIscrizioneDetail.torneo}</p>
+            </div>
+
+            <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2">
+              {selectedIscrizioneDetail.risposte && selectedIscrizioneDetail.risposte.length > 0 ? (
+                selectedIscrizioneDetail.risposte.map((r, rIdx) => (
+                  <div key={rIdx} className="border-b border-gray-100 pb-3 last:border-b-0">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{r.label}</p>
+                    <p className="text-sm font-bold text-[#0a1628] whitespace-pre-wrap">{r.valore || "—"}</p>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center text-xs text-gray-400 py-6 italic font-bold">
+                  Nessuna risposta dettagliata disponibile.
+                </div>
+              )}
+              
+              {selectedIscrizioneDetail.note && (
+                <div className="border-t border-gray-200 pt-3 mt-3">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Note Aggiuntive</p>
+                  <p className="text-sm font-bold text-[#0a1628] whitespace-pre-wrap">{selectedIscrizioneDetail.note}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-6 border-t border-gray-100 mt-6 flex justify-end">
+              <button
+                onClick={() => setSelectedIscrizioneDetail(null)}
+                className="px-8 py-3 bg-[#0a1628] hover:bg-blue-900 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-lg transition-all"
+              >
+                Chiudi
+              </button>
+            </div>
           </div>
         </div>
       )}

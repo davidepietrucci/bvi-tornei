@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import StaffHeader from "@/app/components/StaffHeader";
-import { getTornei, saveTornei } from "@/app/utils/db";
+import { getTornei, saveTornei, getModuli } from "@/app/utils/db";
 
 export default function NuovoTorneo() {
   const router = useRouter();
+  const [moduli, setModuli] = useState([]);
   const [formData, setFormData] = useState({
     nome: "",
     data: "",
@@ -14,8 +15,13 @@ export default function NuovoTorneo() {
     categoria: "Misto 2x2",
     stato: "In Programmazione",
     maxSquadre: 16,
-    quota: 40
+    quota: 40,
+    moduloIscrizioneId: ""
   });
+
+  useEffect(() => {
+    getModuli().then(data => setModuli(data));
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -158,6 +164,21 @@ export default function NuovoTorneo() {
                   className="w-full bg-gray-50 border-none rounded-2xl px-6 py-4 font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] transition-all text-center" 
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Modulo Iscrizione Personalizzato</label>
+              <select 
+                name="moduloIscrizioneId" 
+                value={formData.moduloIscrizioneId} 
+                onChange={handleChange}
+                className="w-full bg-gray-50 border-none rounded-2xl px-6 py-4 font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] transition-all"
+              >
+                <option value="">Standard (Default BVI)</option>
+                {moduli.map(m => (
+                  <option key={m.id} value={m.id}>{m.titolo}</option>
+                ))}
+              </select>
             </div>
 
           </div>

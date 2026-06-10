@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import StaffHeader from "@/app/components/StaffHeader";
-import { getTornei, saveTornei } from "@/app/utils/db";
+import { getTornei, saveTornei, getModuli } from "@/app/utils/db";
 
 export default function ModificaTorneo() {
   const router = useRouter();
@@ -11,12 +11,17 @@ export default function ModificaTorneo() {
   const torneoId = parseInt(params.id);
   
   const [formData, setFormData] = useState(null);
+  const [moduli, setModuli] = useState([]);
 
   useEffect(() => {
-    getTornei().then(tornei => {
+    Promise.all([getTornei(), getModuli()]).then(([tornei, savedModuli]) => {
+      setModuli(savedModuli);
       const torneoToEdit = tornei.find(t => t.id === torneoId);
       if (torneoToEdit) {
-        setFormData(torneoToEdit);
+        setFormData({
+          moduloIscrizioneId: "", // fallback
+          ...torneoToEdit
+        });
       } else {
         router.push("/staff/tornei");
       }
@@ -184,6 +189,21 @@ export default function ModificaTorneo() {
                   className="w-full bg-gray-50 border-none rounded-2xl px-6 py-4 font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] transition-all text-center" 
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Modulo Iscrizione Personalizzato</label>
+              <select 
+                name="moduloIscrizioneId" 
+                value={formData.moduloIscrizioneId || ""} 
+                onChange={handleChange}
+                className="w-full bg-gray-50 border-none rounded-2xl px-6 py-4 font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] transition-all"
+              >
+                <option value="">Standard (Default BVI)</option>
+                {moduli.map(m => (
+                  <option key={m.id} value={m.id}>{m.titolo}</option>
+                ))}
+              </select>
             </div>
 
           </div>
