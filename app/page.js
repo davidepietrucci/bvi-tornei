@@ -96,9 +96,16 @@ export default function Home() {
                     <span className="text-sm font-semibold text-gray-400">{t.data}</span>
                   </div>
                   <h4 className="text-2xl font-black mb-2 leading-tight" style={{color: "#0a1628"}}>{t.nome}</h4>
-                  <p className="text-sm font-bold text-gray-500 mb-6 bg-gray-50 inline-block px-3 py-1 rounded-lg self-start">
-                    {t.categoria || 'Categoria Libera'}
-                  </p>
+                  <div className="flex flex-col gap-2 mb-6">
+                    <span className="text-sm font-bold text-gray-500 bg-gray-50 inline-block px-3 py-1 rounded-lg self-start">
+                      {t.categoria || 'Categoria Libera'}
+                    </span>
+                    {t.location && (
+                      <span className="text-xs text-gray-400 font-semibold flex items-center gap-1.5 pl-1">
+                        📍 {t.location}
+                      </span>
+                    )}
+                  </div>
                   {t.stato === "In Programmazione" ? (
                     <div className="mt-auto pt-6 border-t border-gray-100 flex items-center justify-between gap-3">
                       <span className="text-xs font-black text-red-600 uppercase tracking-wider flex items-center gap-1.5 bg-red-50 px-3 py-2 rounded-xl border border-red-100">
@@ -147,9 +154,16 @@ export default function Home() {
                     <span className="text-sm font-semibold text-gray-400">{t.data}</span>
                   </div>
                   <h4 className="text-2xl font-black mb-2 leading-tight" style={{color: "#0a1628"}}>{t.nome}</h4>
-                  <p className="text-sm font-bold text-gray-500 mb-6 bg-gray-50 inline-block px-3 py-1 rounded-lg self-start">
-                    {t.categoria || 'Categoria Libera'}
-                  </p>
+                  <div className="flex flex-col gap-2 mb-6">
+                    <span className="text-sm font-bold text-gray-500 bg-gray-50 inline-block px-3 py-1 rounded-lg self-start">
+                      {t.categoria || 'Categoria Libera'}
+                    </span>
+                    {t.location && (
+                      <span className="text-xs text-gray-400 font-semibold flex items-center gap-1.5 pl-1">
+                        📍 {t.location}
+                      </span>
+                    )}
+                  </div>
                   <div className="mt-auto pt-6 border-t border-gray-100">
                     <a 
                       href={`/classifica?tour=${encodeURIComponent(t.nome)}`} 
