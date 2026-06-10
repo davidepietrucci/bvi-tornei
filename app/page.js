@@ -12,7 +12,7 @@ export default function Home() {
     // Leggi i tornei dal database per mostrarli in home
     getTornei().then(allTornei => {
       // Mostriamo i tornei che non sono conclusi, dando priorità a quelli "Iscrizioni Aperte"
-      const aperti = allTornei.filter(t => t.stato === "Iscrizioni Aperte" || !t.stato);
+      const aperti = allTornei.filter(t => t.stato === "Iscrizioni Aperte" || t.stato === "In Programmazione" || !t.stato);
       setTorneiAperti(aperti.slice(0, 6)); // Mostriamo un massimo di 6 tornei in home
 
       // Mostriamo i tornei conclusi
@@ -98,24 +98,43 @@ export default function Home() {
               <div key={i} className="bg-white rounded-3xl shadow-md hover:shadow-xl border border-gray-100 overflow-hidden flex flex-col transition-all hover:-translate-y-2">
                 <div className="p-6 flex-1 flex flex-col">
                   <div className="flex justify-between items-start mb-4">
-                    <span className="px-3 py-1 bg-green-100 text-green-800 text-xs font-bold rounded-full uppercase tracking-wider flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                      Iscrizioni Aperte
-                    </span>
+                    {t.stato === "In Programmazione" ? (
+                      <span className="px-3 py-1 bg-red-100 text-red-800 text-xs font-bold rounded-full uppercase tracking-wider flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                        Torneo Live
+                      </span>
+                    ) : (
+                      <span className="px-3 py-1 bg-green-100 text-green-800 text-xs font-bold rounded-full uppercase tracking-wider flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                        Iscrizioni Aperte
+                      </span>
+                    )}
                     <span className="text-sm font-semibold text-gray-400">{t.data}</span>
                   </div>
                   <h4 className="text-2xl font-black mb-2 leading-tight" style={{color: "#0a1628"}}>{t.nome}</h4>
                   <p className="text-sm font-bold text-gray-500 mb-6 bg-gray-50 inline-block px-3 py-1 rounded-lg self-start">
                     {t.categoria || 'Categoria Libera'}
                   </p>
-                  <div className="mt-auto pt-6 border-t border-gray-100 flex flex-col sm:flex-row gap-3">
-                    <a href="/iscrizioni" className="flex-1 py-3 text-center rounded-xl font-bold text-sm text-[#0a1628] hover:bg-gray-50 transition-colors border-2" style={{borderColor: "#0a1628"}}>
-                      📋 Iscriviti
-                    </a>
-                    <a href={`/gironi?tour=${encodeURIComponent(t.nome)}`} className="flex-1 py-3 text-center rounded-xl font-bold text-sm text-white bg-[#0a1628] hover:bg-opacity-90 transition-colors shadow-sm">
-                      🏆 Gironi
-                    </a>
-                  </div>
+                  {t.stato === "In Programmazione" ? (
+                    <div className="mt-auto pt-6 border-t border-gray-100 flex items-center justify-between gap-3">
+                      <span className="text-xs font-black text-red-600 uppercase tracking-wider flex items-center gap-1.5 bg-red-50 px-3 py-2 rounded-xl border border-red-100">
+                        <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>
+                        Torneo Live
+                      </span>
+                      <a href={`/gironi?tour=${encodeURIComponent(t.nome)}`} className="px-6 py-3 rounded-xl font-bold text-sm text-white bg-[#0a1628] hover:bg-opacity-90 transition-colors shadow-sm text-center shrink-0">
+                        🏆 Gironi
+                      </a>
+                    </div>
+                  ) : (
+                    <div className="mt-auto pt-6 border-t border-gray-100 flex flex-col sm:flex-row gap-3">
+                      <a href="/iscrizioni" className="flex-1 py-3 text-center rounded-xl font-bold text-sm text-[#0a1628] hover:bg-gray-50 transition-colors border-2" style={{borderColor: "#0a1628"}}>
+                        📋 Iscriviti
+                      </a>
+                      <a href={`/gironi?tour=${encodeURIComponent(t.nome)}`} className="flex-1 py-3 text-center rounded-xl font-bold text-sm text-white bg-[#0a1628] hover:bg-opacity-90 transition-colors shadow-sm">
+                        🏆 Gironi
+                      </a>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
