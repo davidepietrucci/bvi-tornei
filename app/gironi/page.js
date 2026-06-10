@@ -446,6 +446,238 @@ export default function GironiPubblici() {
       </div>
     );
   };
+
+  const renderBracketMatch = (matchId, customLabel) => {
+    if (!bracketConfig || !bracketConfig.bracketAssignments) return null;
+    const assignments = bracketConfig.bracketAssignments;
+    const metadata = bracketConfig.bracketMetadata || {};
+    
+    const left = assignments[`${matchId}-L`];
+    const right = assignments[`${matchId}-R`];
+    
+    const meta = metadata[matchId] || {};
+    const scoreL = parseInt(meta.scoreL || 0);
+    const scoreR = parseInt(meta.scoreR || 0);
+    const hasScore = meta.scoreL || meta.scoreR;
+    const isWinnerL = hasScore && scoreL > scoreR;
+    const isWinnerR = hasScore && scoreR > scoreL;
+
+    return (
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 transition-all hover:shadow-md text-left">
+        <div className="flex justify-between items-center mb-3 border-b border-gray-50 pb-2">
+          <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{customLabel || matchId.toUpperCase()}</span>
+          <div className="flex gap-1.5">
+            {meta.time && <span className="text-[9px] font-black text-gray-500 bg-gray-50 px-2 py-0.5 rounded">{meta.time}</span>}
+            {meta.court && <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded">C.{meta.court}</span>}
+          </div>
+        </div>
+        
+        <div className="space-y-2">
+          <div className="flex justify-between items-center">
+            <span className={`text-xs uppercase font-bold truncate pr-4 ${isWinnerL ? 'text-[#0a1628] font-black' : 'text-gray-500'}`}>{left || "TBD"}</span>
+            <span className={`text-sm font-black ${isWinnerL ? 'text-green-600' : 'text-gray-400'}`}>{hasScore ? scoreL : "-"}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className={`text-xs uppercase font-bold truncate pr-4 ${isWinnerR ? 'text-[#0a1628] font-black' : 'text-gray-500'}`}>{right || "TBD"}</span>
+            <span className={`text-sm font-black ${isWinnerR ? 'text-green-600' : 'text-gray-400'}`}>{hasScore ? scoreR : "-"}</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderGoldSilverFinals = () => {
+    const isGroups = bracketConfig.subPhaseType === "groups";
+    
+    return (
+      <div className="space-y-12">
+        {/* GOLD CATEGORY */}
+        <div>
+          <div className="flex items-center gap-2 mb-6 border-b pb-2">
+            <span className="text-xl">🏆</span>
+            <h3 className="text-base font-black uppercase text-yellow-600 tracking-tight">Fasi Finali GOLD</h3>
+          </div>
+          
+          {isGroups ? (
+            <div className="space-y-8">
+              <div>
+                <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Semifinali</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {renderBracketMatch("gold-s1", "Semifinale 1")}
+                  {renderBracketMatch("gold-s2", "Semifinale 2")}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Finali</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {renderBracketMatch("gold-f3", "Finale 3°/4° posto")}
+                  {renderBracketMatch("gold-f1", "Finale 1°/2° posto")}
+                </div>
+              </div>
+            </div>
+          ) : (
+            // Direct Elimination Gold
+            <div className="space-y-8">
+              {bracketConfig.bracketSize === 8 && (
+                <div>
+                  <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Quarti di Finale</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {renderBracketMatch("gold-q1", "Quarto 1")}
+                    {renderBracketMatch("gold-q2", "Quarto 2")}
+                    {renderBracketMatch("gold-q3", "Quarto 3")}
+                    {renderBracketMatch("gold-q4", "Quarto 4")}
+                  </div>
+                </div>
+              )}
+              <div>
+                <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Semifinali</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {renderBracketMatch("gold-s1", "Semifinale 1")}
+                  {renderBracketMatch("gold-s2", "Semifinale 2")}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Finali</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {renderBracketMatch("gold-f3", "Finale 3°/4° posto")}
+                  {renderBracketMatch("gold-f1", "Finale 1°/2° posto")}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* SILVER CATEGORY */}
+        <div>
+          <div className="flex items-center gap-2 mb-6 border-b pb-2">
+            <span className="text-xl">🥈</span>
+            <h3 className="text-base font-black uppercase text-gray-500 tracking-tight">Fasi Finali SILVER</h3>
+          </div>
+          
+          {isGroups ? (
+            <div className="space-y-8">
+              <div>
+                <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Semifinali</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {renderBracketMatch("silver-s1", "Semifinale 1")}
+                  {renderBracketMatch("silver-s2", "Semifinale 2")}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Finali</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {renderBracketMatch("silver-f3", "Finale 3°/4° posto")}
+                  {renderBracketMatch("silver-f1", "Finale 1°/2° posto")}
+                </div>
+              </div>
+            </div>
+          ) : (
+            // Direct Elimination Silver
+            <div className="space-y-8">
+              {bracketConfig.bracketSize === 8 && (
+                <div>
+                  <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Quarti di Finale</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {renderBracketMatch("silver-q1", "Quarto 1")}
+                    {renderBracketMatch("silver-q2", "Quarto 2")}
+                    {renderBracketMatch("silver-q3", "Quarto 3")}
+                    {renderBracketMatch("silver-q4", "Quarto 4")}
+                  </div>
+                </div>
+              )}
+              <div>
+                <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Semifinali</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {renderBracketMatch("silver-s1", "Semifinale 1")}
+                  {renderBracketMatch("silver-s2", "Semifinale 2")}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Finali</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {renderBracketMatch("silver-f3", "Finale 3°/4° posto")}
+                  {renderBracketMatch("silver-f1", "Finale 1°/2° posto")}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderDoubleEliminationFinals = () => {
+    return (
+      <div className="space-y-12">
+        {/* Winners Bracket */}
+        <div>
+          <div className="flex items-center gap-2 mb-6 border-b pb-2">
+            <span className="text-xl">🏆</span>
+            <h3 className="text-base font-black uppercase text-blue-600 tracking-tight">Winners Bracket</h3>
+          </div>
+          <div className="space-y-6">
+            {bracketConfig.bracketSize === 8 && (
+              <div>
+                <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Quarti di Finale</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {renderBracketMatch("wb-q1", "Quarto Winners 1")}
+                  {renderBracketMatch("wb-q2", "Quarto Winners 2")}
+                  {renderBracketMatch("wb-q3", "Quarto Winners 3")}
+                  {renderBracketMatch("wb-q4", "Quarto Winners 4")}
+                </div>
+              </div>
+            )}
+            <div>
+              <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Semifinali</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {renderBracketMatch("wb-s1", "Semifinale Winners 1")}
+                {renderBracketMatch("wb-s2", "Semifinale Winners 2")}
+              </div>
+            </div>
+            <div>
+              <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Finale Winners</h4>
+              <div className="max-w-md mx-auto">
+                {renderBracketMatch("wb-f", "Finale Winners")}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Losers Bracket */}
+        <div>
+          <div className="flex items-center gap-2 mb-6 border-b pb-2">
+            <span className="text-xl">🔄</span>
+            <h3 className="text-base font-black uppercase text-gray-500 tracking-tight">Losers Bracket</h3>
+          </div>
+          <div className="space-y-6">
+            <div>
+              <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Semifinali Losers</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {renderBracketMatch("lb-s1", "Semifinale Losers 1")}
+                {renderBracketMatch("lb-s2", "Semifinale Losers 2")}
+              </div>
+            </div>
+            <div>
+              <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Finale Losers</h4>
+              <div className="max-w-md mx-auto">
+                {renderBracketMatch("lb-f", "Finale Losers")}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Grand Final */}
+        <div className="bg-[#0a1628] p-6 rounded-3xl text-white shadow-lg relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-400/10 rounded-full -mr-16 -mt-16"></div>
+          <h3 className="text-base font-black text-[#FFD700] uppercase mb-4 text-center tracking-tight">GRAND FINAL 👑</h3>
+          <div className="max-w-md mx-auto">
+            {renderBracketMatch("grand-final", "Finalissima")}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const schedule = config ? getSchedule(config.teamCounts[activeGirone], activeGirone, config.gironeAssignments[activeGirone] || {}) : [];
   const bracketMatches = getAllBracketMatches();
   const matchMetadata = config?.matchMetadata || {};
@@ -637,38 +869,11 @@ export default function GironiPubblici() {
             {activeTab === "finali" && bracketConfig && (
               <div className="space-y-6 text-left">
                 {bracketMatches.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {bracketMatches.map((m, idx) => {
-                      const scoreL = parseInt(m.scoreL || 0);
-                      const scoreR = parseInt(m.scoreR || 0);
-                      const hasScore = m.scoreL || m.scoreR;
-                      const isWinnerL = hasScore && scoreL > scoreR;
-                      const isWinnerR = hasScore && scoreR > scoreL;
-
-                      return (
-                        <div key={idx} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                          <div className="flex justify-between items-center mb-3 border-b border-gray-50 pb-2">
-                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{m.label}</span>
-                            <div className="flex gap-1.5">
-                              {m.time && <span className="text-[9px] font-black text-gray-500 bg-gray-50 px-2 py-0.5 rounded">{m.time}</span>}
-                              {m.court && <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded">C.{m.court}</span>}
-                            </div>
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-center">
-                              <span className={`text-xs uppercase font-bold truncate pr-4 ${isWinnerL ? 'text-[#0a1628] font-black' : 'text-gray-500'}`}>{m.left || "TBD"}</span>
-                              <span className={`text-sm font-black ${isWinnerL ? 'text-green-600' : 'text-gray-400'}`}>{hasScore ? scoreL : "-"}</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className={`text-xs uppercase font-bold truncate pr-4 ${isWinnerR ? 'text-[#0a1628] font-black' : 'text-gray-500'}`}>{m.right || "TBD"}</span>
-                              <span className={`text-sm font-black ${isWinnerR ? 'text-green-600' : 'text-gray-400'}`}>{hasScore ? scoreR : "-"}</span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  bracketConfig.phaseType === "double" ? (
+                    renderDoubleEliminationFinals()
+                  ) : (
+                    renderGoldSilverFinals()
+                  )
                 ) : (
                   <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-gray-200">
                     <p className="text-gray-400 font-bold italic text-xs">Tabellone non ancora generato per questo torneo.</p>
