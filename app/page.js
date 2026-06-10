@@ -6,6 +6,7 @@ import { getTornei } from "@/app/utils/db";
 
 export default function Home() {
   const [torneiAperti, setTorneiAperti] = useState([]);
+  const [torneiConclusi, setTorneiConclusi] = useState([]);
 
   useEffect(() => {
     // Leggi i tornei dal database per mostrarli in home
@@ -13,6 +14,10 @@ export default function Home() {
       // Mostriamo i tornei che non sono conclusi, dando priorità a quelli "Iscrizioni Aperte"
       const aperti = allTornei.filter(t => t.stato === "Iscrizioni Aperte" || !t.stato);
       setTorneiAperti(aperti.slice(0, 6)); // Mostriamo un massimo di 6 tornei in home
+
+      // Mostriamo i tornei conclusi
+      const conclusi = allTornei.filter(t => t.stato === "Concluso");
+      setTorneiConclusi(conclusi);
     });
   }, []);
 
@@ -114,6 +119,45 @@ export default function Home() {
           </div>
         )}
       </section>
+
+      {/* Sezione Tornei Conclusi */}
+      {torneiConclusi.length > 0 && (
+        <section className="px-4 sm:px-8 pb-24 max-w-6xl mx-auto">
+          <div className="flex items-center gap-4 mb-8 border-b-2 pb-4" style={{borderColor: "#cbd5e1"}}>
+            <span className="text-3xl">🏁</span>
+            <h3 className="text-2xl font-extrabold" style={{color: "#0a1628"}}>
+              Tornei Conclusi
+            </h3>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {torneiConclusi.map((t, i) => (
+              <div key={i} className="bg-white rounded-3xl shadow-md hover:shadow-xl border border-gray-100 overflow-hidden flex flex-col transition-all hover:-translate-y-2">
+                <div className="p-6 flex-1 flex flex-col">
+                  <div className="flex justify-between items-start mb-4">
+                    <span className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-bold rounded-full uppercase tracking-wider flex items-center gap-1">
+                      Concluso
+                    </span>
+                    <span className="text-sm font-semibold text-gray-400">{t.data}</span>
+                  </div>
+                  <h4 className="text-2xl font-black mb-2 leading-tight" style={{color: "#0a1628"}}>{t.nome}</h4>
+                  <p className="text-sm font-bold text-gray-500 mb-6 bg-gray-50 inline-block px-3 py-1 rounded-lg self-start">
+                    {t.categoria || 'Categoria Libera'}
+                  </p>
+                  <div className="mt-auto pt-6 border-t border-gray-100">
+                    <a 
+                      href={`/classifica?tour=${encodeURIComponent(t.nome)}`} 
+                      className="block w-full py-3 text-center rounded-xl font-bold text-sm text-[#0a1628] bg-yellow-400 hover:bg-yellow-500 transition-colors shadow-md"
+                    >
+                      🏆 Vedi Classifica Finale
+                    </a>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
     </main>
   );

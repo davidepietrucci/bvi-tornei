@@ -15,7 +15,15 @@ export default function ClassificaPubblica() {
   useEffect(() => {
     getTornei().then(parsed => {
       setTornei(parsed);
-      if (parsed.length > 0) setSelectedTorneo(parsed[0].nome);
+      
+      const params = new URLSearchParams(window.location.search);
+      const urlTour = params.get("tour");
+      
+      if (urlTour && parsed.some(t => t.nome === urlTour)) {
+        setSelectedTorneo(urlTour);
+      } else if (parsed.length > 0) {
+        setSelectedTorneo(parsed[0].nome);
+      }
       setLoading(false);
     });
   }, []);
@@ -27,6 +35,15 @@ export default function ClassificaPubblica() {
     const fetchLive = () => {
       getGironi(slug).then(data => {
         setConfig(data);
+        if (data) {
+          const gDisponibili = data.numGironi ? Array.from({ length: data.numGironi }, (_, i) => String.fromCharCode(65 + i)) : [];
+          setActiveGirone(prev => {
+            if (gDisponibili.length > 0 && !gDisponibili.includes(prev)) {
+              return gDisponibili[0];
+            }
+            return prev;
+          });
+        }
       });
       getBracket(slug).then(data => {
         setBracketConfig(data);
