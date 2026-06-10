@@ -61,10 +61,10 @@ export async function POST(request) {
       id: newId.toString(),
       data: dataFormatted,
       torneo: matchTorneo.nome,
-      giocatori: giocatori.trim(),
-      tel: tel ? tel.trim() : "Non inserito",
-      email: email ? email.trim() : "Non inserita",
-      note: note ? note.trim() : "Importato tramite webhook Google Forms",
+      giocatori: giocatori ? String(giocatori).trim() : "",
+      tel: tel ? String(tel).trim() : "Non inserito",
+      email: email ? String(email).trim() : "Non inserita",
+      note: note ? String(note).trim() : "Importato tramite webhook Google Forms",
       stato: "In Attesa",
       quotaPagata: 0
     };
