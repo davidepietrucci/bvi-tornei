@@ -58,22 +58,6 @@ export default function Home() {
           <p className="text-lg sm:text-xl text-gray-600 mb-10 font-medium max-w-2xl leading-relaxed">
             Qui puoi iscriverti ai tornei attivi e guardare i risultati in diretta
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto justify-center">
-            <a 
-              href="/iscrizioni" 
-              className="py-4 px-10 rounded-full text-center text-xl font-extrabold text-white hover:-translate-y-1 shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
-              style={{backgroundColor: "#0a1628"}}
-            >
-              📋 Iscriviti Ora
-            </a>
-            <a 
-              href="/gironi" 
-              className="py-4 px-10 rounded-full text-center text-xl font-bold shadow-md hover:shadow-lg hover:-translate-y-1 transition-all bg-white flex items-center justify-center gap-2"
-              style={{border: "2px solid #0a1628", color: "#0a1628"}}
-            >
-              🏆 Guarda i Gironi
-            </a>
-          </div>
         </div>
       </section>
 
