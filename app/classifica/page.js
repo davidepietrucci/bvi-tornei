@@ -11,6 +11,7 @@ export default function ClassificaPubblica() {
   const [config, setConfig] = useState(null);
   const [bracketConfig, setBracketConfig] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [hasUrlTour, setHasUrlTour] = useState(false);
 
   useEffect(() => {
     getTornei().then(parsed => {
@@ -21,6 +22,7 @@ export default function ClassificaPubblica() {
       
       if (urlTour && parsed.some(t => t.nome === urlTour)) {
         setSelectedTorneo(urlTour);
+        setHasUrlTour(true);
       } else if (parsed.length > 0) {
         setSelectedTorneo(parsed[0].nome);
       }
@@ -346,10 +348,14 @@ export default function ClassificaPubblica() {
         <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 mb-10 flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-3">
                 <span className="text-3xl">🏆</span>
-                <select className="bg-transparent text-2xl font-black focus:outline-none"
-                    value={selectedTorneo} onChange={(e) => setSelectedTorneo(e.target.value)}>
-                    {tornei.map(t => <option key={t.id} value={t.nome}>{t.nome}</option>)}
-                </select>
+                {!hasUrlTour ? (
+                  <select className="bg-transparent text-2xl font-black focus:outline-none cursor-pointer uppercase text-[#0a1628]"
+                      value={selectedTorneo} onChange={(e) => setSelectedTorneo(e.target.value)}>
+                      {tornei.map(t => <option key={t.id} value={t.nome}>{t.nome}</option>)}
+                  </select>
+                ) : (
+                  <span className="text-2xl font-black uppercase text-[#0a1628]">{selectedTorneo || "Nessun Torneo"}</span>
+                )}
             </div>
             {!isConcluso && (
               <div className="flex gap-2 bg-gray-100 p-1.5 rounded-2xl">

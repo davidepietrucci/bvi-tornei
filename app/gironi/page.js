@@ -11,6 +11,7 @@ export default function GironiPubblici() {
   const [config, setConfig] = useState(null);
   const [bracketConfig, setBracketConfig] = useState(null);
   const [activeTab, setActiveTab] = useState("iniziali"); // "iniziali", "intermedi", "finali"
+  const [hasUrlTour, setHasUrlTour] = useState(false);
 
   const getSlug = (nomeTorneo) => {
     if (!nomeTorneo) return "";
@@ -27,6 +28,7 @@ export default function GironiPubblici() {
       
       if (urlTour && attivi.some(t => t.nome === urlTour)) {
         setSelectedTorneo(urlTour);
+        setHasUrlTour(true);
       } else if (attivi.length > 0) {
         setSelectedTorneo(attivi[0].nome);
       }
@@ -460,7 +462,7 @@ export default function GironiPubblici() {
             Torneo Attivo
           </div>
           
-          {tornei.length > 1 ? (
+          {tornei.length > 1 && !hasUrlTour ? (
             <div className="relative group mb-3 w-full max-w-xl">
               <div className="absolute inset-0 bg-[#0a1628]/10 rounded-3xl blur-xl opacity-50 group-hover:opacity-75 transition-opacity"></div>
               <select 

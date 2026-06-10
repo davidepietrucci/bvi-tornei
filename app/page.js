@@ -108,9 +108,12 @@ export default function Home() {
                   <p className="text-sm font-bold text-gray-500 mb-6 bg-gray-50 inline-block px-3 py-1 rounded-lg self-start">
                     {t.categoria || 'Categoria Libera'}
                   </p>
-                  <div className="mt-auto pt-6 border-t border-gray-100">
-                    <a href="/iscrizioni" className="block w-full py-3 text-center rounded-xl font-bold text-sm text-[#0a1628] hover:bg-gray-50 transition-colors border-2" style={{borderColor: "#0a1628"}}>
-                      Iscriviti a questo torneo
+                  <div className="mt-auto pt-6 border-t border-gray-100 flex flex-col sm:flex-row gap-3">
+                    <a href="/iscrizioni" className="flex-1 py-3 text-center rounded-xl font-bold text-sm text-[#0a1628] hover:bg-gray-50 transition-colors border-2" style={{borderColor: "#0a1628"}}>
+                      📋 Iscriviti
+                    </a>
+                    <a href={`/gironi?tour=${encodeURIComponent(t.nome)}`} className="flex-1 py-3 text-center rounded-xl font-bold text-sm text-white bg-[#0a1628] hover:bg-opacity-90 transition-colors shadow-sm">
+                      🏆 Gironi
                     </a>
                   </div>
                 </div>
