@@ -221,6 +221,25 @@ export default function StaffGironi() {
     alert("Sorteggio completato con successo! Ricordati di cliccare su SALVA TUTTO per rendere permanente il sorteggio. 🎲");
   };
 
+  const handleDeleteGironi = async () => {
+    if (!selectedTorneo) return;
+    if (!window.confirm("Sei sicuro di voler eliminare completamente i gironi di questo torneo? Tutti i dati e i risultati inseriti andranno persi.")) return;
+    
+    const slug = selectedTorneo.toLowerCase().trim().replace(/\s+/g, '_');
+    
+    setNumGironi(4);
+    setTeamCounts({ A: 4, B: 4, C: 4, D: 4, E: 4, F: 4, G: 4, H: 4 });
+    setGironeTypes({ A: "Pool", B: "Pool", C: "Pool", D: "Pool", E: "Pool", F: "Pool", G: "Pool", H: "Pool" });
+    setGironeSets({ A: "1 set", B: "1 set", C: "1 set", D: "1 set", E: "1 set", F: "1 set", G: "1 set", H: "1 set" });
+    setGironeAssignments({});
+    setMatchMetadata({});
+    
+    localStorage.removeItem(getConfigKey(selectedTorneo));
+    await saveGironi(slug, null);
+    
+    alert("Gironi eliminati con successo! 🗑️");
+  };
+
 
 
   const allGironi = [
@@ -357,6 +376,13 @@ export default function StaffGironi() {
                     className="flex-1 md:flex-none bg-[#0a1628] text-white px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all disabled:opacity-50"
                 >
                     Salva Tutto
+                </button>
+                <button 
+                    onClick={handleDeleteGironi}
+                    disabled={!selectedTorneo}
+                    className="flex-1 md:flex-none bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all disabled:opacity-50"
+                >
+                    🗑️ Elimina
                 </button>
             </div>
         </div>
