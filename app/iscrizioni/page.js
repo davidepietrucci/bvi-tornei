@@ -50,7 +50,7 @@ export default function Iscrizioni() {
 
   const updateActiveModulo = (torneo, allModuli) => {
     if (torneo && torneo.moduloIscrizioneId) {
-      const mod = allModuli.find(m => m.id === torneo.moduloIscrizioneId);
+      const mod = allModuli.find(m => String(m.id) === String(torneo.moduloIscrizioneId));
       setActiveModulo(mod || null);
       if (mod) {
         const initialAnswers = {};

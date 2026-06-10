@@ -16,7 +16,7 @@ export default function ModificaTorneo() {
   useEffect(() => {
     Promise.all([getTornei(), getModuli()]).then(([tornei, savedModuli]) => {
       setModuli(savedModuli);
-      const torneoToEdit = tornei.find(t => t.id === torneoId);
+      const torneoToEdit = tornei.find(t => String(t.id) === String(torneoId));
       if (torneoToEdit) {
         setFormData({
           moduloIscrizioneId: "", // fallback
@@ -33,7 +33,7 @@ export default function ModificaTorneo() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const tornei = await getTornei();
-    const updated = tornei.map(t => t.id === torneoId ? { ...t, ...formData } : t);
+    const updated = tornei.map(t => String(t.id) === String(torneoId) ? { ...t, ...formData } : t);
     await saveTornei(updated);
     router.push("/staff/tornei");
   };
