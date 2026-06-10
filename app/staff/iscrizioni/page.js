@@ -196,6 +196,19 @@ export default function StaffIscrizioni() {
     alert(`Importazione completata con successo! Inserite ${newRegistrations.length} iscrizioni.`);
   };
 
+  const downloadTemplate = () => {
+    const csvHeaders = ["Nomi Giocatori", "Cellulare o Email", "Data"];
+    const csvRow = ["Mario Rossi - Luigi Bianchi", "3331112233", "2026-06-10"];
+    const csvContent = "data:text/csv;charset=utf-8," + [csvHeaders.join(","), csvRow.join(",")].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "template_iscrizioni.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const exportToExcel = () => {
     const targetIscrizioni = selectedTorneoFilter === "Tutti" 
       ? iscrizioni 
@@ -242,7 +255,7 @@ export default function StaffIscrizioni() {
                   onClick={() => setIsImportModalOpen(true)}
                   className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest shadow-lg hover:scale-105 transition-transform"
                 >
-                  🟢 Importa da Google Modulo
+                  🟢 Importa
                 </button>
                 <button 
                   onClick={exportToExcel}
@@ -372,9 +385,9 @@ export default function StaffIscrizioni() {
               ✕
             </button>
 
-            <h3 className="text-2xl font-black text-[#0a1628] uppercase tracking-tight mb-2">Importazione da Google Modulo 🟢</h3>
+            <h3 className="text-2xl font-black text-[#0a1628] uppercase tracking-tight mb-2">Importazione Iscrizioni 🟢</h3>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-6">
-              Carica le risposte del modulo o incolla i dati da Google Sheets
+              Carica un file Excel/CSV o incolla i dati per il torneo selezionato
             </p>
 
             {importStep === 1 ? (
@@ -436,27 +449,45 @@ export default function StaffIscrizioni() {
                   {inputMethod === "paste" ? (
                     <div>
                       <textarea
-                        placeholder="Timestamp	Nomi Atleti	Numero Telefono&#13;19/05/2026 23:00:00	Marco Neri - Fabio Rossi	3331112233&#13;19/05/2026 23:05:00	Alice Gialli - Giulia Verdi	3334445566"
+                        placeholder="Nomi Giocatori	Cellulare o Email	Data&#13;Marco Neri - Fabio Rossi	3331112233	2026-06-10&#13;Alice Gialli - Giulia Verdi	3334445566	2026-06-10"
                         value={pastedText}
                         onChange={(e) => setPastedText(e.target.value)}
                         rows={6}
                         className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-5 font-mono text-xs text-[#0a1628] outline-none focus:ring-4 focus:ring-blue-500/5 transition-all resize-none"
                       ></textarea>
-                      <p className="text-[10px] text-gray-400 font-semibold mt-2">
-                        💡 Seleziona le righe del tuo Google Sheets, copiale (Ctrl+C/Cmd+C) e incollale qui sopra. Le colonne verranno importate intatte!
-                      </p>
+                      <div className="mt-2 flex flex-col gap-2">
+                        <p className="text-[10px] text-gray-400 font-semibold">
+                          💡 Seleziona le colonne dal tuo file Excel/Sheets (es: nomi, contatto, data), copiale (Ctrl+C) e incollale qui sopra.
+                        </p>
+                        <button 
+                          type="button" 
+                          onClick={downloadTemplate}
+                          className="text-left text-[10px] text-blue-600 hover:text-blue-800 font-bold self-start"
+                        >
+                          ⬇️ Scarica Template Excel/CSV (da usare come riferimento)
+                        </button>
+                      </div>
                     </div>
                   ) : (
-                    <div className="border-4 border-dashed border-gray-100 rounded-3xl p-10 text-center bg-gray-50 hover:bg-gray-100/50 transition-all relative">
-                      <input
-                        type="file"
-                        accept=".csv"
-                        onChange={handleFileUpload}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                      />
-                      <span className="text-4xl block mb-2">📁</span>
-                      <p className="text-xs font-bold text-[#0a1628] uppercase tracking-wider mb-1">Trascina o clicca per caricare</p>
-                      <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-widest">File CSV (.csv)</p>
+                    <div className="space-y-4">
+                      <button 
+                        type="button" 
+                        onClick={downloadTemplate}
+                        className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 font-bold"
+                      >
+                        ⬇️ Scarica Template Excel/CSV (da usare come riferimento)
+                      </button>
+                      <div className="border-4 border-dashed border-gray-100 rounded-3xl p-10 text-center bg-gray-50 hover:bg-gray-100/50 transition-all relative">
+                        <input
+                          type="file"
+                          accept=".csv"
+                          onChange={handleFileUpload}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        />
+                        <span className="text-4xl block mb-2">📁</span>
+                        <p className="text-xs font-bold text-[#0a1628] uppercase tracking-wider mb-1">Trascina o clicca per caricare</p>
+                        <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-widest">File CSV (.csv)</p>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -481,7 +512,7 @@ export default function StaffIscrizioni() {
             ) : (
               <div className="space-y-6 text-left">
                 <div className="bg-yellow-50 text-yellow-800 p-4 rounded-2xl text-[10px] font-bold leading-normal">
-                  ⚠️ Mappa le colonne del tuo Google Modulo alle proprietà corrette per completare l'importazione.
+                  ⚠️ Mappa le colonne del tuo file Excel/CSV o testo incollato alle proprietà corrette per completare l'importazione.
                 </div>
 
                 {/* Mapping Selectors */}
