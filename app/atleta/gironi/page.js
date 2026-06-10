@@ -39,9 +39,12 @@ export default function AtletaGironi() {
         if (parsed) {
           setConfig(parsed);
           const gDisponibili = parsed.numGironi ? Array.from({ length: parsed.numGironi }, (_, i) => String.fromCharCode(65 + i)) : [];
-          if (gDisponibili.length > 0 && !gDisponibili.includes(activeGirone)) {
-            setActiveGirone(gDisponibili[0]);
-          }
+          setActiveGirone(prev => {
+            if (gDisponibili.length > 0 && !gDisponibili.includes(prev)) {
+              return gDisponibili[0];
+            }
+            return prev;
+          });
         } else {
           setConfig(null);
         }
