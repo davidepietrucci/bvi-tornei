@@ -13,20 +13,22 @@ export default function MieIscrizioni() {
   const router = useRouter();
 
   useEffect(() => {
-    if (status === "unauthenticated" && localStorage.getItem("bvi_atleta_logged_in") !== "true") {
+    if (status === "unauthenticated") {
       router.push("/atleta");
       return;
     }
 
-    getIscrizioni().then(allIscrizioni => {
-      const nomeUtente = session?.user?.name || (typeof window !== "undefined" ? localStorage.getItem("bvi_atleta_name") : null) || "Davide Pietrucci";
-      const mie = allIscrizioni.filter(isc => isc.giocatori.toLowerCase().includes(nomeUtente.toLowerCase()));
-      setIscrizioni(mie);
-    }).catch(() => {
-      setIscrizioni([
-        { id: "101", data: "15/08/2024", torneo: "Torneo di Ferragosto - Misto 2x2", giocatori: "Davide P. & Elena M.", stato: "In Attesa" }
-      ]);
-    });
+    if (status === "authenticated") {
+      getIscrizioni().then(allIscrizioni => {
+        const nomeUtente = session?.user?.name || "Davide Pietrucci";
+        const mie = allIscrizioni.filter(isc => isc.giocatori.toLowerCase().includes(nomeUtente.toLowerCase()));
+        setIscrizioni(mie);
+      }).catch(() => {
+        setIscrizioni([
+          { id: "101", data: "15/08/2024", torneo: "Torneo di Ferragosto - Misto 2x2", giocatori: "Davide P. & Elena M.", stato: "In Attesa" }
+        ]);
+      });
+    }
   }, [router, status, session]);
 
   const filteredIscrizioni = filter === "Tutte" 

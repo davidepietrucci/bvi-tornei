@@ -1,27 +1,42 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 
 export default function AtletaLogin() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const router = useRouter();
+  const { data: session, status } = useSession();
 
-  const handleLogin = (e) => {
+  useEffect(() => {
+    if (status === "authenticated" && session?.user?.role === "atleta") {
+      router.push("/atleta/dashboard");
+    }
+  }, [session, status, router]);
+
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
 
-    if (username.trim().toLowerCase() === "davide" && password.trim() === "bvi") {
-      localStorage.setItem("bvi_atleta_logged_in", "true");
-      localStorage.setItem("bvi_atleta_name", "Davide Pietrucci");
-      localStorage.setItem("bvi_atleta_email", "davide@example.com");
-      router.push("/atleta/dashboard");
-    } else {
-      setError("Username o password errati");
+    try {
+      const res = await signIn("credentials", {
+        username,
+        password,
+        redirect: false
+      });
+
+      if (res?.error) {
+        setError("Username o password errati");
+      } else {
+        router.push("/atleta/dashboard");
+      }
+    } catch (err) {
+      console.error("Login error:", err);
+      setError("Errore durante il login.");
     }
   };
 

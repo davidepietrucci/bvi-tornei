@@ -16,8 +16,9 @@ const handler = NextAuth({
       },
       async authorize(credentials) {
         const { username, password } = credentials || {};
+        const normalizedUser = username?.trim().toLowerCase();
         
-        // Elenco utenti staff (con credenziali di fallback equivalenti a quelle attuali)
+        // 1. Elenco utenti staff (con credenziali di fallback)
         const staffUsers = [
           { id: "admin", name: "Administrator", username: "admin", password: process.env.STAFF_PASSWORD_ADMIN || "admin", role: "admin" },
           { id: "staff", name: "Staff Member", username: "staff", password: process.env.STAFF_PASSWORD_STAFF || "staff", role: "staff" },
@@ -26,17 +27,49 @@ const handler = NextAuth({
           { id: "fra.b", name: "Francesco B.", username: "fra.b", password: process.env.STAFF_PASSWORD_FRAB || "Bvi2026", role: "staff" }
         ];
 
-        const matchedUser = staffUsers.find(
-          u => u.username === username && u.password === password
+        const matchedStaff = staffUsers.find(
+          u => u.username === normalizedUser && u.password === password
         );
 
-        if (matchedUser) {
+        if (matchedStaff) {
           return {
-            id: matchedUser.id,
-            name: matchedUser.name,
-            username: matchedUser.username,
-            role: matchedUser.role,
+            id: matchedStaff.id,
+            name: matchedStaff.name,
+            username: matchedStaff.username,
+            role: matchedStaff.role,
           };
+        }
+
+        // 2. Utente atleta mock
+        if (normalizedUser === "davide" && password === "bvi") {
+          return {
+            id: "atleta-davide",
+            name: "Davide Pietrucci",
+            username: "davide",
+            email: "davide@example.com",
+            role: "atleta",
+          };
+        }
+
+        // 3. Utenti atleti registrati nel database (con password)
+        try {
+          const { getUsers } = require("@/app/utils/db");
+          const users = await getUsers();
+          const matchedAthlete = users.find(
+            u => (u.email?.toLowerCase() === normalizedUser || u.nome?.toLowerCase() === normalizedUser) && u.password === password
+          );
+
+          if (matchedAthlete) {
+            return {
+              id: matchedAthlete.id,
+              name: `${matchedAthlete.nome} ${matchedAthlete.cognome}`,
+              username: matchedAthlete.nome.toLowerCase(),
+              email: matchedAthlete.email,
+              role: "atleta",
+            };
+          }
+        } catch (e) {
+          console.error("NextAuth authorize db read error:", e);
         }
 
         return null;

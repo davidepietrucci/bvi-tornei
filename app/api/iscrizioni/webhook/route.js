@@ -3,6 +3,18 @@ import { getTornei, saveTornei, getIscrizioni, saveIscrizioni } from "@/app/util
 
 export async function POST(request) {
   try {
+    // Verifica token di sicurezza (Webhook API Key)
+    const { searchParams } = new URL(request.url);
+    const secret = searchParams.get("secret") || request.headers.get("x-webhook-secret");
+    const expectedSecret = process.env.WEBHOOK_SECRET || "bvi_forms_secret_2026";
+
+    if (!secret || secret !== expectedSecret) {
+      return NextResponse.json(
+        { error: "Accesso non autorizzato. Chiave segreta del webhook non valida." },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { torneo, giocatori, tel, email, note } = body;
 

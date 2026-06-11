@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { getUsers, saveUsers } from "@/app/utils/db";
 
 export default function AtletaRegistrati() {
@@ -21,6 +22,7 @@ export default function AtletaRegistrati() {
       nome: formData.nome,
       cognome: formData.cognome,
       email: formData.email,
+      password: formData.password, // Salva la password nel database
       dataRegistrazione: new Date().toLocaleDateString('it-IT')
     };
     
@@ -28,19 +30,27 @@ export default function AtletaRegistrati() {
     const updated = [...existingUsers, newUser];
     await saveUsers(updated);
     
-    localStorage.setItem("bvi_atleta_logged_in", "true");
-    localStorage.setItem("bvi_atleta_name", `${formData.nome} ${formData.cognome}`);
-    localStorage.setItem("bvi_atleta_email", formData.email);
-    
-    router.push("/atleta/dashboard");
+    // Login automatico reale dopo la registrazione
+    try {
+      const res = await signIn("credentials", {
+        username: formData.email,
+        password: formData.password,
+        redirect: false
+      });
+      if (res?.error) {
+        router.push("/atleta");
+      } else {
+        router.push("/atleta/dashboard");
+      }
+    } catch (err) {
+      console.error("Auto login error:", err);
+      router.push("/atleta");
+    }
   };
 
   const handleGoogleAuth = () => {
-    // Simulazione di registrazione/login con Google nel prototipo
-    localStorage.setItem("bvi_atleta_logged_in", "true");
-    localStorage.setItem("bvi_atleta_name", "Davide Pietrucci");
-    localStorage.setItem("bvi_atleta_email", "davide@example.com");
-    router.push("/atleta/dashboard");
+    // Registrazione/Login reali con Google
+    signIn('google', { callbackUrl: '/atleta/dashboard' });
   };
 
   const handleChange = (e) => {

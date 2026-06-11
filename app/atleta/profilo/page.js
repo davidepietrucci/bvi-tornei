@@ -20,19 +20,18 @@ export default function AtletaProfilo() {
   });
 
   useEffect(() => {
-    if (status === "unauthenticated" && localStorage.getItem("bvi_atleta_logged_in") !== "true") {
+    if (status === "unauthenticated") {
       router.push("/atleta");
       return;
     }
     
-    const localName = typeof window !== "undefined" ? localStorage.getItem("bvi_atleta_name") : null;
-    const localEmail = typeof window !== "undefined" ? localStorage.getItem("bvi_atleta_email") : null;
-    
-    setUserData(prev => ({
-      ...prev,
-      name: session?.user?.name || localName || prev.name,
-      email: session?.user?.email || localEmail || prev.email
-    }));
+    if (session?.user) {
+      setUserData(prev => ({
+        ...prev,
+        name: session.user.name || prev.name,
+        email: session.user.email || prev.email
+      }));
+    }
   }, [router, status, session]);
 
   if (status === "loading") return (

@@ -21,7 +21,6 @@ export default function AthleteHeader() {
   ];
 
   const handleLogout = () => {
-    localStorage.removeItem("bvi_atleta_logged_in");
     signOut({ callbackUrl: "/" });
   };
 

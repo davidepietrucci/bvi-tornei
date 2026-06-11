@@ -20,26 +20,29 @@ export default function AtletaGironi() {
   const nomeAtleta = session?.user?.name || "Davide P.";
 
   useEffect(() => {
-    if (status === "unauthenticated" && localStorage.getItem("bvi_atleta_logged_in") !== "true") {
+    if (status === "unauthenticated") {
       router.push("/atleta"); return;
     }
-    getTornei().then(parsed => {
-      setTorneiAttivi(parsed);
-      
-      const params = new URLSearchParams(window.location.search);
-      const urlTour = params.get("tour");
-      
-      if (urlTour && parsed.some(t => t.nome === urlTour)) {
-        setSelectedTorneo(urlTour);
-      } else {
-        const attivi = parsed.filter(t => t.stato === "Iscrizioni Aperte" || t.stato === "In Programmazione");
-        if (attivi.length > 0) {
-          setSelectedTorneo(attivi[0].nome);
-        } else if (parsed.length > 0) {
-          setSelectedTorneo(parsed[0].nome);
+
+    if (status === "authenticated") {
+      getTornei().then(parsed => {
+        setTorneiAttivi(parsed);
+        
+        const params = new URLSearchParams(window.location.search);
+        const urlTour = params.get("tour");
+        
+        if (urlTour && parsed.some(t => t.nome === urlTour)) {
+          setSelectedTorneo(urlTour);
+        } else {
+          const attivi = parsed.filter(t => t.stato === "Iscrizioni Aperte" || t.stato === "In Programmazione");
+          if (attivi.length > 0) {
+            setSelectedTorneo(attivi[0].nome);
+          } else if (parsed.length > 0) {
+            setSelectedTorneo(parsed[0].nome);
+          }
         }
-      }
-    });
+      });
+    }
   }, [router, status]);
 
   useEffect(() => {

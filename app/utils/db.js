@@ -33,75 +33,133 @@ function safeJsonParse(str, fallback) {
   }
 }
 
+// Helper per eseguire chiamate HTTP sicure dal Client verso l'API del Server
+async function fetchFromServerDb(type, slug = null) {
+  let url = `/api/db?type=${type}`;
+  if (slug) url += `&slug=${slug}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Fetch fallito: ${res.statusText}`);
+    const json = await res.json();
+    return json.data;
+  } catch (e) {
+    console.error(`Errore nel caricamento dal server db (${type}):`, e);
+    return null;
+  }
+}
+
+async function saveToServerDb(type, data, slug = null) {
+  let url = `/api/db`;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type, data, slug })
+    });
+    if (!res.ok) throw new Error(`Salvataggio fallito: ${res.statusText}`);
+    const json = await res.json();
+    return json.success;
+  } catch (e) {
+    console.error(`Errore nel salvataggio sul server db (${type}):`, e);
+    return false;
+  }
+}
+
 // Helper to check if using Firestore
 export function isUsingFirebase() {
-  return db !== null;
+  return isFirebaseConfigured;
 }
 
 // 1. Tornei
 export async function getTornei() {
-  if (db) {
-    try {
-      const docRef = doc(db, "config", "tornei");
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        return docSnap.data().list || [];
+  // Se siamo lato server, interroghiamo direttamente Firestore
+  if (typeof window === "undefined") {
+    if (db) {
+      try {
+        const docRef = doc(db, "config", "tornei");
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          return docSnap.data().list || [];
+        }
+      } catch (e) {
+        console.error("Firestore read tornei error:", e);
       }
-    } catch (e) {
-      console.error("Firestore read tornei error:", e);
     }
+    return [];
   }
-  if (typeof window !== "undefined") {
+
+  // Se siamo lato client, passiamo dall'API se Firebase è configurato, altrimenti usiamo localStorage
+  if (isFirebaseConfigured) {
+    const serverData = await fetchFromServerDb("tornei");
+    return serverData || [];
+  } else {
     const saved = localStorage.getItem("bvi_tornei");
     return safeJsonParse(saved, []);
   }
-  return [];
 }
 
 export async function saveTornei(list) {
-  if (db) {
-    try {
-      const docRef = doc(db, "config", "tornei");
-      await setDoc(docRef, { list });
-    } catch (e) {
-      console.error("Firestore write tornei error:", e);
+  if (typeof window === "undefined") {
+    if (db) {
+      try {
+        const docRef = doc(db, "config", "tornei");
+        await setDoc(docRef, { list });
+      } catch (e) {
+        console.error("Firestore write tornei error:", e);
+      }
     }
+    return;
   }
-  if (typeof window !== "undefined") {
+
+  if (isFirebaseConfigured) {
+    await saveToServerDb("tornei", list);
+  } else {
     localStorage.setItem("bvi_tornei", JSON.stringify(list));
   }
 }
 
 // 2. Iscrizioni
 export async function getIscrizioni() {
-  if (db) {
-    try {
-      const docRef = doc(db, "config", "iscrizioni");
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        return docSnap.data().list || [];
+  if (typeof window === "undefined") {
+    if (db) {
+      try {
+        const docRef = doc(db, "config", "iscrizioni");
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          return docSnap.data().list || [];
+        }
+      } catch (e) {
+        console.error("Firestore read iscrizioni error:", e);
       }
-    } catch (e) {
-      console.error("Firestore read iscrizioni error:", e);
     }
+    return [];
   }
-  if (typeof window !== "undefined") {
+
+  if (isFirebaseConfigured) {
+    const serverData = await fetchFromServerDb("iscrizioni");
+    return serverData || [];
+  } else {
     const saved = localStorage.getItem("bvi_iscrizioni");
     return safeJsonParse(saved, []);
   }
-  return [];
 }
 
 export async function saveIscrizioni(list) {
-  if (db) {
-    try {
-      const docRef = doc(db, "config", "iscrizioni");
-      await setDoc(docRef, { list });
-    } catch (e) {
-      console.error("Firestore write iscrizioni error:", e);
+  if (typeof window === "undefined") {
+    if (db) {
+      try {
+        const docRef = doc(db, "config", "iscrizioni");
+        await setDoc(docRef, { list });
+      } catch (e) {
+        console.error("Firestore write iscrizioni error:", e);
+      }
     }
+    return;
   }
-  if (typeof window !== "undefined") {
+
+  if (isFirebaseConfigured) {
+    await saveToServerDb("iscrizioni", list);
+  } else {
     localStorage.setItem("bvi_iscrizioni", JSON.stringify(list));
   }
 }
@@ -109,35 +167,46 @@ export async function saveIscrizioni(list) {
 // 3. Gironi (Tournament specific config)
 export async function getGironi(slug) {
   const key = `bvi_gironi_v2_${slug}`;
-  if (db) {
-    try {
-      const docRef = doc(db, "gironi", slug);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        return docSnap.data().data || null;
+  if (typeof window === "undefined") {
+    if (db) {
+      try {
+        const docRef = doc(db, "gironi", slug);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          return docSnap.data().data || null;
+        }
+      } catch (e) {
+        console.error("Firestore read gironi error:", e);
       }
-    } catch (e) {
-      console.error("Firestore read gironi error:", e);
     }
+    return null;
   }
-  if (typeof window !== "undefined") {
+
+  if (isFirebaseConfigured) {
+    return await fetchFromServerDb("gironi", slug);
+  } else {
     const saved = localStorage.getItem(key);
     return safeJsonParse(saved, null);
   }
-  return null;
 }
 
 export async function saveGironi(slug, data) {
   const key = `bvi_gironi_v2_${slug}`;
-  if (db) {
-    try {
-      const docRef = doc(db, "gironi", slug);
-      await setDoc(docRef, { data });
-    } catch (e) {
-      console.error("Firestore write gironi error:", e);
+  if (typeof window === "undefined") {
+    if (db) {
+      try {
+        const docRef = doc(db, "gironi", slug);
+        await setDoc(docRef, { data });
+      } catch (e) {
+        console.error("Firestore write gironi error:", e);
+      }
     }
+    return;
   }
-  if (typeof window !== "undefined") {
+
+  if (isFirebaseConfigured) {
+    await saveToServerDb("gironi", data, slug);
+  } else {
     localStorage.setItem(key, JSON.stringify(data));
   }
 }
@@ -145,104 +214,138 @@ export async function saveGironi(slug, data) {
 // 4. Bracket (Tournament specific playoff/bracket matches)
 export async function getBracket(slug) {
   const key = `bvi_bracket_v1_${slug}`;
-  if (db) {
-    try {
-      const docRef = doc(db, "bracket", slug);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        return docSnap.data().data || null;
+  if (typeof window === "undefined") {
+    if (db) {
+      try {
+        const docRef = doc(db, "bracket", slug);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          return docSnap.data().data || null;
+        }
+      } catch (e) {
+        console.error("Firestore read bracket error:", e);
       }
-    } catch (e) {
-      console.error("Firestore read bracket error:", e);
     }
+    return null;
   }
-  if (typeof window !== "undefined") {
+
+  if (isFirebaseConfigured) {
+    return await fetchFromServerDb("bracket", slug);
+  } else {
     const saved = localStorage.getItem(key);
     return safeJsonParse(saved, null);
   }
-  return null;
 }
 
 export async function saveBracket(slug, data) {
   const key = `bvi_bracket_v1_${slug}`;
-  if (db) {
-    try {
-      const docRef = doc(db, "bracket", slug);
-      await setDoc(docRef, { data });
-    } catch (e) {
-      console.error("Firestore write bracket error:", e);
+  if (typeof window === "undefined") {
+    if (db) {
+      try {
+        const docRef = doc(db, "bracket", slug);
+        await setDoc(docRef, { data });
+      } catch (e) {
+        console.error("Firestore write bracket error:", e);
+      }
     }
+    return;
   }
-  if (typeof window !== "undefined") {
+
+  if (isFirebaseConfigured) {
+    await saveToServerDb("bracket", data, slug);
+  } else {
     localStorage.setItem(key, JSON.stringify(data));
   }
 }
 
 // 5. Users (Athlete registrations)
 export async function getUsers() {
-  if (db) {
-    try {
-      const docRef = doc(db, "config", "users");
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        return docSnap.data().list || [];
+  if (typeof window === "undefined") {
+    if (db) {
+      try {
+        const docRef = doc(db, "config", "users");
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          return docSnap.data().list || [];
+        }
+      } catch (e) {
+        console.error("Firestore read users error:", e);
       }
-    } catch (e) {
-      console.error("Firestore read users error:", e);
     }
+    return [];
   }
-  if (typeof window !== "undefined") {
+
+  if (isFirebaseConfigured) {
+    const serverData = await fetchFromServerDb("users");
+    return serverData || [];
+  } else {
     const saved = localStorage.getItem("bvi_users");
     return safeJsonParse(saved, []);
   }
-  return [];
 }
 
 export async function saveUsers(list) {
-  if (db) {
-    try {
-      const docRef = doc(db, "config", "users");
-      await setDoc(docRef, { list });
-    } catch (e) {
-      console.error("Firestore write users error:", e);
+  if (typeof window === "undefined") {
+    if (db) {
+      try {
+        const docRef = doc(db, "config", "users");
+        await setDoc(docRef, { list });
+      } catch (e) {
+        console.error("Firestore write users error:", e);
+      }
     }
+    return;
   }
-  if (typeof window !== "undefined") {
+
+  if (isFirebaseConfigured) {
+    await saveToServerDb("users", list);
+  } else {
     localStorage.setItem("bvi_users", JSON.stringify(list));
   }
 }
 
 // 6. Moduli (Custom Form Configurations)
 export async function getModuli() {
-  if (db) {
-    try {
-      const docRef = doc(db, "config", "moduli");
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        return docSnap.data().list || [];
+  if (typeof window === "undefined") {
+    if (db) {
+      try {
+        const docRef = doc(db, "config", "moduli");
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          return docSnap.data().list || [];
+        }
+      } catch (e) {
+        console.error("Firestore read moduli error:", e);
       }
-    } catch (e) {
-      console.error("Firestore read moduli error:", e);
     }
+    return [];
   }
-  if (typeof window !== "undefined") {
+
+  if (isFirebaseConfigured) {
+    const serverData = await fetchFromServerDb("moduli");
+    return serverData || [];
+  } else {
     const saved = localStorage.getItem("bvi_moduli");
     return safeJsonParse(saved, []);
   }
-  return [];
 }
 
 export async function saveModuli(list) {
-  if (db) {
-    try {
-      const docRef = doc(db, "config", "moduli");
-      await setDoc(docRef, { list });
-    } catch (e) {
-      console.error("Firestore write moduli error:", e);
+  if (typeof window === "undefined") {
+    if (db) {
+      try {
+        const docRef = doc(db, "config", "moduli");
+        await setDoc(docRef, { list });
+      } catch (e) {
+        console.error("Firestore write moduli error:", e);
+      }
     }
+    return;
   }
-  if (typeof window !== "undefined") {
+
+  if (isFirebaseConfigured) {
+    await saveToServerDb("moduli", list);
+  } else {
     localStorage.setItem("bvi_moduli", JSON.stringify(list));
   }
 }
-

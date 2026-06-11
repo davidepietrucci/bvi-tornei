@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import AthleteHeader from "@/app/components/AthleteHeader";
 import { getTornei, saveTornei, getIscrizioni, saveIscrizioni } from "@/app/utils/db";
 
 export default function AtletaIscriviti() {
   const router = useRouter();
+  const { data: session, status } = useSession();
   const [torneiAperti, setTorneiAperti] = useState([]);
   const [showModal, setShowModal] = useState(false);
   
@@ -19,15 +21,17 @@ export default function AtletaIscriviti() {
   });
 
   useEffect(() => {
-    if (localStorage.getItem("bvi_atleta_logged_in") !== "true") {
+    if (status === "unauthenticated") {
       router.push("/atleta");
       return;
     }
 
-    const localName = typeof window !== "undefined" ? localStorage.getItem("bvi_atleta_name") : null;
-    const localEmail = typeof window !== "undefined" ? localStorage.getItem("bvi_atleta_email") : null;
-    if (localName) {
-      setFormData(prev => ({ ...prev, giocatore1: localName, email: localEmail || prev.email }));
+    if (session?.user) {
+      setFormData(prev => ({
+        ...prev,
+        giocatore1: session.user.name || prev.giocatore1,
+        email: session.user.email || prev.email
+      }));
     }
 
     getTornei().then(allTornei => {
@@ -37,7 +41,7 @@ export default function AtletaIscriviti() {
         setFormData(prev => ({ ...prev, torneo: aperti[0].nome }));
       }
     });
-  }, [router]);
+  }, [router, status, session]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
