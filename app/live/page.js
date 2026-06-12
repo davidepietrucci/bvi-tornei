@@ -777,34 +777,7 @@ export default function PortaleLiveMobile() {
             {selectedTorneoObj?.categoria} · {selectedTorneoObj?.data}
           </p>
 
-          {/* Selector per altri tornei */}
-          {tornei.length > 1 && (
-            <div className="mt-4 pt-4 border-t border-gray-100 relative">
-              <select
-                className="w-full bg-gray-50 border-none rounded-2xl px-4 py-3 font-black text-[#0a1628] text-xs focus:ring-2 focus:ring-[#0a1628] appearance-none cursor-pointer"
-                value={selectedTorneo}
-                onChange={(e) => setSelectedTorneo(e.target.value)}
-              >
-                {tornei.map((t) => (
-                  <option key={t.id} value={t.nome}>
-                    Cambia: {t.nome}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute right-4 top-1/2 -translate-y-0.5 pointer-events-none text-[#0a1628]">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={4}
-                  stroke="currentColor"
-                  className="w-3.5 h-3.5"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                </svg>
-              </div>
-            </div>
-          )}
+
         </div>
 
         {/* Controllo Pubblicazione */}
