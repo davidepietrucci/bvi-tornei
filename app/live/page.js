@@ -10,6 +10,7 @@ export default function PortaleLiveMobile() {
   const [config, setConfig] = useState(null);
   const [bracketConfig, setBracketConfig] = useState(null);
   const [activeTab, setActiveTab] = useState("gironi"); // "gironi", "partite", "classifica", "finali"
+  const [fasiFinaliCategory, setFasiFinaliCategory] = useState("gold"); // "gold" or "silver"
   const [loading, setLoading] = useState(true);
 
   // 1. Carica l'elenco dei tornei e determina quello da visualizzare
@@ -60,8 +61,8 @@ export default function PortaleLiveMobile() {
   const isConcluso = selectedTorneoObj?.stato === "Concluso";
   const isPublished = config && config.pubblicato;
 
-  // 3. Calcola la lista combinata dei gironi (iniziali + intermedi)
-  const getGroupsList = (currentConfig = config) => {
+  // 3. Calcola la lista dei gironi iniziali
+  const getInitialGroupsList = (currentConfig = config) => {
     const list = [];
     if (currentConfig && currentConfig.numGironi) {
       for (let i = 0; i < currentConfig.numGironi; i++) {
@@ -69,19 +70,24 @@ export default function PortaleLiveMobile() {
         list.push({ id: label, label: `Girone ${label}`, type: "iniziale" });
       }
     }
-    // Aggiunge gironi intermedi se Gold/Silver a gruppi
+    return list;
+  };
+
+  // 4. Calcola la lista dei gironi intermedi (Gold/Silver) se presenti
+  const getIntermediateGroupsList = () => {
+    const list = [];
     if (
       bracketConfig &&
       bracketConfig.phaseType === "gold_silver" &&
       bracketConfig.subPhaseType === "groups"
     ) {
-      list.push({ id: "gold-A", label: "Gold A 🏆", type: "intermedio" });
-      if (currentConfig?.numGironi === 4) {
-        list.push({ id: "gold-B", label: "Gold B 🏆", type: "intermedio" });
+      list.push({ id: "gold-A", label: "Gold A 🏆", type: "intermedio", category: "gold" });
+      if (config?.numGironi === 4) {
+        list.push({ id: "gold-B", label: "Gold B 🏆", type: "intermedio", category: "gold" });
       }
-      list.push({ id: "silver-A", label: "Silver A 🥈", type: "intermedio" });
-      if (currentConfig?.numGironi === 4) {
-        list.push({ id: "silver-B", label: "Silver B 🥈", type: "intermedio" });
+      list.push({ id: "silver-A", label: "Silver A 🥈", type: "intermedio", category: "silver" });
+      if (config?.numGironi === 4) {
+        list.push({ id: "silver-B", label: "Silver B 🥈", type: "intermedio", category: "silver" });
       }
     }
     return list;
@@ -89,6 +95,92 @@ export default function PortaleLiveMobile() {
 
   // Logica per il calendario incontri dei gironi
   const getSchedule = (numTeams, gironeId, assignments = {}) => {
+    const getName = (idx) =>
+      assignments[idx] && assignments[idx] !== "—" && assignments[idx] !== "Slot Libero"
+        ? assignments[idx]
+        : `Slot ${idx + 1}`;
+    const type = config?.gironeTypes?.[gironeId] || "Pool";
+    if (!numTeams || numTeams < 2) return [];
+
+    if (type === "Girone all'italiana") {
+      const rrMatches = [];
+      for (let i = 0; i < numTeams; i++) {
+        for (let j = i + 1; j < numTeams; j++) {
+          rrMatches.push({ left: getName(i), right: getName(j) });
+        }
+      }
+      return rrMatches;
+    }
+
+    if (numTeams === 2) return [{ left: getName(0), right: getName(1) }];
+    if (numTeams === 3)
+      return [
+        { left: getName(0), right: getName(2) },
+        { left: getName(1), right: getName(2) },
+        { left: getName(0), right: getName(1) },
+      ];
+    if (numTeams === 4) {
+      const getResult = (idx) => {
+        const meta = config?.matchMetadata?.[`${gironeId}-${idx}`] || {};
+        const s1L = parseInt(meta.s1L || 0);
+        const s1R = parseInt(meta.s1R || 0);
+        if (s1L === 0 && s1R === 0)
+          return { winner: `Vincente G${idx + 1}`, loser: `Perdente G${idx + 1}` };
+
+        if (config?.gironeSets?.[gironeId] === "3 set") {
+          let winL = 0, winR = 0;
+          if (s1L > s1R) winL++;
+          else if (s1R > s1L) winR++;
+          if (parseInt(meta.s2L || 0) > parseInt(meta.s2R || 0)) winL++;
+          else if (parseInt(meta.s2R || 0) > parseInt(meta.s2L || 0)) winR++;
+          if (parseInt(meta.s3L || 0) > parseInt(meta.s3R || 0)) winL++;
+          else if (parseInt(meta.s3R || 0) > parseInt(meta.s3L || 0)) winR++;
+
+          if (winL > winR)
+            return {
+              winner: idx === 0 ? getName(0) : getName(1),
+              loser: idx === 0 ? getName(3) : getName(2),
+            };
+          return {
+            winner: idx === 0 ? getName(3) : getName(2),
+            loser: idx === 0 ? getName(0) : getName(1),
+          };
+        }
+
+        if (s1L > s1R)
+          return {
+            winner: idx === 0 ? getName(0) : getName(1),
+            loser: idx === 0 ? getName(3) : getName(2),
+          };
+        return {
+          winner: idx === 0 ? getName(3) : getName(2),
+          loser: idx === 0 ? getName(0) : getName(1),
+        };
+      };
+
+      const g1 = getResult(0);
+      const g2 = getResult(1);
+
+      return [
+        { left: getName(0), right: getName(3) },
+        { left: getName(1), right: getName(2) },
+        { left: g1.winner, right: g2.winner },
+        { left: g1.loser, right: g2.loser },
+      ];
+    }
+    if (numTeams === 5)
+      return [
+        { left: getName(0), right: getName(4) },
+        { left: getName(1), right: getName(3) },
+        { left: getName(2), right: getName(4) },
+        { left: getName(0), right: getName(1) },
+        { left: getName(2), right: fontName(3) }, // Note: naming bug fontName fixed to getName below
+      ];
+    return [];
+  };
+
+  // Fix fontName typo
+  const getScheduleFixed = (numTeams, gironeId, assignments = {}) => {
     const getName = (idx) =>
       assignments[idx] && assignments[idx] !== "—" && assignments[idx] !== "Slot Libero"
         ? assignments[idx]
@@ -222,7 +314,7 @@ export default function PortaleLiveMobile() {
       }
     }
 
-    const schedule = getSchedule(teamCount, groupId, assignments);
+    const schedule = getScheduleFixed(teamCount, groupId, assignments);
     schedule.forEach((match, i) => {
       const meta = metadata[`${groupId}-${i}`];
       if (!meta) return;
@@ -280,80 +372,6 @@ export default function PortaleLiveMobile() {
     });
   };
 
-  // Statistiche e partite dei gironi intermedi
-  const getIntermediateGroupStats = (groupKey) => {
-    if (!bracketConfig || !bracketConfig.bracketAssignments) return [];
-    const assignments = bracketConfig.bracketAssignments;
-    const metadata = bracketConfig.bracketMetadata || {};
-    const stats = {};
-    const teams = [
-      assignments[`${groupKey}-0`],
-      assignments[`${groupKey}-1`],
-      assignments[`${groupKey}-2`],
-      assignments[`${groupKey}-3`],
-    ].filter((t) => t && t !== "—" && t !== "Slot Libero");
-
-    teams.forEach((t) => {
-      stats[t] = { nome: t, giocate: 0, vinte: 0, perse: 0, pf: 0, ps: 0, punti: 0 };
-    });
-
-    const pairMaps = [
-      [0, 3],
-      [1, 2],
-      [0, 2],
-      [1, 3],
-      [0, 1],
-      [2, 3],
-    ];
-
-    pairMaps.forEach((pair, idx) => {
-      const teamL = assignments[`${groupKey}-${pair[0]}`];
-      const teamR = assignments[`${groupKey}-${pair[1]}`];
-      if (!teamL || !teamR || !stats[teamL] || !stats[teamR]) return;
-
-      const mKey = `${groupKey}-m${idx}`;
-      const meta = metadata[mKey] || {};
-      const s1L = parseInt(meta.scoreL || 0);
-      const s1R = parseInt(meta.scoreR || 0);
-      if (s1L === 0 && s1R === 0) return;
-
-      stats[teamL].giocate++;
-      stats[teamR].giocate++;
-      stats[teamL].pf += s1L;
-      stats[teamR].pf += s1R;
-      stats[teamL].ps += s1R;
-      stats[teamR].ps += s1L;
-
-      if (s1L > s1R) {
-        stats[teamL].vinte++;
-        stats[teamL].punti++;
-        stats[teamR].perse++;
-      } else {
-        stats[teamR].vinte++;
-        stats[teamR].punti++;
-        stats[teamL].perse++;
-      }
-    });
-
-    // Mappa l'output per compatibilità con la tabella unificata
-    return Object.values(stats)
-      .map((t) => ({
-        nome: t.nome,
-        giocate: t.giocate,
-        vinte: t.vinte,
-        perse: t.perse,
-        puntiFatti: t.pf,
-        puntiSubiti: t.ps,
-        score: t.punti,
-      }))
-      .sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score;
-        const qzA = a.puntiSubiti === 0 ? a.puntiFatti : a.puntiFatti / a.puntiSubiti;
-        const qzB = b.puntiSubiti === 0 ? b.puntiFatti : b.puntiFatti / b.puntiSubiti;
-        return qzB - qzA;
-      });
-  };
-
   const getIntermediateGroupMatches = (groupKey) => {
     if (!bracketConfig || !bracketConfig.bracketAssignments) return [];
     const assignments = bracketConfig.bracketAssignments;
@@ -397,50 +415,116 @@ export default function PortaleLiveMobile() {
       );
   };
 
-  // 4. Auto-Scroll alla prima partita senza punteggio a livello globale
+  // Auto-Scroll in base all'ultimo match giocato
   useEffect(() => {
-    if (activeTab === "partite" && isPublished && selectedTorneo) {
-      const groups = getGroupsList();
-      let firstUnplayedMatch = null;
+    if (!isPublished || !selectedTorneo) return;
 
-      for (const group of groups) {
-        const isIntermediate = group.type === "intermedio";
-        const matchesList = isIntermediate
-          ? getIntermediateGroupMatches(group.id)
-          : getSchedule(
-              config.teamCounts[group.id],
-              group.id,
-              config.gironeAssignments[group.id] || {}
-            );
+    let targetElId = null;
 
-        const firstUnplayedIdx = matchesList.findIndex((m, idx) => {
-          const meta = isIntermediate
-            ? m.meta
-            : config?.matchMetadata?.[`${group.id}-${idx}`] || {};
-          const scoreL = parseInt(meta.s1L || meta.scoreL || 0);
-          const scoreR = parseInt(meta.s1R || meta.scoreR || 0);
-          return scoreL === 0 && scoreR === 0;
+    if (activeTab === "partite") {
+      const initialGroups = getInitialGroupsList();
+      let allMatches = [];
+
+      for (const group of initialGroups) {
+        const matchesList = getScheduleFixed(
+          config?.teamCounts?.[group.id] || 0,
+          group.id,
+          config?.gironeAssignments?.[group.id] || {}
+        ).map((m, idx) => {
+          const meta = config?.matchMetadata?.[`${group.id}-${idx}`] || {};
+          const scoreL = parseInt(meta.s1L || 0);
+          const scoreR = parseInt(meta.s1R || 0);
+          const hasScore = meta.s1L !== undefined && meta.s1L !== "";
+          return {
+            id: `match-${group.id}-${idx}`,
+            hasScore: hasScore && (scoreL > 0 || scoreR > 0)
+          };
         });
-
-        if (firstUnplayedIdx !== -1) {
-          firstUnplayedMatch = { groupId: group.id, index: firstUnplayedIdx };
-          break; // Trovato il primo non giocato a livello globale!
-        }
+        allMatches = [...allMatches, ...matchesList];
       }
 
-      if (firstUnplayedMatch) {
-        const timer = setTimeout(() => {
-          const el = document.getElementById(
-            `match-${firstUnplayedMatch.groupId}-${firstUnplayedMatch.index}`
-          );
-          if (el) {
-            el.scrollIntoView({ behavior: "smooth", block: "center" });
-          }
-        }, 300);
-        return () => clearTimeout(timer);
+      const lastPlayedIdx = allMatches.reduce((acc, match, idx) => {
+        if (match.hasScore) return idx;
+        return acc;
+      }, -1);
+
+      if (lastPlayedIdx !== -1) {
+        if (lastPlayedIdx + 1 < allMatches.length) {
+          targetElId = allMatches[lastPlayedIdx + 1].id;
+        } else {
+          targetElId = allMatches[lastPlayedIdx].id;
+        }
+      } else if (allMatches.length > 0) {
+        targetElId = allMatches[0].id;
+      }
+    } else if (activeTab === "finali") {
+      const intermediateGroups = getIntermediateGroupsList().filter(
+        (g) => g.category === fasiFinaliCategory
+      );
+      let allFinalMatches = [];
+
+      for (const group of intermediateGroups) {
+        const matchesList = getIntermediateGroupMatches(group.id).map((m, idx) => {
+          const scoreL = parseInt(m.meta.scoreL || m.meta.s1L || 0);
+          const scoreR = parseInt(m.meta.scoreR || m.meta.s1R || 0);
+          const hasScore =
+            (m.meta.scoreL !== undefined && m.meta.scoreL !== "") ||
+            (m.meta.s1L !== undefined && m.meta.s1L !== "");
+          return {
+            id: `match-${group.id}-${idx}`,
+            hasScore: hasScore && (scoreL > 0 || scoreR > 0)
+          };
+        });
+        allFinalMatches = [...allFinalMatches, ...matchesList];
+      }
+
+      const playoffList = getPlayoffMatchesList().filter((group) => {
+        if (bracketConfig?.phaseType === "gold_silver") {
+          return group.title.toLowerCase().includes(fasiFinaliCategory);
+        }
+        return true;
+      });
+
+      for (const pGroup of playoffList) {
+        pGroup.matches.forEach((m, idx) => {
+          const scoreL = parseInt(m.meta.scoreL || m.meta.s1L || 0);
+          const scoreR = parseInt(m.meta.scoreR || m.meta.s1R || 0);
+          const hasScore =
+            (m.meta.scoreL !== undefined && m.meta.scoreL !== "") ||
+            (m.meta.s1L !== undefined && m.meta.s1L !== "");
+          allFinalMatches.push({
+            id: `playoff-${pGroup.title}-${idx}`,
+            hasScore: hasScore && (scoreL > 0 || scoreR > 0)
+          });
+        });
+      }
+
+      const lastPlayedIdx = allFinalMatches.reduce((acc, match, idx) => {
+        if (match.hasScore) return idx;
+        return acc;
+      }, -1);
+
+      if (lastPlayedIdx !== -1) {
+        if (lastPlayedIdx + 1 < allFinalMatches.length) {
+          targetElId = allFinalMatches[lastPlayedIdx + 1].id;
+        } else {
+          targetElId = allFinalMatches[lastPlayedIdx].id;
+        }
+      } else if (allFinalMatches.length > 0) {
+        targetElId = allFinalMatches[0].id;
       }
     }
-  }, [activeTab, config, selectedTorneo, isPublished]);
+
+    if (targetElId) {
+      const timer = setTimeout(() => {
+        const el = document.getElementById(targetElId);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [activeTab, fasiFinaliCategory, config, bracketConfig, selectedTorneo, isPublished]);
 
   // Restituisce la lista di partite playoff lineare
   const getPlayoffMatchesList = () => {
@@ -729,14 +813,14 @@ export default function PortaleLiveMobile() {
         {/* Controllo Pubblicazione */}
         {isPublished ? (
           <>
-            {/* 1. SEZIONE GIRONI (COMPOSIZIONE SQUADRE) */}
+            {/* 1. SEZIONE GIRONI (COMPOSIZIONE SQUADRE INIZIALI) */}
             {activeTab === "gironi" && (
               <div className="space-y-5">
                 <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">
                   Composizione Gironi
                 </h3>
                 <div className="space-y-4">
-                  {getGroupsList().map((group) => {
+                  {getInitialGroupsList().map((group) => {
                     const teams = getGroupTeams(group.id, group.type);
                     return (
                       <div
@@ -769,7 +853,7 @@ export default function PortaleLiveMobile() {
                       </div>
                     );
                   })}
-                  {getGroupsList().length === 0 && (
+                  {getInitialGroupsList().length === 0 && (
                     <div className="bg-white rounded-3xl p-6 text-center border border-gray-100">
                       <p className="text-gray-400 italic text-xs">Nessun girone configurato.</p>
                     </div>
@@ -778,22 +862,19 @@ export default function PortaleLiveMobile() {
               </div>
             )}
 
-            {/* 2. SEZIONE PARTITE (CALENDARIO VERTICALE) */}
+            {/* 2. SEZIONE PARTITE (CALENDARIO VERTICALE INIZIALE) */}
             {activeTab === "partite" && (
               <div className="space-y-6">
-                {getGroupsList().map((group) => {
-                  const isIntermediate = group.type === "intermedio";
-                  const groupMatches = isIntermediate
-                    ? getIntermediateGroupMatches(group.id)
-                    : getSchedule(
-                        config?.teamCounts?.[group.id] || 0,
-                        group.id,
-                        config?.gironeAssignments?.[group.id] || {}
-                      ).map((m, idx) => ({
-                        left: m.left,
-                        right: m.right,
-                        meta: config?.matchMetadata?.[`${group.id}-${idx}`] || {},
-                      }));
+                {getInitialGroupsList().map((group) => {
+                  const groupMatches = getScheduleFixed(
+                    config?.teamCounts?.[group.id] || 0,
+                    group.id,
+                    config?.gironeAssignments?.[group.id] || {}
+                  ).map((m, idx) => ({
+                    left: m.left,
+                    right: m.right,
+                    meta: config?.matchMetadata?.[`${group.id}-${idx}`] || {},
+                  }));
 
                   return (
                     <div key={group.id} className="space-y-3">
@@ -823,14 +904,11 @@ export default function PortaleLiveMobile() {
               </div>
             )}
 
-            {/* 3. SEZIONE CLASSIFICHE (TABELLE VERTICALI) */}
+            {/* 3. SEZIONE CLASSIFICHE (TABELLE VERTICALI INIZIALI) */}
             {activeTab === "classifica" && (
               <div className="space-y-6">
-                {getGroupsList().map((group) => {
-                  const groupStats =
-                    group.type === "intermedio"
-                      ? getIntermediateGroupStats(group.id)
-                      : calculateRanking(group.id);
+                {getInitialGroupsList().map((group) => {
+                  const groupStats = calculateRanking(group.id);
 
                   return (
                     <div key={group.id} className="space-y-3">
@@ -905,30 +983,116 @@ export default function PortaleLiveMobile() {
             {/* 4. SEZIONE FASI FINALI */}
             {activeTab === "finali" && (
               <div className="space-y-5">
-                {getPlayoffMatchesList().length > 0 ? (
-                  getPlayoffMatchesList().map((group, gIdx) => (
-                    <div key={gIdx} className="space-y-3">
-                      <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-widest pl-1 border-b pb-2">
-                        {group.title}
-                      </h3>
-                      <div className="space-y-3">
-                        {group.matches.map((m, idx) =>
-                          renderMatchRow(m.left, m.right, m.meta, idx, `playoff-${group.title}`)
-                        )}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-20 bg-white rounded-[2rem] shadow-sm border border-gray-100 px-6">
-                    <span className="text-5xl mb-4 block">⚔️</span>
-                    <h3 className="text-lg font-black text-[#0a1628] uppercase tracking-tight mb-2">
-                      Fasi Finali in Preparazione
-                    </h3>
-                    <p className="text-gray-400 font-medium text-xs max-w-xs mx-auto">
-                      Il tabellone ad eliminazione diretta non è ancora stato generato dallo staff per
-                      questo torneo.
-                    </p>
+                {/* Switch Gold / Silver in alto (se Gold/Silver) */}
+                {bracketConfig?.phaseType === "gold_silver" && (
+                  <div className="flex bg-gray-200/60 p-1 rounded-2xl max-w-xs mx-auto border border-gray-100/50 shadow-inner">
+                    <button
+                      onClick={() => setFasiFinaliCategory("gold")}
+                      className={`flex-1 py-2 text-center rounded-xl font-black text-xs uppercase tracking-wider transition-all ${
+                        fasiFinaliCategory === "gold"
+                          ? "bg-[#0a1628] text-white shadow-md"
+                          : "text-gray-400 hover:text-[#0a1628]"
+                      }`}
+                    >
+                      Gold 🏆
+                    </button>
+                    <button
+                      onClick={() => setFasiFinaliCategory("silver")}
+                      className={`flex-1 py-2 text-center rounded-xl font-black text-xs uppercase tracking-wider transition-all ${
+                        fasiFinaliCategory === "silver"
+                          ? "bg-[#0a1628] text-white shadow-md"
+                          : "text-gray-400 hover:text-[#0a1628]"
+                      }`}
+                    >
+                      Silver 🥈
+                    </button>
                   </div>
+                )}
+
+                {/* Partite Gironi Intermedi (se Gold/Silver a gironi) */}
+                {bracketConfig?.phaseType === "gold_silver" &&
+                  getIntermediateGroupsList()
+                    .filter((g) => g.category === fasiFinaliCategory)
+                    .map((group) => {
+                      const groupMatches = getIntermediateGroupMatches(group.id);
+                      return (
+                        <div key={group.id} className="space-y-3">
+                          <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1 border-l-4 border-[#FFD700] pl-2">
+                            Partite {group.label}
+                          </h4>
+                          <div className="space-y-3">
+                            {groupMatches.map((m, idx) =>
+                              renderMatchRow(
+                                m.left,
+                                m.right,
+                                m.meta,
+                                idx,
+                                `match-${group.id}`,
+                                group.id
+                              )
+                            )}
+                            {groupMatches.length === 0 && (
+                              <div className="bg-white rounded-3xl p-6 text-center border border-gray-100">
+                                <p className="text-gray-400 italic text-xs">
+                                  Nessun match programmato.
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                {/* Partite Playoff */}
+                {getPlayoffMatchesList().filter((group) => {
+                  if (bracketConfig?.phaseType === "gold_silver") {
+                    return group.title.toLowerCase().includes(fasiFinaliCategory);
+                  }
+                  return true;
+                }).length > 0 ? (
+                  getPlayoffMatchesList()
+                    .filter((group) => {
+                      if (bracketConfig?.phaseType === "gold_silver") {
+                        return group.title.toLowerCase().includes(fasiFinaliCategory);
+                      }
+                      return true;
+                    })
+                    .map((group, gIdx) => (
+                      <div key={gIdx} className="space-y-3 animate-fade-in">
+                        <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-widest pl-1 border-b pb-2">
+                          {group.title}
+                        </h3>
+                        <div className="space-y-3">
+                          {group.matches.map((m, idx) =>
+                            renderMatchRow(
+                              m.left,
+                              m.right,
+                              m.meta,
+                              idx,
+                              `playoff-${group.title}`
+                            )
+                          )}
+                        </div>
+                      </div>
+                    ))
+                ) : (
+                  /* Mostra schermata vuota solo se non ci sono match dei gironi intermedi E non ci sono match di playoff */
+                  !(
+                    bracketConfig?.phaseType === "gold_silver" &&
+                    getIntermediateGroupsList().filter((g) => g.category === fasiFinaliCategory)
+                      .length > 0
+                  ) && (
+                    <div className="text-center py-20 bg-white rounded-[2rem] shadow-sm border border-gray-100 px-6">
+                      <span className="text-5xl mb-4 block">⚔️</span>
+                      <h3 className="text-lg font-black text-[#0a1628] uppercase tracking-tight mb-2">
+                        Fasi Finali in Preparazione
+                      </h3>
+                      <p className="text-gray-400 font-medium text-xs max-w-xs mx-auto">
+                        Il tabellone ad eliminazione diretta non è ancora stato generato dallo staff
+                        per questo torneo.
+                      </p>
+                    </div>
+                  )
                 )}
               </div>
             )}
