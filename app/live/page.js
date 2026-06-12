@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getTornei, getGironi, getBracket } from "@/app/utils/db";
 
 export default function PortaleLiveMobile() {
@@ -10,7 +10,7 @@ export default function PortaleLiveMobile() {
   const [activeGirone, setActiveGirone] = useState("A");
   const [config, setConfig] = useState(null);
   const [bracketConfig, setBracketConfig] = useState(null);
-  const [activeTab, setActiveTab] = useState("iniziali"); // "iniziali", "intermedi", "finali"
+  const [activeTab, setActiveTab] = useState("gironi"); // "gironi", "finali"
   const [loading, setLoading] = useState(true);
 
   // 1. Carica l'elenco dei tornei e determina quello da visualizzare
@@ -41,19 +41,17 @@ export default function PortaleLiveMobile() {
   // 2. Caricamento live dei gironi e dei bracket del torneo selezionato
   useEffect(() => {
     if (!selectedTorneo) return;
-    setActiveTab("iniziali");
     const slug = selectedTorneo.toLowerCase().trim().replace(/\s+/g, "_");
 
     const fetchLive = () => {
       getGironi(slug).then((data) => {
         setConfig(data);
         if (data) {
-          const gDisponibili = data.numGironi
-            ? Array.from({ length: data.numGironi }, (_, i) => String.fromCharCode(65 + i))
-            : [];
+          // Prepara la lista iniziale dei gironi disponibili e imposta il primo se non valido
+          const groups = getGroupsList(data);
           setActiveGirone((prev) => {
-            if (gDisponibili.length > 0 && !gDisponibili.includes(prev)) {
-              return gDisponibili[0];
+            if (groups.length > 0 && !groups.some((g) => g.id === prev)) {
+              return groups[0].id;
             }
             return prev;
           });
@@ -69,14 +67,40 @@ export default function PortaleLiveMobile() {
     return () => clearInterval(interval);
   }, [selectedTorneo]);
 
-  const gironiDisponibili =
-    config && config.pubblicato
-      ? Array.from({ length: config.numGironi || 0 }, (_, i) => String.fromCharCode(65 + i))
-      : [];
   const selectedTorneoObj = tornei.find((t) => t.nome === selectedTorneo);
   const isConcluso = selectedTorneoObj?.stato === "Concluso";
+  const isPublished = config && config.pubblicato;
 
-  // Logica per calcolare il calendario degli incontri
+  // 3. Calcola la lista combinata dei gironi (iniziali + intermedi)
+  const getGroupsList = (currentConfig = config) => {
+    const list = [];
+    if (currentConfig && currentConfig.numGironi) {
+      for (let i = 0; i < currentConfig.numGironi; i++) {
+        const label = String.fromCharCode(65 + i);
+        list.push({ id: label, label: `Girone ${label}`, type: "iniziale" });
+      }
+    }
+    // Aggiunge gironi intermedi se Gold/Silver a gruppi
+    if (
+      bracketConfig &&
+      bracketConfig.phaseType === "gold_silver" &&
+      bracketConfig.subPhaseType === "groups"
+    ) {
+      list.push({ id: "gold-A", label: "Gold A 🏆", type: "intermedio" });
+      if (currentConfig?.numGironi === 4) {
+        list.push({ id: "gold-B", label: "Gold B 🏆", type: "intermedio" });
+      }
+      list.push({ id: "silver-A", label: "Silver A 🥈", type: "intermedio" });
+      if (currentConfig?.numGironi === 4) {
+        list.push({ id: "silver-B", label: "Silver B 🥈", type: "intermedio" });
+      }
+    }
+    return list;
+  };
+
+  const activeGroupObj = getGroupsList().find((g) => g.id === activeGirone) || { type: "iniziale" };
+
+  // Logica per il calendario incontri dei gironi
   const getSchedule = (numTeams, gironeId, assignments = {}) => {
     const getName = (idx) =>
       assignments[idx] && assignments[idx] !== "—" && assignments[idx] !== "Slot Libero"
@@ -244,45 +268,7 @@ export default function PortaleLiveMobile() {
     });
   };
 
-  // Metodi per i playoff
-  const getAllBracketMatches = () => {
-    if (!bracketConfig || !bracketConfig.bracketAssignments) return [];
-    const assignments = bracketConfig.bracketAssignments;
-    const metadata = bracketConfig.bracketMetadata || {};
-    const isGroups = bracketConfig.subPhaseType === "groups";
-
-    const matchIds = Object.keys(assignments)
-      .map((k) => k.replace(/-L$|-R$/, ""))
-      .filter((v, i, a) => a.indexOf(v) === i)
-      .filter((mid) => {
-        if (isGroups) {
-          return (
-            mid.endsWith("-s1") ||
-            mid.endsWith("-s2") ||
-            mid.endsWith("-f1") ||
-            mid.endsWith("-f3")
-          );
-        }
-        return (
-          !mid.includes("-A-") &&
-          !mid.includes("-B-") &&
-          !mid.match(/-(?:A|B)-\d/) &&
-          !mid.match(/-(?:A|B)-m\d/)
-        );
-      });
-
-    return matchIds.map((mid) => ({
-      id: mid,
-      label: mid.toUpperCase(),
-      left: assignments[`${mid}-L`],
-      right: assignments[`${mid}-R`],
-      scoreL: metadata[mid]?.scoreL,
-      scoreR: metadata[mid]?.scoreR,
-      time: metadata[mid]?.time,
-      court: metadata[mid]?.court,
-    }));
-  };
-
+  // Statistiche e partite dei gironi intermedi
   const getIntermediateGroupStats = (groupKey) => {
     if (!bracketConfig || !bracketConfig.bracketAssignments) return [];
     const assignments = bracketConfig.bracketAssignments;
@@ -337,12 +323,23 @@ export default function PortaleLiveMobile() {
       }
     });
 
-    return Object.values(stats).sort((a, b) => {
-      if (b.punti !== a.punti) return b.punti - a.punti;
-      const qzA = a.ps === 0 ? a.pf : a.pf / a.ps;
-      const qzB = b.ps === 0 ? b.pf : b.pf / b.ps;
-      return qzB - qzA;
-    });
+    // Mappa l'output per compatibilità con la tabella unificata
+    return Object.values(stats)
+      .map((t) => ({
+        nome: t.nome,
+        giocate: t.giocate,
+        vinte: t.vinte,
+        perse: t.perse,
+        puntiFatti: t.pf,
+        puntiSubiti: t.ps,
+        score: t.punti,
+      }))
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        const qzA = a.puntiSubiti === 0 ? a.puntiFatti : a.puntiFatti / a.puntiSubiti;
+        const qzB = b.puntiSubiti === 0 ? b.puntiFatti : b.puntiFatti / b.puntiSubiti;
+        return qzB - qzA;
+      });
   };
 
   const getIntermediateGroupMatches = (groupKey) => {
@@ -388,377 +385,240 @@ export default function PortaleLiveMobile() {
       );
   };
 
-  const renderIntermediateGroupForSpectator = (groupKey, title, color) => {
-    const stats = getIntermediateGroupStats(groupKey);
-    const matches = getIntermediateGroupMatches(groupKey);
-    const titleColor = color === "gold" ? "text-yellow-600" : "text-gray-500";
-    const badgeColor =
-      color === "gold" ? "bg-yellow-400 text-white shadow-sm" : "bg-gray-400 text-white shadow-sm";
+  // 4. Auto-Scroll alla prima partita senza punteggio
+  useEffect(() => {
+    if (activeTab === "gironi" && isPublished && selectedTorneo) {
+      const isIntermediate = activeGroupObj.type === "intermedio";
+      const matchesList = isIntermediate
+        ? getIntermediateGroupMatches(activeGirone)
+        : getSchedule(
+            config.teamCounts[activeGirone],
+            activeGirone,
+            config.gironeAssignments[activeGirone] || {}
+          );
 
-    return (
-      <div className="space-y-4 mb-8">
-        <h3 className={`text-sm font-black uppercase tracking-widest text-center ${titleColor}`}>
-          {title}
-        </h3>
+      const firstUnplayedIdx = matchesList.findIndex((m, idx) => {
+        const meta = isIntermediate
+          ? m.meta
+          : config?.matchMetadata?.[`${activeGirone}-${idx}`] || {};
+        const scoreL = parseInt(meta.s1L || meta.scoreL || 0);
+        const scoreR = parseInt(meta.s1R || meta.scoreR || 0);
+        return scoreL === 0 && scoreR === 0;
+      });
 
-        {/* Card-based Standings */}
-        <div className="space-y-3">
-          {stats.map((team, idx) => {
-            const quotient = team.ps === 0 ? team.pf : (team.pf / team.ps).toFixed(3);
-            const isQualified = idx < 2;
-            return (
-              <div
-                key={team.nome}
-                className={`bg-white rounded-3xl p-4 shadow-sm border border-gray-100 flex items-center justify-between ${
-                  isQualified
-                    ? color === "gold"
-                      ? "border-l-4 border-l-yellow-400"
-                      : "border-l-4 border-l-gray-400"
-                    : ""
-                }`}
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <span
-                    className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
-                      isQualified ? badgeColor : "bg-gray-100 text-gray-500"
-                    }`}
-                  >
-                    {idx + 1}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="font-black text-[#0a1628] text-xs uppercase tracking-tight truncate">
-                      {team.nome}
-                    </p>
-                    <p className="text-[9px] text-gray-400 font-semibold mt-0.5">
-                      G: <span className="text-[#0a1628] font-bold">{team.giocate}</span> | V/P:{" "}
-                      <span className="text-green-600 font-bold">{team.vinte}</span>/
-                      <span className="text-red-500 font-bold">{team.perse}</span>
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-base font-black text-[#0a1628] tracking-tighter leading-none">
-                    {team.punti}
-                  </p>
-                  <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mt-1">
-                    Punti
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+      if (firstUnplayedIdx !== -1) {
+        const timer = setTimeout(() => {
+          const el = document.getElementById(`match-${activeGirone}-${firstUnplayedIdx}`);
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        }, 300);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [activeGirone, activeTab, config, selectedTorneo, isPublished]);
 
-        {/* Stacked Matches List */}
-        <div className="space-y-3 mt-4">
-          {matches.map((m, idx) => {
-            const hasScore = m.meta?.scoreL || m.meta?.scoreR;
-            const scoreL = parseInt(m.meta?.scoreL || 0);
-            const scoreR = parseInt(m.meta?.scoreR || 0);
-            const isWinnerL = hasScore && scoreL > scoreR;
-            const isWinnerR = hasScore && scoreR > scoreL;
-
-            return (
-              <div key={idx} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                <div className="flex justify-between items-center mb-2.5 border-b border-gray-50 pb-2">
-                  <span className="text-[8px] font-black text-gray-300 uppercase tracking-widest">
-                    {m.label}
-                  </span>
-                  <div className="flex gap-1">
-                    {m.meta?.time && (
-                      <span className="text-[8px] font-black text-gray-500 bg-gray-50 px-2 py-0.5 rounded">
-                        {m.meta.time}
-                      </span>
-                    )}
-                    {m.meta?.court && (
-                      <span className="text-[8px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
-                        C.{m.meta.court}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span
-                      className={`text-xs uppercase font-bold truncate pr-4 ${
-                        isWinnerL ? "text-[#0a1628] font-black" : "text-gray-500"
-                      }`}
-                    >
-                      {m.left}
-                    </span>
-                    <span
-                      className={`text-xs font-black ${
-                        isWinnerL ? "text-green-600 font-extrabold" : "text-gray-400"
-                      }`}
-                    >
-                      {hasScore ? scoreL : "-"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span
-                      className={`text-xs uppercase font-bold truncate pr-4 ${
-                        isWinnerR ? "text-[#0a1628] font-black" : "text-gray-500"
-                      }`}
-                    >
-                      {m.right}
-                    </span>
-                    <span
-                      className={`text-xs font-black ${
-                        isWinnerR ? "text-green-600 font-extrabold" : "text-gray-400"
-                      }`}
-                    >
-                      {hasScore ? scoreR : "-"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-
-  const renderBracketMatch = (matchId, customLabel) => {
-    if (!bracketConfig || !bracketConfig.bracketAssignments) return null;
+  // Restituisce la lista di partite playoff lineare
+  const getPlayoffMatchesList = () => {
+    if (!bracketConfig || !bracketConfig.bracketAssignments) return [];
     const assignments = bracketConfig.bracketAssignments;
     const metadata = bracketConfig.bracketMetadata || {};
+    const list = [];
 
-    const left = assignments[`${matchId}-L`];
-    const right = assignments[`${matchId}-R`];
+    const getMatchData = (id, label) => {
+      const left = assignments[`${id}-L`] || "TBD";
+      const right = assignments[`${id}-R` || "TBD"];
+      const meta = metadata[id] || {};
+      return { id, label, left, right, meta };
+    };
 
-    const meta = metadata[matchId] || {};
-    const scoreL = parseInt(meta.scoreL || 0);
-    const scoreR = parseInt(meta.scoreR || 0);
-    const hasScore = meta.scoreL || meta.scoreR;
-    const isWinnerL = hasScore && scoreL > scoreR;
-    const isWinnerR = hasScore && scoreR > scoreL;
+    if (bracketConfig.phaseType === "gold_silver") {
+      const isGroups = bracketConfig.subPhaseType === "groups";
+      if (isGroups) {
+        list.push({ title: "Semifinali Gold 🏆", matches: [getMatchData("gold-s1", "Semifinale 1"), getMatchData("gold-s2", "Semifinale 2")] });
+        list.push({ title: "Finali Gold 🏆", matches: [getMatchData("gold-f3", "Finale 3°/4° Posto"), getMatchData("gold-f1", "Finale 1°/2° Posto")] });
+        list.push({ title: "Semifinali Silver 🥈", matches: [getMatchData("silver-s1", "Semifinale 1"), getMatchData("silver-s2", "Semifinale 2")] });
+        list.push({ title: "Finali Silver 🥈", matches: [getMatchData("silver-f3", "Finale 3°/4° Posto"), getMatchData("silver-f1", "Finale 1°/2° Posto")] });
+      } else {
+        if (bracketConfig.bracketSize === 8) {
+          list.push({
+            title: "Quarti Gold 🏆",
+            matches: [
+              getMatchData("gold-q1", "Quarto 1"),
+              getMatchData("gold-q2", "Quarto 2"),
+              getMatchData("gold-q3", "Quarto 3"),
+              getMatchData("gold-q4", "Quarto 4"),
+            ],
+          });
+        }
+        list.push({ title: "Semifinali Gold 🏆", matches: [getMatchData("gold-s1", "Semifinale 1"), getMatchData("gold-s2", "Semifinale 2")] });
+        list.push({ title: "Finali Gold 🏆", matches: [getMatchData("gold-f3", "Finale 3°/4° Posto"), getMatchData("gold-f1", "Finale 1°/2° Posto")] });
+
+        if (bracketConfig.bracketSize === 8) {
+          list.push({
+            title: "Quarti Silver 🥈",
+            matches: [
+              getMatchData("silver-q1", "Quarto 1"),
+              getMatchData("silver-q2", "Quarto 2"),
+              getMatchData("silver-q3", "Quarto 3"),
+              getMatchData("silver-q4", "Quarto 4"),
+            ],
+          });
+        }
+        list.push({ title: "Semifinali Silver 🥈", matches: [getMatchData("silver-s1", "Semifinale 1"), getMatchData("silver-s2", "Semifinale 2")] });
+        list.push({ title: "Finali Silver 🥈", matches: [getMatchData("silver-f3", "Finale 3°/4° Posto"), getMatchData("silver-f1", "Finale 1°/2° Posto")] });
+      }
+    } else {
+      // Doppia Eliminazione
+      if (bracketConfig.bracketSize === 8) {
+        list.push({
+          title: "Quarti Vincenti (Winners QF) 🏆",
+          matches: [
+            getMatchData("wb-q1", "Winners Quarto 1"),
+            getMatchData("wb-q2", "Winners Quarto 2"),
+            getMatchData("wb-q3", "Winners Quarto 3"),
+            getMatchData("wb-q4", "Winners Quarto 4"),
+          ],
+        });
+      }
+      list.push({
+        title: "Semifinali Vincenti (Winners SF) 🏆",
+        matches: [getMatchData("wb-s1", "Winners Semifinale 1"), getMatchData("wb-s2", "Winners Semifinale 2")],
+      });
+      list.push({ title: "Finale Vincenti (Winners Final) 🏆", matches: [getMatchData("wb-f", "Finale Vincenti")] });
+      list.push({
+        title: "Semifinali Perdenti (Losers SF) 🔄",
+        matches: [getMatchData("lb-s1", "Losers Semifinale 1"), getMatchData("lb-s2", "Losers Semifinale 2")],
+      });
+      list.push({ title: "Finale Perdenti (Losers Final) 🔄", matches: [getMatchData("lb-f", "Finale Perdenti")] });
+      list.push({ title: "Grand Final 👑", matches: [getMatchData("grand-final", "Finalissima")] });
+    }
+
+    return list.filter((group) => group.matches.some((m) => m.left !== "TBD" || m.right !== "TBD"));
+  };
+
+  // Rendering del singolo blocco partita SofaScore
+  const renderMatchRow = (teamL, teamR, meta, idx, matchKeyPrefix) => {
+    const scoreL = parseInt(meta?.s1L || meta?.scoreL || 0);
+    const scoreR = parseInt(meta?.s1R || meta?.scoreR || 0);
+    const hasScore = (meta?.s1L !== undefined && meta?.s1L !== "") || (meta?.scoreL !== undefined && meta?.scoreL !== "");
+    
+    // Altri set per partite a 3 set
+    const s2L = parseInt(meta?.s2L || 0);
+    const s2R = parseInt(meta?.s2R || 0);
+    const s3L = parseInt(meta?.s3L || 0);
+    const s3R = parseInt(meta?.s3R || 0);
+    const isThreeSets = activeGroupObj.type === "iniziale" && config?.gironeSets?.[activeGirone] === "3 set";
+
+    let isWinnerL = false;
+    let isWinnerR = false;
+    if (hasScore && (scoreL > 0 || scoreR > 0)) {
+      if (isThreeSets) {
+        let winL = 0, winR = 0;
+        if (scoreL > scoreR) winL++; else if (scoreR > scoreL) winR++;
+        if (s2L > s2R) winL++; else if (s2R > s2L) winR++;
+        if (s3L > s3R) winL++; else if (s3R > s3L) winR++;
+        isWinnerL = winL > winR;
+        isWinnerR = winR > winL;
+      } else {
+        isWinnerL = scoreL > scoreR;
+        isWinnerR = scoreR > scoreL;
+      }
+    }
 
     return (
-      <div className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100 transition-all hover:shadow-md text-left">
-        <div className="flex justify-between items-center mb-2.5 border-b border-gray-50 pb-2">
-          <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">
-            {customLabel || matchId.toUpperCase()}
-          </span>
+      <div
+        key={idx}
+        id={`${matchKeyPrefix}-${idx}`}
+        className="bg-white rounded-[1.6rem] p-4 border border-gray-100 shadow-sm flex flex-col gap-2 transition-all"
+      >
+        <div className="flex justify-between items-center text-[9px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 pb-2">
+          <span>Gara {idx + 1}</span>
           <div className="flex gap-1.5">
-            {meta.time && (
-              <span className="text-[8px] font-black text-gray-500 bg-gray-50 px-2 py-0.5 rounded">
+            {meta?.time && (
+              <span className="bg-gray-50 text-gray-500 px-2.5 py-0.5 rounded-lg">
                 {meta.time}
               </span>
             )}
-            {meta.court && (
-              <span className="text-[8px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+            {meta?.court && (
+              <span className="bg-blue-50 text-blue-600 px-2.5 py-0.5 rounded-lg font-black">
                 C.{meta.court}
               </span>
             )}
           </div>
         </div>
 
-        <div className="space-y-2">
-          <div className="flex justify-between items-center">
+        <div className="flex items-center justify-between gap-3 py-1">
+          {/* Team Left */}
+          <div className="flex-1 text-right min-w-0 pr-1">
             <span
-              className={`text-xs uppercase font-bold truncate pr-4 ${
-                isWinnerL ? "text-[#0a1628] font-black" : "text-gray-500"
+              className={`text-xs sm:text-sm font-bold uppercase truncate block ${
+                isWinnerL ? "text-[#0a1628] font-black" : "text-gray-400 font-semibold"
               }`}
             >
-              {left || "TBD"}
-            </span>
-            <span
-              className={`text-xs font-black ${
-                isWinnerL ? "text-green-600 font-extrabold" : "text-gray-400"
-              }`}
-            >
-              {hasScore ? scoreL : "-"}
+              {teamL}
             </span>
           </div>
-          <div className="flex justify-between items-center">
-            <span
-              className={`text-xs uppercase font-bold truncate pr-4 ${
-                isWinnerR ? "text-[#0a1628] font-black" : "text-gray-500"
-              }`}
-            >
-              {right || "TBD"}
-            </span>
-            <span
-              className={`text-xs font-black ${
-                isWinnerR ? "text-green-600 font-extrabold" : "text-gray-400"
-              }`}
-            >
-              {hasScore ? scoreR : "-"}
-            </span>
-          </div>
-        </div>
-      </div>
-    );
-  };
 
-  const renderGoldSilverFinals = () => {
-    if (!bracketConfig) return null;
-    const isGroups = bracketConfig?.subPhaseType === "groups";
-
-    return (
-      <div className="space-y-8">
-        {/* GOLD CATEGORY */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 border-b pb-2">
-            <span className="text-lg">🏆</span>
-            <h3 className="text-xs font-black uppercase text-yellow-600 tracking-wider">
-              Fasi Finali GOLD
-            </h3>
-          </div>
-
-          {isGroups ? (
-            <div className="space-y-4">
-              <div className="space-y-3">
-                {renderBracketMatch("gold-s1", "Semifinale 1")}
-                {renderBracketMatch("gold-s2", "Semifinale 2")}
-                {renderBracketMatch("gold-f3", "Finale 3°/4°")}
-                {renderBracketMatch("gold-f1", "Finale 1°/2°")}
+          {/* Score Badge */}
+          <div className="shrink-0 flex flex-col items-center justify-center">
+            {hasScore && (scoreL > 0 || scoreR > 0) ? (
+              <div className="bg-[#0a1628] text-white font-black px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1 shadow-sm">
+                <span>{scoreL}</span>
+                <span className="opacity-30">-</span>
+                <span>{scoreR}</span>
               </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {bracketConfig?.bracketSize === 8 && (
-                <div className="space-y-3">
-                  <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest block pl-1">
-                    Quarti di finale
-                  </span>
-                  {renderBracketMatch("gold-q1", "Quarto 1")}
-                  {renderBracketMatch("gold-q2", "Quarto 2")}
-                  {renderBracketMatch("gold-q3", "Quarto 3")}
-                  {renderBracketMatch("gold-q4", "Quarto 4")}
-                </div>
-              )}
-              <div className="space-y-3">
-                <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest block pl-1">
-                  Semifinali e Finali
-                </span>
-                {renderBracketMatch("gold-s1", "Semifinale 1")}
-                {renderBracketMatch("gold-s2", "Semifinale 2")}
-                {renderBracketMatch("gold-f3", "Finale 3°/4°")}
-                {renderBracketMatch("gold-f1", "Finale 1°/2°")}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* SILVER CATEGORY */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 border-b pb-2">
-            <span className="text-lg">🥈</span>
-            <h3 className="text-xs font-black uppercase text-gray-500 tracking-wider">
-              Fasi Finali SILVER
-            </h3>
-          </div>
-
-          {isGroups ? (
-            <div className="space-y-3">
-              {renderBracketMatch("silver-s1", "Semifinale 1")}
-              {renderBracketMatch("silver-s2", "Semifinale 2")}
-              {renderBracketMatch("silver-f3", "Finale 3°/4°")}
-              {renderBracketMatch("silver-f1", "Finale 1°/2°")}
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {bracketConfig?.bracketSize === 8 && (
-                <div className="space-y-3">
-                  {renderBracketMatch("silver-q1", "Quarto 1")}
-                  {renderBracketMatch("silver-q2", "Quarto 2")}
-                  {renderBracketMatch("silver-q3", "Quarto 3")}
-                  {renderBracketMatch("silver-q4", "Quarto 4")}
-                </div>
-              )}
-              <div className="space-y-3">
-                {renderBracketMatch("silver-s1", "Semifinale 1")}
-                {renderBracketMatch("silver-s2", "Semifinale 2")}
-                {renderBracketMatch("silver-f3", "Finale 3°/4°")}
-                {renderBracketMatch("silver-f1", "Finale 1°/2°")}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  const renderDoubleEliminationFinals = () => {
-    if (!bracketConfig) return null;
-    return (
-      <div className="space-y-8">
-        <div>
-          <div className="flex items-center gap-2 border-b pb-2 mb-4">
-            <span className="text-lg">🏆</span>
-            <h3 className="text-xs font-black uppercase text-blue-600 tracking-wider">
-              Winners Bracket
-            </h3>
-          </div>
-          <div className="space-y-3">
-            {bracketConfig?.bracketSize === 8 && (
-              <>
-                {renderBracketMatch("wb-q1", "Quarto 1")}
-                {renderBracketMatch("wb-q2", "Quarto 2")}
-                {renderBracketMatch("wb-q3", "Quarto 3")}
-                {renderBracketMatch("wb-q4", "Quarto 4")}
-              </>
+            ) : (
+              <span className="text-[9px] font-black bg-gray-50 text-gray-300 px-3 py-1.5 rounded-xl uppercase tracking-wider border border-gray-100">
+                VS
+              </span>
             )}
-            {renderBracketMatch("wb-s1", "Semifinale 1")}
-            {renderBracketMatch("wb-s2", "Semifinale 2")}
-            {renderBracketMatch("wb-f", "Finale Vincenti")}
+            {isThreeSets && hasScore && (scoreL > 0 || scoreR > 0) && (
+              <span className="text-[8px] font-bold text-gray-400 mt-1">
+                ({s2L}-{s2R}, {s3L}-{s3R})
+              </span>
+            )}
           </div>
-        </div>
 
-        <div>
-          <div className="flex items-center gap-2 border-b pb-2 mb-4">
-            <span className="text-lg">🔄</span>
-            <h3 className="text-xs font-black uppercase text-gray-500 tracking-wider">
-              Losers Bracket
-            </h3>
+          {/* Team Right */}
+          <div className="flex-1 text-left min-w-0 pl-1">
+            <span
+              className={`text-xs sm:text-sm font-bold uppercase truncate block ${
+                isWinnerR ? "text-[#0a1628] font-black" : "text-gray-400 font-semibold"
+              }`}
+            >
+              {teamR}
+            </span>
           </div>
-          <div className="space-y-3">
-            {renderBracketMatch("lb-s1", "Semifinale Perdenti 1")}
-            {renderBracketMatch("lb-s2", "Semifinale Perdenti 2")}
-            {renderBracketMatch("lb-f", "Finale Perdenti")}
-          </div>
-        </div>
-
-        <div className="bg-[#0a1628] p-5 rounded-[1.8rem] text-white shadow-md relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-yellow-400/10 rounded-full -mr-12 -mt-12"></div>
-          <h3 className="text-xs font-black text-[#FFD700] uppercase mb-3 text-center tracking-wider">
-            GRAND FINAL 👑
-          </h3>
-          {renderBracketMatch("grand-final", "Finalissima")}
         </div>
       </div>
     );
   };
 
-  const schedule = config
-    ? getSchedule(config.teamCounts[activeGirone], activeGirone, config.gironeAssignments[activeGirone] || {})
-    : [];
-  const bracketMatches = getAllBracketMatches();
-  const matchMetadata = config?.matchMetadata || {};
+  const groupStats =
+    activeGroupObj.type === "intermedio"
+      ? getIntermediateGroupStats(activeGirone)
+      : calculateRanking();
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#f0f4ff] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-[#0a1628] border-t-transparent rounded-full animate-spin" />
-          <p className="text-xs font-black text-gray-400 uppercase tracking-widest">
-            Caricamento...
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  const isPublished = config && config.pubblicato;
+  const groupMatches =
+    activeGroupObj.type === "intermedio"
+      ? getIntermediateGroupMatches(activeGirone)
+      : getSchedule(
+          config?.teamCounts?.[activeGirone] || 0,
+          activeGirone,
+          config?.gironeAssignments?.[activeGirone] || {}
+        ).map((m, idx) => ({
+          left: m.left,
+          right: m.right,
+          meta: config?.matchMetadata?.[`${activeGirone}-${idx}`] || {},
+        }));
 
   return (
-    <main className="min-h-screen bg-[#f0f4ff] pb-10">
+    <main className="min-h-screen bg-[#f0f4ff] pb-24">
       {/* Header Mobile Premium */}
       <header
         style={{ backgroundColor: "#0a1628" }}
-        className="text-white py-4 px-5 flex justify-between items-center shadow-lg border-b-4 border-[#FFD700] sticky top-0 z-50"
+        className="text-white py-4 px-5 flex justify-between items-center shadow-md border-b-4 border-[#FFD700] sticky top-0 z-50"
       >
         <div className="flex items-center gap-2.5">
           <Image src="/logo.png" alt="BVI Logo" width={32} height={32} />
@@ -771,7 +631,7 @@ export default function PortaleLiveMobile() {
         </div>
         <a
           href="/"
-          className="text-[10px] font-black bg-[#FFD700] text-[#0a1628] px-4 py-1.5 rounded-xl transition-transform active:scale-95 shadow-sm uppercase tracking-wider"
+          className="text-[9px] font-black bg-[#FFD700] text-[#0a1628] px-4 py-1.5 rounded-xl transition-transform active:scale-95 shadow-sm uppercase tracking-wider"
         >
           Home
         </a>
@@ -789,7 +649,7 @@ export default function PortaleLiveMobile() {
               Torneo Attivo 🟢
             </span>
           )}
-          <h2 className="text-2xl font-black text-[#0a1628] uppercase tracking-tighter leading-tight">
+          <h2 className="text-xl font-black text-[#0a1628] uppercase tracking-tighter leading-tight">
             {selectedTorneo || "Nessun Torneo"}
           </h2>
           <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-1.5">
@@ -833,260 +693,140 @@ export default function PortaleLiveMobile() {
         {/* Controllo Pubblicazione */}
         {isPublished ? (
           <>
-            {/* Tabs per smartphone */}
-            {bracketConfig && (
-              <div className="flex bg-white p-1 rounded-2xl shadow-sm border border-gray-100">
-                <button
-                  onClick={() => setActiveTab("iniziali")}
-                  className={`flex-1 py-3 text-center rounded-xl font-black text-[10px] uppercase tracking-wider transition-all ${
-                    activeTab === "iniziali"
-                      ? "bg-[#0a1628] text-white shadow-md"
-                      : "text-gray-400 hover:text-[#0a1628]"
-                  }`}
-                >
-                  Gironi
-                </button>
-                {bracketConfig?.phaseType === "gold_silver" &&
-                  bracketConfig?.subPhaseType === "groups" && (
-                    <button
-                      onClick={() => setActiveTab("intermedi")}
-                      className={`flex-1 py-3 text-center rounded-xl font-black text-[10px] uppercase tracking-wider transition-all ${
-                        activeTab === "intermedi"
-                          ? "bg-[#0a1628] text-white shadow-md"
-                          : "text-gray-400 hover:text-[#0a1628]"
-                      }`}
-                    >
-                      Intermedi
-                    </button>
-                  )}
-                <button
-                  onClick={() => setActiveTab("finali")}
-                  className={`flex-1 py-3 text-center rounded-xl font-black text-[10px] uppercase tracking-wider transition-all ${
-                    activeTab === "finali"
-                      ? "bg-[#0a1628] text-white shadow-md"
-                      : "text-gray-400 hover:text-[#0a1628]"
-                  }`}
-                >
-                  Playoff
-                </button>
-              </div>
-            )}
-
-            {/* Visualizzazione Gironi Iniziali */}
-            {activeTab === "iniziali" && (
-              <div className="space-y-4">
-                {/* Gironi Selector Tabs */}
-                {gironiDisponibili.length > 0 && (
-                  <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar justify-start">
-                    {gironiDisponibili.map((g) => (
+            {/* 1. SEZIONE GIRONI */}
+            {activeTab === "gironi" && (
+              <div className="space-y-5">
+                {/* Horizontal Gironi selector */}
+                {getGroupsList().length > 0 && (
+                  <div className="flex gap-2 overflow-x-auto pb-1.5 no-scrollbar justify-start">
+                    {getGroupsList().map((g) => (
                       <button
-                        key={g}
-                        onClick={() => setActiveGirone(g)}
+                        key={g.id}
+                        onClick={() => setActiveGirone(g.id)}
                         className={`px-5 py-2.5 rounded-xl font-black transition-all text-xs shrink-0 ${
-                          activeGirone === g
+                          activeGirone === g.id
                             ? "bg-[#0a1628] text-white shadow-md"
                             : "bg-white text-gray-400 hover:bg-gray-50 border border-gray-100"
                         }`}
                       >
-                        GIRONE {g}
+                        {g.label}
                       </button>
                     ))}
                   </div>
                 )}
 
-                {/* Classifica Girone */}
-                <div className="space-y-2">
+                {/* Classifica Unificata */}
+                <div className="space-y-2.5">
                   <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-widest pl-1">
-                    Classifica Girone {activeGirone}
+                    Classifica Live
                   </h3>
-                  <div className="space-y-2.5">
-                    {calculateRanking().map((team, idx) => {
-                      const quotient =
-                        team.puntiSubiti === 0
-                          ? team.puntiFatti
-                          : (team.puntiFatti / team.puntiSubiti).toFixed(3);
-                      const isQualified = idx < 2;
-
-                      return (
-                        <div
-                          key={team.nome}
-                          className={`bg-white rounded-3xl p-4.5 shadow-sm border border-gray-100 flex items-center justify-between ${
-                            isQualified ? "border-l-4 border-l-yellow-400" : ""
-                          }`}
-                        >
-                          <div className="flex items-center gap-3.5 min-w-0">
-                            <span
-                              className={`w-6.5 h-6.5 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
-                                isQualified
-                                  ? "bg-yellow-400 text-white shadow-sm"
-                                  : "bg-gray-100 text-gray-400"
+                  <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                    <table className="w-full text-left">
+                      <thead className="bg-gray-50/50 border-b border-gray-100 text-[8px] font-black text-gray-400 uppercase tracking-widest">
+                        <tr>
+                          <th className="pl-4 py-3 w-10 text-center">Pos</th>
+                          <th className="px-2 py-3">Squadra</th>
+                          <th className="px-2 py-3 text-center w-8">G</th>
+                          <th className="px-2 py-3 text-center w-12">V/P</th>
+                          <th className="pr-4 py-3 text-right w-12">Pt</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50 text-xs font-bold">
+                        {groupStats.map((team, idx) => {
+                          const isQualified = idx < 2;
+                          return (
+                            <tr
+                              key={team.nome}
+                              className={`hover:bg-blue-50/10 transition-colors ${
+                                isQualified ? "bg-yellow-50/10" : ""
                               }`}
                             >
-                              {idx + 1}
-                            </span>
-                            <div className="min-w-0">
-                              <p className="font-black text-[#0a1628] text-xs uppercase tracking-tight truncate">
+                              <td className="pl-4 py-3.5 text-center">
+                                <span
+                                  className={`w-5.5 h-5.5 rounded-full flex items-center justify-center text-[10px] font-black mx-auto ${
+                                    isQualified
+                                      ? "bg-yellow-400 text-white shadow-sm"
+                                      : "bg-gray-100 text-gray-400"
+                                  }`}
+                                >
+                                  {idx + 1}
+                                </span>
+                              </td>
+                              <td className="px-2 py-3.5 text-[#0a1628] font-black uppercase tracking-tight truncate max-w-[140px]">
                                 {team.nome}
-                              </p>
-                              <p className="text-[9px] text-gray-400 font-semibold mt-0.5">
-                                G: {team.giocate} | V/P: {team.vinte}/{team.perse} | Quoz:{" "}
-                                {quotient}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <p className="text-base font-black text-[#0a1628] leading-none">
-                              {team.score}
-                            </p>
-                            <p className="text-[7px] font-black text-gray-300 uppercase mt-0.5">
-                              Punti
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })}
+                              </td>
+                              <td className="px-2 py-3.5 text-center text-gray-400 font-semibold">
+                                {team.giocate}
+                              </td>
+                              <td className="px-2 py-3.5 text-center whitespace-nowrap text-[10px]">
+                                <span className="text-green-600 font-bold">{team.vinte}</span>
+                                <span className="text-gray-200 mx-0.5">/</span>
+                                <span className="text-red-500 font-bold">{team.perse}</span>
+                              </td>
+                              <td className="pr-4 py-3.5 text-right font-black text-sm text-[#0a1628]">
+                                {team.score}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {groupStats.length === 0 && (
+                          <tr>
+                            <td colSpan="5" className="py-8 text-center text-gray-400 italic">
+                              In attesa dei risultati di questo girone.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
 
                 {/* Partite Girone */}
-                <div className="space-y-3.5">
+                <div className="space-y-2.5">
                   <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-widest pl-1">
-                    Incontri e Risultati
+                    Calendario Incontri
                   </h3>
-                  {schedule.length > 0 ? (
-                    schedule.map((match, idx) => {
-                      const meta = matchMetadata[`${activeGirone}-${idx}`] || {};
-                      const hasScore = meta.s1L || meta.s1R;
-
-                      const s1L = parseInt(meta.s1L || 0);
-                      const s1R = parseInt(meta.s1R || 0);
-                      const s2L = parseInt(meta.s2L || 0);
-                      const s2R = parseInt(meta.s2R || 0);
-                      const s3L = parseInt(meta.s3L || 0);
-                      const s3R = parseInt(meta.s3R || 0);
-
-                      let isWinnerL = false;
-                      let isWinnerR = false;
-                      if (hasScore) {
-                        if (config.gironeSets?.[activeGirone] === "3 set") {
-                          let winL = 0,
-                            winR = 0;
-                          if (s1L > s1R) winL++;
-                          else if (s1R > s1L) winR++;
-                          if (s2L > s2R) winL++;
-                          else if (s2R > s2L) winR++;
-                          if (s3L > s3R) winL++;
-                          else if (s3R > s3L) winR++;
-                          isWinnerL = winL > winR;
-                          isWinnerR = winR > winL;
-                        } else {
-                          isWinnerL = s1L > s1R;
-                          isWinnerR = s1R > s1L;
-                        }
-                      }
-
-                      return (
-                        <div key={idx} className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100">
-                          <div className="flex justify-between items-center mb-2.5 border-b border-gray-50 pb-2">
-                            <span className="text-[8px] font-black text-gray-300 uppercase tracking-widest">
-                              Gara {idx + 1}
-                            </span>
-                            <div className="flex gap-1">
-                              {meta.time && (
-                                <span className="text-[8px] font-black text-gray-500 bg-gray-50 px-2 py-0.5 rounded">
-                                  {meta.time}
-                                </span>
-                              )}
-                              {meta.court && (
-                                <span className="text-[8px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
-                                  C.{meta.court}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-center">
-                              <span
-                                className={`text-xs uppercase font-bold truncate pr-4 ${
-                                  isWinnerL ? "text-[#0a1628] font-black" : "text-gray-500"
-                                }`}
-                              >
-                                {match.left}
-                              </span>
-                              <div className="flex items-center gap-1">
-                                <span
-                                  className={`text-xs font-black ${
-                                    isWinnerL ? "text-green-600 font-extrabold" : "text-gray-400"
-                                  }`}
-                                >
-                                  {hasScore ? s1L : "-"}
-                                </span>
-                                {config.gironeSets?.[activeGirone] === "3 set" && hasScore && (
-                                  <span className="text-[8px] text-gray-400 font-semibold bg-gray-50 px-1 rounded">
-                                    ({s2L}, {s3L})
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="flex justify-between items-center">
-                              <span
-                                className={`text-xs uppercase font-bold truncate pr-4 ${
-                                  isWinnerR ? "text-[#0a1628] font-black" : "text-gray-500"
-                                }`}
-                              >
-                                {match.right}
-                              </span>
-                              <div className="flex items-center gap-1">
-                                <span
-                                  className={`text-xs font-black ${
-                                    isWinnerR ? "text-green-600 font-extrabold" : "text-gray-400"
-                                  }`}
-                                >
-                                  {hasScore ? s1R : "-"}
-                                </span>
-                                {config.gironeSets?.[activeGirone] === "3 set" && hasScore && (
-                                  <span className="text-[8px] text-gray-400 font-semibold bg-gray-50 px-1 rounded">
-                                    ({s2R}, {s3R})
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="bg-white rounded-3xl p-6 text-center border border-gray-100">
-                      <p className="text-gray-400 italic text-xs">Nessun match schedulato.</p>
-                    </div>
-                  )}
+                  <div className="space-y-3">
+                    {groupMatches.map((m, idx) =>
+                      renderMatchRow(m.left, m.right, m.meta, idx, `match-${activeGirone}`)
+                    )}
+                    {groupMatches.length === 0 && (
+                      <div className="bg-white rounded-3xl p-6 text-center border border-gray-100">
+                        <p className="text-gray-400 italic text-xs">Nessun match programmato.</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Gironi Intermedi */}
-            {activeTab === "intermedi" &&
-              bracketConfig?.phaseType === "gold_silver" &&
-              bracketConfig?.subPhaseType === "groups" && (
-                <div className="space-y-6 text-left">
-                  {renderIntermediateGroupForSpectator("gold-A", "Girone Gold A", "gold")}
-                  {config?.numGironi === 4 &&
-                    renderIntermediateGroupForSpectator("gold-B", "Girone Gold B", "gold")}
-                  <div className="border-b border-dashed border-gray-200 my-4" />
-                  {renderIntermediateGroupForSpectator("silver-A", "Girone Silver A", "silver")}
-                  {config?.numGironi === 4 &&
-                    renderIntermediateGroupForSpectator("silver-B", "Girone Silver B", "silver")}
-                </div>
-              )}
-
-            {/* Fasi Finali Tabellone */}
-            {activeTab === "finali" && bracketConfig && (
-              <div className="space-y-6">
-                {bracketConfig.phaseType === "gold_silver"
-                  ? renderGoldSilverFinals()
-                  : renderDoubleEliminationFinals()}
+            {/* 2. SEZIONE FASI FINALI */}
+            {activeTab === "finali" && (
+              <div className="space-y-5">
+                {getPlayoffMatchesList().length > 0 ? (
+                  getPlayoffMatchesList().map((group, gIdx) => (
+                    <div key={gIdx} className="space-y-3">
+                      <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-widest pl-1 border-b pb-2">
+                        {group.title}
+                      </h3>
+                      <div className="space-y-3">
+                        {group.matches.map((m, idx) =>
+                          renderMatchRow(m.left, m.right, m.meta, idx, `playoff-${group.title}`)
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-20 bg-white rounded-[2rem] shadow-sm border border-gray-100 px-6">
+                    <span className="text-5xl mb-4 block">⚔️</span>
+                    <h3 className="text-lg font-black text-[#0a1628] uppercase tracking-tight mb-2">
+                      Fasi Finali in Preparazione
+                    </h3>
+                    <p className="text-gray-400 font-medium text-xs max-w-xs mx-auto">
+                      Il tabellone ad eliminazione diretta non è ancora stato generato dallo staff per questo torneo.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </>
@@ -1103,6 +843,78 @@ export default function PortaleLiveMobile() {
           </div>
         )}
       </div>
+
+      {/* BOTTOM NAV BAR FISSA - 2 Pulsanti */}
+      {isPublished && (
+        <nav className="fixed bottom-0 left-0 right-0 z-50">
+          <div className="absolute inset-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 shadow-[0_-4px_30px_rgba(0,0,0,0.08)]" />
+          <div className="relative flex justify-around px-2 pb-safe">
+            {/* Pulsante Gironi */}
+            <button
+              onClick={() => setActiveTab("gironi")}
+              className="relative flex flex-col items-center gap-1.5 py-3.5 px-4 flex-1 active:scale-95 transition-transform"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill={activeTab === "gironi" ? "currentColor" : "none"}
+                stroke="currentColor"
+                strokeWidth={activeTab === "gironi" ? 0 : 2}
+                className="w-5 h-5 text-[#0a1628]"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25Z"
+                />
+              </svg>
+              <span
+                className={`text-[9px] font-black uppercase tracking-widest ${
+                  activeTab === "gironi" ? "text-[#0a1628]" : "text-gray-300"
+                }`}
+              >
+                Gironi
+              </span>
+              {activeTab === "gironi" && (
+                <span className="absolute top-2.5 w-1 h-1 rounded-full bg-[#FFD700]" />
+              )}
+            </button>
+
+            {/* Pulsante Fasi Finali */}
+            <button
+              onClick={() => setActiveTab("finali")}
+              className="relative flex flex-col items-center gap-1.5 py-3.5 px-4 flex-1 active:scale-95 transition-transform"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill={activeTab === "finali" ? "currentColor" : "none"}
+                stroke="currentColor"
+                strokeWidth={activeTab === "finali" ? 0 : 2}
+                className="w-5 h-5 text-[#0a1628]"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15.362 5.214A8.252 8.252 0 0 1 12 21 8.25 8.25 0 0 1 6.038 7.047 8.287 8.287 0 0 0 9 9.601a8.983 8.983 0 0 1 3.361-6.867 8.21 8.21 0 0 0 3 2.48Z"
+                />
+              </svg>
+              <span
+                className={`text-[9px] font-black uppercase tracking-widest ${
+                  activeTab === "finali" ? "text-[#0a1628]" : "text-gray-300"
+                }`}
+              >
+                Fasi Finali
+              </span>
+              {activeTab === "finali" && (
+                <span className="absolute top-2.5 w-1 h-1 rounded-full bg-[#FFD700]" />
+              )}
+            </button>
+          </div>
+          {/* iOS spacer */}
+          <div className="h-safe-area-inset-bottom bg-transparent" />
+        </nav>
+      )}
     </main>
   );
 }
