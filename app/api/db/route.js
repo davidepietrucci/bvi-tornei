@@ -7,7 +7,8 @@ import {
   getModuli, saveModuli, 
   getGironi, saveGironi, 
   getBracket, saveBracket,
-  getNotifiche, saveNotifiche
+  getNotifiche, saveNotifiche,
+  getStaff, saveStaff
 } from "@/app/utils/db";
 
 // 1. GET: Gestisce le letture del database controllando i permessi di lettura
@@ -18,12 +19,12 @@ export async function GET(req) {
     const slug = searchParams.get("slug");
 
     // Controlliamo l'autenticazione per le letture sensibili
-    if (type === "users" || type === "iscrizioni") {
+    if (type === "users" || type === "iscrizioni" || type === "staff") {
       const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
       if (!token) {
         return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
       }
-      if (type === "users" && token.role !== "admin") {
+      if ((type === "users" || type === "staff") && token.role !== "admin") {
         return NextResponse.json({ error: "Accesso negato: richiesto ruolo Admin" }, { status: 403 });
       }
     }
@@ -32,6 +33,7 @@ export async function GET(req) {
     if (type === "tornei") data = await getTornei();
     else if (type === "iscrizioni") data = await getIscrizioni();
     else if (type === "users") data = await getUsers();
+    else if (type === "staff") data = await getStaff();
     else if (type === "moduli") data = await getModuli();
     else if (type === "gironi") data = await getGironi(slug);
     else if (type === "bracket") data = await getBracket(slug);
@@ -65,11 +67,12 @@ export async function POST(req) {
     const role = token?.role;
 
     // Controllo dei permessi di scrittura lato server
-    if (type === "moduli") {
+    if (type === "moduli" || type === "staff") {
       if (role !== "admin") {
         return NextResponse.json({ error: "Accesso negato: richiesto ruolo Admin" }, { status: 403 });
       }
-      await saveModuli(data);
+      if (type === "moduli") await saveModuli(data);
+      if (type === "staff") await saveStaff(data);
     } 
     else if (type === "tornei" || type === "gironi" || type === "bracket" || type === "iscrizioni" || type === "notifiche") {
       if (role !== "admin" && role !== "staff") {

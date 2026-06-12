@@ -19,7 +19,7 @@ const handler = NextAuth({
         const normalizedUser = username?.trim().toLowerCase();
         
         // 1. Elenco utenti staff (con credenziali di fallback)
-        const staffUsers = [
+        const fallbackStaff = [
           { id: "admin", name: "Administrator", username: "admin", password: process.env.STAFF_PASSWORD_ADMIN || "admin", role: "admin" },
           { id: "staff", name: "Staff Member", username: "staff", password: process.env.STAFF_PASSWORD_STAFF || "staff", role: "staff" },
           { id: "vale", name: "Valentina", username: "vale", password: process.env.STAFF_PASSWORD_VALE || "bvi2026", role: "staff" },
@@ -27,7 +27,16 @@ const handler = NextAuth({
           { id: "fra.b", name: "Francesco B.", username: "fra.b", password: process.env.STAFF_PASSWORD_FRAB || "Bvi2026", role: "staff" }
         ];
 
-        const matchedStaff = staffUsers.find(
+        let dynamicStaff = [];
+        try {
+          const { getStaff } = require("@/app/utils/db");
+          dynamicStaff = await getStaff();
+        } catch (e) {
+          console.error("NextAuth authorize read staff error:", e);
+        }
+
+        const allStaff = [...fallbackStaff, ...dynamicStaff];
+        const matchedStaff = allStaff.find(
           u => u.username === normalizedUser && u.password === password
         );
 

@@ -44,6 +44,7 @@ export default function StaffHeader() {
     { name: "Iscrizioni", path: "/staff/iscrizioni" },
     { name: "Moduli Iscrizione", path: "/staff/moduli" },
     { name: "Anagrafica Atleti", path: "/staff/atleti" },
+    { name: "Gestione Staff", path: "/staff/gestione-staff" },
     { name: "Tornei", path: "/staff/tornei" },
     { name: "Gironi", path: "/staff/gironi" },
     { name: "Tabellone", path: "/staff/tabellone" },
@@ -52,7 +53,7 @@ export default function StaffHeader() {
   ];
 
   const filteredMenuItems = menuItems.filter(item => {
-    if (role === "staff" && item.name === "Anagrafica Atleti") {
+    if (role === "staff" && (item.name === "Anagrafica Atleti" || item.name === "Gestione Staff")) {
       return false;
     }
     return true;

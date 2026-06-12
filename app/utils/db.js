@@ -395,3 +395,49 @@ export async function saveNotifiche(list) {
     localStorage.setItem("bvi_notifiche", JSON.stringify(list));
   }
 }
+
+// 8. Staff (Staff/Admin accounts)
+export async function getStaff() {
+  if (typeof window === "undefined") {
+    if (db) {
+      try {
+        const docRef = doc(db, "config", "staff");
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          return docSnap.data().list || [];
+        }
+      } catch (e) {
+        console.error("Firestore read staff error:", e);
+      }
+    }
+    return [];
+  }
+
+  if (isFirebaseConfigured) {
+    const serverData = await fetchFromServerDb("staff");
+    return serverData || [];
+  } else {
+    const saved = localStorage.getItem("bvi_staff");
+    return safeJsonParse(saved, []);
+  }
+}
+
+export async function saveStaff(list) {
+  if (typeof window === "undefined") {
+    if (db) {
+      try {
+        const docRef = doc(db, "config", "staff");
+        await setDoc(docRef, { list });
+      } catch (e) {
+        console.error("Firestore write staff error:", e);
+      }
+    }
+    return;
+  }
+
+  if (isFirebaseConfigured) {
+    await saveToServerDb("staff", list);
+  } else {
+    localStorage.setItem("bvi_staff", JSON.stringify(list));
+  }
+}

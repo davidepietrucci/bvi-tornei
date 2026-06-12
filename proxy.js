@@ -13,8 +13,8 @@ export async function proxy(req) {
       return NextResponse.redirect(loginUrl);
     }
 
-    // Se un utente staff semplice prova ad accedere ad aree riservate all'admin (es. anagrafica atleti)
-    if (token.role === "staff" && pathname.startsWith("/staff/atleti")) {
+    // Se un utente staff semplice prova ad accedere ad aree riservate all'admin (es. anagrafica atleti, gestione staff)
+    if (token.role === "staff" && (pathname.startsWith("/staff/atleti") || pathname.startsWith("/staff/gestione-staff"))) {
       const dashboardUrl = new URL("/staff/dashboard", req.url);
       return NextResponse.redirect(dashboardUrl);
     }
