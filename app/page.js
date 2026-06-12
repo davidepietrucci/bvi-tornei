@@ -31,15 +31,9 @@ export default function Home() {
           <h1 className="text-2xl font-bold" style={{color: "#FFD700"}}>BVI Tornei</h1>
         </div>
         <nav className="flex gap-6 items-center">
-          <div className="flex gap-4 items-center">
-            <a href="https://www.beachvolleyinstitute.it" target="_blank" rel="noopener noreferrer" className="hover:text-yellow-400 text-sm font-semibold text-gray-300 transition-colors flex items-center gap-1.5">
-              🌐 Sito BVI
-            </a>
-            <a href="https://www.instagram.com/beachvolleyinstitute/" target="_blank" rel="noopener noreferrer" className="hover:text-yellow-400 text-sm font-semibold text-gray-300 transition-colors flex items-center gap-1.5">
-              📸 Instagram
-            </a>
-            <span className="text-gray-700 hidden sm:inline">|</span>
-            <a href="/staff" className="hover:text-yellow-400 text-sm font-semibold text-gray-300 transition-colors">Area Staff</a>
+          <div className="flex gap-4">
+            {/* <a href="/atleta" className="hover:text-yellow-400 text-sm font-medium text-gray-300 transition-colors">Area Atleta</a> */}
+            <a href="/staff" className="hover:text-yellow-400 text-sm font-medium text-gray-300 transition-colors">Area Staff</a>
           </div>
         </nav>
       </header>
@@ -61,27 +55,9 @@ export default function Home() {
           <h2 className="text-4xl sm:text-5xl font-extrabold mb-6 leading-tight" style={{color: "#0a1628"}}>
             #Live your passion
           </h2>
-          <p className="text-lg sm:text-xl text-gray-600 mb-8 font-medium max-w-2xl leading-relaxed">
+          <p className="text-lg sm:text-xl text-gray-600 mb-10 font-medium max-w-2xl leading-relaxed">
             Qui puoi iscriverti ai tornei attivi e guardare i risultati in diretta
           </p>
-          <div className="flex flex-wrap gap-4 justify-center mb-6">
-            <a 
-              href="https://www.beachvolleyinstitute.it" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="px-6 py-3.5 bg-white hover:bg-gray-50 text-[#0a1628] rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-md hover:shadow-lg hover:scale-105 active:scale-95 flex items-center gap-2 border border-gray-100 cursor-pointer"
-            >
-              🌐 Visita il Sito Principale
-            </a>
-            <a 
-              href="https://www.instagram.com/beachvolleyinstitute/" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="px-6 py-3.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-md hover:shadow-lg hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer"
-            >
-              📸 Seguici su Instagram
-            </a>
-          </div>
         </div>
       </section>
 
@@ -230,22 +206,27 @@ export default function Home() {
             </div>
           </div>
           
-          <div className="flex flex-col sm:flex-row gap-6 items-center">
+          <div className="flex gap-6 items-center">
             <a 
               href="https://www.beachvolleyinstitute.it" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-2xl text-xs font-black uppercase tracking-widest transition-all text-white border border-white/10 hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer"
+              className="px-6 py-3.5 bg-white/10 hover:bg-white/20 rounded-2xl text-xs font-black uppercase tracking-widest transition-all text-white border border-white/10 hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer"
             >
               🌐 Sito Ufficiale
             </a>
             <a 
-              href="https://www.instagram.com/beachvolleyinstitute/" 
+              href="https://www.instagram.com/beachvolleyinstitutebvi/" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 rounded-2xl text-xs font-black uppercase tracking-widest transition-all text-white hover:scale-105 active:scale-95 flex items-center gap-2 shadow-lg cursor-pointer"
+              className="hover:scale-110 active:scale-95 transition-all cursor-pointer flex items-center justify-center bg-gradient-to-tr from-[#f9ce3f] via-[#e1306c] to-[#833ab4] p-3 rounded-2xl shadow-lg border border-white/10"
+              aria-label="Seguici su Instagram"
             >
-              📸 Seguici su Instagram
+              <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+              </svg>
             </a>
           </div>
         </div>
