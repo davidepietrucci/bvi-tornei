@@ -4,13 +4,24 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import StaffHeader from "@/app/components/StaffHeader";
-import { getUsers } from "@/app/utils/db";
+import { getUsers, saveUsers } from "@/app/utils/db";
 
 export default function StaffAtleti() {
   const router = useRouter();
   const { data: session, status } = useSession();
   const [atleti, setAtleti] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  
+  // Modal states
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newUserData, setNewUserData] = useState({
+    nome: "",
+    cognome: "",
+    email: "",
+    password: ""
+  });
+  const [modalError, setModalError] = useState("");
+  const [modalSubmitting, setModalSubmitting] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -30,6 +41,58 @@ export default function StaffAtleti() {
     }
   }, [router, session, status]);
 
+  const handleModalChange = (e) => {
+    setNewUserData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    if (modalSubmitting) return;
+    setModalSubmitting(true);
+    setModalError("");
+
+    try {
+      const emailNormalized = newUserData.email.trim().toLowerCase();
+      
+      // Check if email already exists
+      const existing = await getUsers();
+      if (existing.some(u => u.email?.toLowerCase() === emailNormalized)) {
+        setModalError("Questo indirizzo email è già registrato.");
+        setModalSubmitting(false);
+        return;
+      }
+
+      const newUser = {
+        id: Date.now().toString(),
+        nome: newUserData.nome.trim(),
+        cognome: newUserData.cognome.trim(),
+        email: emailNormalized,
+        password: newUserData.password,
+        dataRegistrazione: new Date().toLocaleDateString('it-IT')
+      };
+
+      const updated = [...existing, newUser];
+      await saveUsers(updated);
+
+      // Refresh list
+      setAtleti(updated);
+      
+      // Reset form & close modal
+      setNewUserData({
+        nome: "",
+        cognome: "",
+        email: "",
+        password: ""
+      });
+      setShowAddModal(false);
+    } catch (err) {
+      console.error(err);
+      setModalError("Errore durante il salvataggio. Riprova.");
+    } finally {
+      setModalSubmitting(false);
+    }
+  };
+
   const filteredAtleti = atleti.filter(a => {
     const fullName = `${a.nome || ""} ${a.cognome || ""}`.toLowerCase();
     const email = (a.email || "").toLowerCase();
@@ -47,15 +110,23 @@ export default function StaffAtleti() {
                 <h2 className="text-3xl md:text-5xl font-black text-[#0a1628] uppercase tracking-tighter leading-none">Anagrafica Atleti 👤</h2>
                 <p className="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-widest mt-2">Gestione Utenti Registrati</p>
             </div>
-            <div className="relative w-full md:w-80">
-                <input 
-                    type="text" 
-                    placeholder="Cerca per nome o email..." 
-                    className="w-full pl-12 pr-4 py-4 bg-white border-2 border-gray-100 rounded-[1.5rem] focus:border-[#0a1628] outline-none transition-all shadow-xl text-sm font-bold text-gray-900"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                <span className="absolute left-5 top-1/2 -translate-y-1/2 text-xl">🔍</span>
+            <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto items-center">
+                <button 
+                    onClick={() => setShowAddModal(true)}
+                    className="w-full sm:w-auto px-6 py-4 bg-[#0a1628] text-white rounded-[1.2rem] font-black text-xs uppercase tracking-widest shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+                >
+                    + Nuovo Atleta
+                </button>
+                <div className="relative w-full sm:w-80">
+                    <input 
+                        type="text" 
+                        placeholder="Cerca per nome o email..." 
+                        className="w-full pl-12 pr-4 py-4 bg-white border-2 border-gray-100 rounded-[1.5rem] focus:border-[#0a1628] outline-none transition-all shadow-xl text-sm font-bold text-gray-900"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-xl">🔍</span>
+                </div>
             </div>
         </div>
 
@@ -107,6 +178,111 @@ export default function StaffAtleti() {
             </div>
         </div>
       </div>
+
+      {/* Modal Nuovo Atleta */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[200] p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2.5rem] p-8 md:p-10 w-full max-w-lg shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-2xl font-black text-[#0a1628] uppercase tracking-tighter leading-none">Nuovo Atleta 👤</h3>
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2">Registra un nuovo profilo</p>
+              </div>
+              <button 
+                onClick={() => {
+                  setShowAddModal(false);
+                  setModalError("");
+                }} 
+                className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 font-bold hover:bg-gray-100 hover:text-gray-800 transition-all cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {modalError && (
+              <div className="bg-red-50 text-red-600 p-4 rounded-2xl mb-6 text-xs font-bold border border-red-100">
+                ⚠️ {modalError}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateUser} className="space-y-5">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1 block">Nome</label>
+                  <input 
+                    type="text" 
+                    name="nome"
+                    required
+                    value={newUserData.nome}
+                    onChange={handleModalChange}
+                    placeholder="Mario"
+                    className="w-full bg-gray-50 border-none rounded-2xl px-4 py-3.5 font-bold text-[#0a1628] text-sm focus:ring-2 focus:ring-[#0a1628] transition-all outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1 block">Cognome</label>
+                  <input 
+                    type="text" 
+                    name="cognome"
+                    required
+                    value={newUserData.cognome}
+                    onChange={handleModalChange}
+                    placeholder="Rossi"
+                    className="w-full bg-gray-50 border-none rounded-2xl px-4 py-3.5 font-bold text-[#0a1628] text-sm focus:ring-2 focus:ring-[#0a1628] transition-all outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1 block">Email</label>
+                <input 
+                  type="email" 
+                  name="email"
+                  required
+                  value={newUserData.email}
+                  onChange={handleModalChange}
+                  placeholder="mario.rossi@email.com"
+                  className="w-full bg-gray-50 border-none rounded-2xl px-4 py-3.5 font-bold text-[#0a1628] text-sm focus:ring-2 focus:ring-[#0a1628] transition-all outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1 block">Password</label>
+                <input 
+                  type="password" 
+                  name="password"
+                  required
+                  minLength={6}
+                  value={newUserData.password}
+                  onChange={handleModalChange}
+                  placeholder="Password di accesso"
+                  className="w-full bg-gray-50 border-none rounded-2xl px-4 py-3.5 font-bold text-[#0a1628] text-sm focus:ring-2 focus:ring-[#0a1628] transition-all outline-none"
+                />
+              </div>
+
+              <div className="flex gap-4 pt-4">
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setModalError("");
+                  }}
+                  className="flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest text-gray-400 bg-gray-50 border border-gray-100 hover:bg-gray-100 transition-all active:scale-95 cursor-pointer"
+                >
+                  Annulla
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={modalSubmitting}
+                  className="flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest text-white bg-[#0a1628] shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
+                >
+                  {modalSubmitting ? "Registrazione..." : "Crea Profilo 💾"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

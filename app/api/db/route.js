@@ -23,6 +23,9 @@ export async function GET(req) {
       if (!token) {
         return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
       }
+      if (type === "users" && token.role !== "admin") {
+        return NextResponse.json({ error: "Accesso negato: richiesto ruolo Admin" }, { status: 403 });
+      }
     }
 
     let data = null;
