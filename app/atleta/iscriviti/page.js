@@ -15,6 +15,7 @@ export default function AtletaIscriviti() {
   const [step, setStep] = useState(1); // 1: torneo, 2: dati, 3: conferma
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [errore, setErrore] = useState("");
 
   const [formData, setFormData] = useState({
     torneo: "",
@@ -50,9 +51,27 @@ export default function AtletaIscriviti() {
   };
 
   const handleSubmit = async () => {
+    if (submitting) return; // protezione doppio click
     setSubmitting(true);
+    setErrore("");
     try {
       const iscrizioni = await getIscrizioni();
+
+      // Controllo duplicati: l'atleta è già iscritto a questo torneo?
+      const giaNome = formData.giocatore1.toLowerCase();
+      const giaTorneo = formData.torneo.toLowerCase();
+      const duplicato = iscrizioni.some(
+        (isc) =>
+          isc.torneo?.toLowerCase() === giaTorneo &&
+          isc.giocatori?.toLowerCase().includes(giaNome)
+      );
+
+      if (duplicato) {
+        setErrore(`Sei già iscritto al torneo "${formData.torneo}".")`);
+        setSubmitting(false);
+        return;
+      }
+
       const numericIds = iscrizioni.map((i) => parseInt(i.id)).filter((id) => !isNaN(id));
       const newId = numericIds.length > 0 ? Math.max(...numericIds) + 1 : 100;
       const oggi = new Date();
@@ -79,6 +98,8 @@ export default function AtletaIscriviti() {
       );
 
       setShowModal(true);
+    } catch (e) {
+      setErrore("Errore durante l'invio. Riprova.");
     } finally {
       setSubmitting(false);
     }
@@ -297,6 +318,14 @@ export default function AtletaIscriviti() {
                     ⚠️ La tua iscrizione sarà in attesa di approvazione dello staff BVI.
                   </p>
                 </div>
+
+                {/* Messaggio errore duplicato */}
+                {errore && (
+                  <div className="bg-red-50 rounded-2xl p-4 border border-red-200 flex items-center gap-2">
+                    <span className="text-base shrink-0">🚫</span>
+                    <p className="text-xs font-black text-red-600">{errore}</p>
+                  </div>
+                )}
 
                 <div className="flex gap-3">
                   <button
