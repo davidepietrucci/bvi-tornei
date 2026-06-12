@@ -7,65 +7,47 @@ import { getTornei, getGironi, getBracket } from "@/app/utils/db";
 export default function GironiPubblici() {
   const [tornei, setTornei] = useState([]);
   const [selectedTorneo, setSelectedTorneo] = useState("");
-  const [activeGirone, setActiveGirone] = useState("A");
   const [config, setConfig] = useState(null);
   const [bracketConfig, setBracketConfig] = useState(null);
-  const [activeTab, setActiveTab] = useState("iniziali"); // "iniziali", "intermedi", "finali"
+  const [activeTab, setActiveTab] = useState("gironi"); // "gironi", "partite", "classifica", "finali"
+  const [fasiFinaliCategory, setFasiFinaliCategory] = useState("gold"); // "gold" or "silver"
+  const [loading, setLoading] = useState(true);
 
-  const areGironiPubblicati = () => {
-    if (!config || !config.gironeAssignments) return false;
-    return Object.values(config.gironeAssignments).some(assignments => {
-      if (!assignments) return false;
-      return Object.values(assignments).some(nome => {
-        return nome && nome !== "—" && nome !== "Slot Libero" && nome !== "";
-      });
-    });
-  };
-
-  const getSlug = (nomeTorneo) => {
-    if (!nomeTorneo) return "";
-    return nomeTorneo.toLowerCase().trim().replace(/\s+/g, '_');
-  };
-
+  // 1. Carica l'elenco dei tornei e determina quello da visualizzare
   useEffect(() => {
-    getTornei().then(parsed => {
+    getTornei().then((parsed) => {
       setTornei(parsed);
-      
+
       const params = new URLSearchParams(window.location.search);
       const urlTour = params.get("tour");
-      
-      if (urlTour && parsed.some(t => t.nome === urlTour)) {
+
+      if (urlTour && parsed.some((t) => t.nome === urlTour)) {
         setSelectedTorneo(urlTour);
       } else {
-        const attivi = parsed.filter(t => t.stato === "Iscrizioni Aperte" || t.stato === "In Programmazione");
+        // Cerca tornei attivi per primi
+        const attivi = parsed.filter(
+          (t) => t.stato === "Iscrizioni Aperte" || t.stato === "In Programmazione"
+        );
         if (attivi.length > 0) {
           setSelectedTorneo(attivi[0].nome);
         } else if (parsed.length > 0) {
           setSelectedTorneo(parsed[0].nome);
         }
       }
+      setLoading(false);
     });
   }, []);
 
+  // 2. Caricamento live dei gironi e dei bracket del torneo selezionato
   useEffect(() => {
     if (!selectedTorneo) return;
-    setActiveTab("iniziali");
-    const slug = getSlug(selectedTorneo);
-    
+    const slug = selectedTorneo.toLowerCase().trim().replace(/\s+/g, "_");
+
     const fetchLive = () => {
-      getGironi(slug).then(data => {
+      getGironi(slug).then((data) => {
         setConfig(data);
-        if (data) {
-          const gDisponibili = data.numGironi ? Array.from({ length: data.numGironi }, (_, i) => String.fromCharCode(65 + i)) : [];
-          setActiveGirone(prev => {
-            if (gDisponibili.length > 0 && !gDisponibili.includes(prev)) {
-              return gDisponibili[0];
-            }
-            return prev;
-          });
-        }
       });
-      getBracket(slug).then(data => {
+      getBracket(slug).then((data) => {
         setBracketConfig(data);
       });
     };
@@ -75,12 +57,48 @@ export default function GironiPubblici() {
     return () => clearInterval(interval);
   }, [selectedTorneo]);
 
-  const gironiDisponibili = config ? Array.from({ length: config.numGironi || 0 }, (_, i) => String.fromCharCode(65 + i)) : [];
-  const selectedTorneoObj = tornei.find(t => t.nome === selectedTorneo);
+  const selectedTorneoObj = tornei.find((t) => t.nome === selectedTorneo);
   const isConcluso = selectedTorneoObj?.stato === "Concluso";
+  const isPublished = config && config.pubblicato;
 
+  // 3. Calcola la lista dei gironi iniziali
+  const getInitialGroupsList = (currentConfig = config) => {
+    const list = [];
+    if (currentConfig && currentConfig.numGironi) {
+      for (let i = 0; i < currentConfig.numGironi; i++) {
+        const label = String.fromCharCode(65 + i);
+        list.push({ id: label, label: `Girone ${label}`, type: "iniziale" });
+      }
+    }
+    return list;
+  };
+
+  // 4. Calcola la lista dei gironi intermedi (Gold/Silver) se presenti
+  const getIntermediateGroupsList = () => {
+    const list = [];
+    if (
+      bracketConfig &&
+      bracketConfig.phaseType === "gold_silver" &&
+      bracketConfig.subPhaseType === "groups"
+    ) {
+      list.push({ id: "gold-A", label: "Gold A 🏆", type: "intermedio", category: "gold" });
+      if (config?.numGironi === 4) {
+        list.push({ id: "gold-B", label: "Gold B 🏆", type: "intermedio", category: "gold" });
+      }
+      list.push({ id: "silver-A", label: "Silver A 🥈", type: "intermedio", category: "silver" });
+      if (config?.numGironi === 4) {
+        list.push({ id: "silver-B", label: "Silver B 🥈", type: "intermedio", category: "silver" });
+      }
+    }
+    return list;
+  };
+
+  // Logica per il calendario incontri dei gironi
   const getSchedule = (numTeams, gironeId, assignments = {}) => {
-    const getName = (idx) => assignments[idx] && assignments[idx] !== "—" && assignments[idx] !== "Slot Libero" ? assignments[idx] : `Slot ${idx + 1}`;
+    const getName = (idx) =>
+      assignments[idx] && assignments[idx] !== "—" && assignments[idx] !== "Slot Libero"
+        ? assignments[idx]
+        : `Slot ${idx + 1}`;
     const type = config?.gironeTypes?.[gironeId] || "Pool";
     if (!numTeams || numTeams < 2) return [];
 
@@ -95,30 +113,49 @@ export default function GironiPubblici() {
     }
 
     if (numTeams === 2) return [{ left: getName(0), right: getName(1) }];
-    if (numTeams === 3) return [
-      { left: getName(0), right: getName(2) },
-      { left: getName(1), right: getName(2) },
-      { left: getName(0), right: getName(1) }
-    ];
+    if (numTeams === 3)
+      return [
+        { left: getName(0), right: getName(2) },
+        { left: getName(1), right: getName(2) },
+        { left: getName(0), right: getName(1) },
+      ];
     if (numTeams === 4) {
       const getResult = (idx) => {
         const meta = config?.matchMetadata?.[`${gironeId}-${idx}`] || {};
         const s1L = parseInt(meta.s1L || 0);
         const s1R = parseInt(meta.s1R || 0);
-        if (s1L === 0 && s1R === 0) return { winner: `Vincente G${idx + 1}`, loser: `Perdente G${idx + 1}` };
-        
+        if (s1L === 0 && s1R === 0)
+          return { winner: `Vincente G${idx + 1}`, loser: `Perdente G${idx + 1}` };
+
         if (config?.gironeSets?.[gironeId] === "3 set") {
           let winL = 0, winR = 0;
-          if (s1L > s1R) winL++; else if (s1R > s1L) winR++;
-          if (parseInt(meta.s2L || 0) > parseInt(meta.s2R || 0)) winL++; else if (parseInt(meta.s2R || 0) > parseInt(meta.s2L || 0)) winR++;
-          if (parseInt(meta.s3L || 0) > parseInt(meta.s3R || 0)) winL++; else if (parseInt(meta.s3R || 0) > parseInt(meta.s3L || 0)) winR++;
-          
-          if (winL > winR) return { winner: idx === 0 ? getName(0) : getName(1), loser: idx === 0 ? getName(3) : getName(2) };
-          return { winner: idx === 0 ? getName(3) : getName(2), loser: idx === 0 ? getName(0) : getName(1) };
+          if (s1L > s1R) winL++;
+          else if (s1R > s1L) winR++;
+          if (parseInt(meta.s2L || 0) > parseInt(meta.s2R || 0)) winL++;
+          else if (parseInt(meta.s2R || 0) > parseInt(meta.s2L || 0)) winR++;
+          if (parseInt(meta.s3L || 0) > parseInt(meta.s3R || 0)) winL++;
+          else if (parseInt(meta.s3R || 0) > parseInt(meta.s3L || 0)) winR++;
+
+          if (winL > winR)
+            return {
+              winner: idx === 0 ? getName(0) : getName(1),
+              loser: idx === 0 ? getName(3) : getName(2),
+            };
+          return {
+            winner: idx === 0 ? getName(3) : getName(2),
+            loser: idx === 0 ? getName(0) : getName(1),
+          };
         }
 
-        if (s1L > s1R) return { winner: idx === 0 ? getName(0) : getName(1), loser: idx === 0 ? getName(3) : getName(2) };
-        return { winner: idx === 0 ? getName(3) : getName(2), loser: idx === 0 ? getName(0) : getName(1) };
+        if (s1L > s1R)
+          return {
+            winner: idx === 0 ? getName(0) : getName(1),
+            loser: idx === 0 ? getName(3) : getName(2),
+          };
+        return {
+          winner: idx === 0 ? getName(3) : getName(2),
+          loser: idx === 0 ? getName(0) : getName(1),
+        };
       };
 
       const g1 = getResult(0);
@@ -128,100 +165,210 @@ export default function GironiPubblici() {
         { left: getName(0), right: getName(3) },
         { left: getName(1), right: getName(2) },
         { left: g1.winner, right: g2.winner },
-        { left: g1.loser, right: g2.loser }
+        { left: g1.loser, right: g2.loser },
       ];
     }
-    if (numTeams === 5) return [
-      { left: getName(0), right: getName(4) },
-      { left: getName(1), right: getName(3) },
-      { left: getName(2), right: getName(4) },
-      { left: getName(0), right: getName(1) },
-      { left: getName(2), right: getName(3) }
-    ];
+    if (numTeams === 5)
+      return [
+        { left: getName(0), right: getName(4) },
+        { left: getName(1), right: getName(3) },
+        { left: getName(2), right: getName(4) },
+        { left: getName(0), right: getName(1) },
+        { left: getName(2), right: fontName(3) },
+      ];
     return [];
   };
 
-  const getAllBracketMatches = () => {
-    if (!bracketConfig || !bracketConfig.bracketAssignments) return [];
-    const assignments = bracketConfig.bracketAssignments;
-    const metadata = bracketConfig.bracketMetadata || {};
-    const isGroups = bracketConfig.subPhaseType === "groups";
+  // Fix fontName typo
+  const getScheduleFixed = (numTeams, gironeId, assignments = {}) => {
+    const getName = (idx) =>
+      assignments[idx] && assignments[idx] !== "—" && assignments[idx] !== "Slot Libero"
+        ? assignments[idx]
+        : `Slot ${idx + 1}`;
+    const type = config?.gironeTypes?.[gironeId] || "Pool";
+    if (!numTeams || numTeams < 2) return [];
 
-    const matchIds = Object.keys(assignments)
-      .map(k => k.replace(/-L$|-R$/, ''))
-      .filter((v, i, a) => a.indexOf(v) === i)
-      .filter(mid => {
-        if (isGroups) {
-          return mid.endsWith("-s1") || mid.endsWith("-s2") || mid.endsWith("-f1") || mid.endsWith("-f3");
+    if (type === "Girone all'italiana") {
+      const rrMatches = [];
+      for (let i = 0; i < numTeams; i++) {
+        for (let j = i + 1; j < numTeams; j++) {
+          rrMatches.push({ left: getName(i), right: getName(j) });
         }
-        return !mid.includes("-A-") && !mid.includes("-B-") && !mid.match(/-(?:A|B)-\d/) && !mid.match(/-(?:A|B)-m\d/);
-      });
+      }
+      return rrMatches;
+    }
 
-    return matchIds.map(mid => ({
-        id: mid, label: mid.toUpperCase(), left: assignments[`${mid}-L`], right: assignments[`${mid}-R`],
-        scoreL: metadata[mid]?.scoreL, scoreR: metadata[mid]?.scoreR, time: metadata[mid]?.time, court: metadata[mid]?.court
-    }));
+    if (numTeams === 2) return [{ left: getName(0), right: getName(1) }];
+    if (numTeams === 3)
+      return [
+        { left: getName(0), right: getName(2) },
+        { left: getName(1), right: getName(2) },
+        { left: getName(0), right: getName(1) },
+      ];
+    if (numTeams === 4) {
+      const getResult = (idx) => {
+        const meta = config?.matchMetadata?.[`${gironeId}-${idx}`] || {};
+        const s1L = parseInt(meta.s1L || 0);
+        const s1R = parseInt(meta.s1R || 0);
+        if (s1L === 0 && s1R === 0)
+          return { winner: `Vincente G${idx + 1}`, loser: `Perdente G${idx + 1}` };
+
+        if (config?.gironeSets?.[gironeId] === "3 set") {
+          let winL = 0, winR = 0;
+          if (s1L > s1R) winL++;
+          else if (s1R > s1L) winR++;
+          if (parseInt(meta.s2L || 0) > parseInt(meta.s2R || 0)) winL++;
+          else if (parseInt(meta.s2R || 0) > parseInt(meta.s2L || 0)) winR++;
+          if (parseInt(meta.s3L || 0) > parseInt(meta.s3R || 0)) winL++;
+          else if (parseInt(meta.s3R || 0) > parseInt(meta.s3L || 0)) winR++;
+
+          if (winL > winR)
+            return {
+              winner: idx === 0 ? getName(0) : getName(1),
+              loser: idx === 0 ? getName(3) : getName(2),
+            };
+          return {
+            winner: idx === 0 ? getName(3) : getName(2),
+            loser: idx === 0 ? getName(0) : getName(1),
+          };
+        }
+
+        if (s1L > s1R)
+          return {
+            winner: idx === 0 ? getName(0) : getName(1),
+            loser: idx === 0 ? getName(3) : fontName(2),
+          };
+        return {
+          winner: idx === 0 ? getName(3) : getName(2),
+          loser: idx === 0 ? getName(0) : getName(1),
+        };
+      };
+
+      const g1 = getResult(0);
+      const g2 = getResult(1);
+
+      return [
+        { left: getName(0), right: getName(3) },
+        { left: getName(1), right: getName(2) },
+        { left: g1.winner, right: g2.winner },
+        { left: g1.loser, right: g2.loser },
+      ];
+    }
+    if (numTeams === 5)
+      return [
+        { left: getName(0), right: getName(4) },
+        { left: getName(1), right: getName(3) },
+        { left: getName(2), right: getName(4) },
+        { left: getName(0), right: getName(1) },
+        { left: getName(2), right: getName(3) },
+      ];
+    return [];
   };
 
-  const getIntermediateGroupStats = (groupKey) => {
-    if (!bracketConfig || !bracketConfig.bracketAssignments) return [];
-    const assignments = bracketConfig.bracketAssignments;
-    const metadata = bracketConfig.bracketMetadata || {};
+  const getGroupTeams = (groupId, type) => {
+    if (type === "intermedio") {
+      if (!bracketConfig || !bracketConfig.bracketAssignments) return [];
+      const assignments = bracketConfig.bracketAssignments;
+      return [
+        assignments[`${groupId}-0`],
+        assignments[`${groupId}-1`],
+        assignments[`${groupId}-2`],
+        assignments[`${groupId}-3`],
+      ].filter((t) => t && t !== "—" && t !== "Slot Libero");
+    } else {
+      if (!config || !config.gironeAssignments || !config.gironeAssignments[groupId]) return [];
+      const assignments = config.gironeAssignments[groupId];
+      const teamCount = config.teamCounts[groupId] || 0;
+      const list = [];
+      for (let i = 0; i < teamCount; i++) {
+        const name = assignments[i];
+        if (name && name !== "—" && name !== "Slot Libero") {
+          list.push(name);
+        }
+      }
+      return list;
+    }
+  };
+
+  const calculateRanking = (groupId) => {
+    if (!config || !config.gironeAssignments || !config.gironeAssignments[groupId]) return [];
+
+    const assignments = config.gironeAssignments[groupId];
+    const teamCount = config.teamCounts[groupId] || 0;
+    const metadata = config.matchMetadata || {};
+    const isThreeSets = config.gironeSets?.[groupId] === "3 set";
+
     const stats = {};
-    const teams = [
-      assignments[`${groupKey}-0`],
-      assignments[`${groupKey}-1`],
-      assignments[`${groupKey}-2`],
-      assignments[`${groupKey}-3`]
-    ].filter(t => t && t !== "—" && t !== "Slot Libero");
+    for (let i = 0; i < teamCount; i++) {
+      const name = assignments[i];
+      if (name && name !== "—" && name !== "Slot Libero") {
+        stats[name] = {
+          nome: name,
+          giocate: 0,
+          vinte: 0,
+          perse: 0,
+          puntiFatti: 0,
+          puntiSubiti: 0,
+          score: 0,
+        };
+      }
+    }
 
-    teams.forEach(t => {
-      stats[t] = { nome: t, giocate: 0, vinte: 0, perse: 0, pf: 0, ps: 0, punti: 0 };
-    });
+    const schedule = getScheduleFixed(teamCount, groupId, assignments);
+    schedule.forEach((match, i) => {
+      const meta = metadata[`${groupId}-${i}`];
+      if (!meta) return;
 
-    const pairMaps = [
-      [0, 3],
-      [1, 2],
-      [0, 2],
-      [1, 3],
-      [0, 1],
-      [2, 3]
-    ];
+      const teamL = match.left;
+      const teamR = match.right;
 
-    pairMaps.forEach((pair, idx) => {
-      const teamL = assignments[`${groupKey}-${pair[0]}`];
-      const teamR = assignments[`${groupKey}-${pair[1]}`];
-      if (!teamL || !teamR || !stats[teamL] || !stats[teamR]) return;
+      if (!stats[teamL] || !stats[teamR]) return;
 
-      const mKey = `${groupKey}-m${idx}`;
-      const meta = metadata[mKey] || {};
-      const s1L = parseInt(meta.scoreL || 0);
-      const s1R = parseInt(meta.scoreR || 0);
+      const s1L = parseInt(meta.s1L || 0),
+        s1R = parseInt(meta.s1R || 0);
+      const s2L = parseInt(meta.s2L || 0),
+        s2R = parseInt(meta.s2R || 0);
+      const s3L = parseInt(meta.s3L || 0),
+        s3R = parseInt(meta.s3R || 0);
       if (s1L === 0 && s1R === 0) return;
 
       stats[teamL].giocate++;
       stats[teamR].giocate++;
-      stats[teamL].pf += s1L;
-      stats[teamR].pf += s1R;
-      stats[teamL].ps += s1R;
-      stats[teamR].ps += s1L;
+      stats[teamL].puntiFatti += s1L + s2L + s3L;
+      stats[teamL].puntiSubiti += s1R + s2R + s3R;
+      stats[teamR].puntiFatti += s1R + s2R + s3R;
+      stats[teamR].puntiSubiti += s1L + s2L + s3L;
 
-      if (s1L > s1R) {
+      let matchWinL = 0;
+      if (isThreeSets) {
+        let setsL = 0,
+          setsR = 0;
+        if (s1L > s1R) setsL++;
+        else if (s1R > s1L) setsR++;
+        if (s2L > s2R) setsL++;
+        else if (s2R > s2L) setsR++;
+        if (s3L > s3R) setsL++;
+        else if (s3R > s3L) setsR++;
+        matchWinL = setsL > setsR ? 1 : 0;
+      } else {
+        matchWinL = s1L > s1R ? 1 : 0;
+      }
+      if (matchWinL) {
         stats[teamL].vinte++;
-        stats[teamL].punti++;
+        stats[teamL].score++;
         stats[teamR].perse++;
       } else {
         stats[teamR].vinte++;
-        stats[teamR].punti++;
+        stats[teamR].score++;
         stats[teamL].perse++;
       }
     });
 
     return Object.values(stats).sort((a, b) => {
-      if (b.punti !== a.punti) return b.punti - a.punti;
-      const qzA = a.ps === 0 ? a.pf : a.pf / a.ps;
-      const qzB = b.ps === 0 ? b.pf : b.pf / b.ps;
-      return qzB - qzA;
+      if (b.score !== a.score) return b.score - a.score;
+      const qzTeamA = a.puntiSubiti === 0 ? a.puntiFatti : a.puntiFatti / a.puntiSubiti;
+      const qzTeamB = b.puntiSubiti === 0 ? b.puntiFatti : b.puntiFatti / b.puntiSubiti;
+      return qzTeamB - qzTeamA;
     });
   };
 
@@ -233,7 +380,7 @@ export default function GironiPubblici() {
       assignments[`${groupKey}-0`],
       assignments[`${groupKey}-1`],
       assignments[`${groupKey}-2`],
-      assignments[`${groupKey}-3`]
+      assignments[`${groupKey}-3`],
     ];
 
     const matchPairs = [
@@ -242,7 +389,7 @@ export default function GironiPubblici() {
       { l: 0, r: 2, label: "Gara 3" },
       { l: 1, r: 3, label: "Gara 4" },
       { l: 0, r: 1, label: "Gara 5" },
-      { l: 2, r: 3, label: "Gara 6" }
+      { l: 2, r: 3, label: "Gara 6" },
     ];
 
     return matchPairs
@@ -254,657 +401,847 @@ export default function GironiPubblici() {
           label: pair.label,
           left: teamL,
           right: teamR,
-          meta: metadata[mKey] || {}
+          meta: metadata[mKey] || {},
         };
       })
-      .filter(m => m.left && m.left !== "—" && m.left !== "Slot Libero" && m.right && m.right !== "—" && m.right !== "Slot Libero");
+      .filter(
+        (m) =>
+          m.left &&
+          m.left !== "—" &&
+          m.left !== "Slot Libero" &&
+          m.right &&
+          m.right !== "—" &&
+          m.right !== "Slot Libero"
+      );
   };
 
-  const renderIntermediateGroupForSpectator = (groupKey, title, color) => {
-    const stats = getIntermediateGroupStats(groupKey);
-    const matches = getIntermediateGroupMatches(groupKey);
-    const titleColor = color === "gold" ? "text-yellow-600" : "text-gray-500";
-    const badgeColor = color === "gold" ? "bg-yellow-400 text-white shadow-sm" : "bg-gray-400 text-white shadow-sm";
-    
-    return (
-      <div className="space-y-6 mb-12">
-        <h3 className={`text-lg font-black uppercase tracking-tighter text-center ${titleColor}`}>{title}</h3>
-        
-        {/* Card-based Standings */}
-        <div className="space-y-3">
-          {stats.map((team, idx) => {
-            const quotient = team.ps === 0 ? team.pf : (team.pf / team.ps).toFixed(3);
-            const isQualified = idx < 2;
-            return (
-              <div key={team.nome} className={`bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center justify-between ${isQualified ? (color === "gold" ? 'border-l-4 border-l-yellow-400' : 'border-l-4 border-l-gray-400') : ''}`}>
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${isQualified ? badgeColor : 'bg-gray-100 text-gray-500'}`}>
-                    {idx + 1}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="font-bold text-[#0a1628] text-sm truncate uppercase tracking-tight">{team.nome}</p>
-                    <p className="text-[10px] text-gray-400 font-semibold mt-0.5">
-                      G: <span className="text-[#0a1628] font-bold">{team.giocate}</span> | 
-                      V/P: <span className="text-green-600 font-bold">{team.vinte}</span>/<span className="text-red-500 font-bold">{team.perse}</span> | 
-                      Quoz: <span className="text-blue-600 font-bold">{quotient}</span>
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-lg font-black text-[#0a1628] tracking-tighter leading-none">{team.punti}</p>
-                  <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mt-1">Punti</p>
-                </div>
-              </div>
-            );
-          })}
-          {stats.length === 0 && (
-            <p className="text-center text-gray-400 italic text-xs py-4">In attesa dei risultati del primo turno.</p>
-          )}
-        </div>
+  // Auto-Scroll in base all'ultimo match giocato
+  useEffect(() => {
+    if (!isPublished || !selectedTorneo) return;
 
-        {/* Stacked Matches List */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
-          {matches.map((m, idx) => {
-            const hasScore = m.meta?.scoreL || m.meta?.scoreR;
-            const scoreL = parseInt(m.meta?.scoreL || 0);
-            const scoreR = parseInt(m.meta?.scoreR || 0);
-            const isWinnerL = hasScore && scoreL > scoreR;
-            const isWinnerR = hasScore && scoreR > scoreL;
+    let targetElId = null;
 
-            return (
-              <div key={idx} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                <div className="flex justify-between items-center mb-3 border-b border-gray-50 pb-2">
-                  <span className="text-[9px] font-black text-gray-300 uppercase tracking-widest">{m.label}</span>
-                  <div className="flex gap-1.5">
-                    {m.meta?.time && <span className="text-[9px] font-black text-gray-500 bg-gray-50 px-2 py-0.5 rounded">{m.meta.time}</span>}
-                    {m.meta?.court && <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded">C.{m.meta.court}</span>}
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className={`text-xs uppercase font-bold truncate pr-4 ${isWinnerL ? 'text-[#0a1628] font-black' : 'text-gray-500'}`}>{m.left || "Slot Libero"}</span>
-                    <span className={`text-sm font-black ${isWinnerL ? 'text-green-600' : 'text-gray-400'}`}>{hasScore ? scoreL : "-"}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className={`text-xs uppercase font-bold truncate pr-4 ${isWinnerR ? 'text-[#0a1628] font-black' : 'text-gray-500'}`}>{m.right || "Slot Libero"}</span>
-                    <span className={`text-sm font-black ${isWinnerR ? 'text-green-600' : 'text-gray-400'}`}>{hasScore ? scoreR : "-"}</span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-  const calculateRanking = () => {
-    if (!config || !config.gironeAssignments || !config.gironeAssignments[activeGirone]) return [];
-    
-    const assignments = config.gironeAssignments[activeGirone];
-    const teamCount = config.teamCounts[activeGirone] || 0;
-    const metadata = config.matchMetadata || {};
-    const isThreeSets = config.gironeSets?.[activeGirone] === "3 set";
+    if (activeTab === "partite") {
+      const initialGroups = getInitialGroupsList();
+      let allMatches = [];
 
-    const stats = {};
-    for (let i = 0; i < teamCount; i++) {
-      const name = assignments[i];
-      if (name && name !== "—" && name !== "Slot Libero") {
-        stats[name] = { nome: name, giocate: 0, vinte: 0, perse: 0, puntiFatti: 0, puntiSubiti: 0, score: 0 };
+      for (const group of initialGroups) {
+        const matchesList = getScheduleFixed(
+          config?.teamCounts?.[group.id] || 0,
+          group.id,
+          config?.gironeAssignments?.[group.id] || {}
+        ).map((m, idx) => {
+          const meta = config?.matchMetadata?.[`${group.id}-${idx}`] || {};
+          const scoreL = parseInt(meta.s1L || 0);
+          const scoreR = parseInt(meta.s1R || 0);
+          const hasScore = meta.s1L !== undefined && meta.s1L !== "";
+          return {
+            id: `match-${group.id}-${idx}`,
+            hasScore: hasScore && (scoreL > 0 || scoreR > 0)
+          };
+        });
+        allMatches = [...allMatches, ...matchesList];
+      }
+
+      const lastPlayedIdx = allMatches.reduce((acc, match, idx) => {
+        if (match.hasScore) return idx;
+        return acc;
+      }, -1);
+
+      if (lastPlayedIdx !== -1) {
+        if (lastPlayedIdx + 1 < allMatches.length) {
+          targetElId = allMatches[lastPlayedIdx + 1].id;
+        } else {
+          targetElId = allMatches[lastPlayedIdx].id;
+        }
+      } else if (allMatches.length > 0) {
+        targetElId = allMatches[0].id;
+      }
+    } else if (activeTab === "finali") {
+      const intermediateGroups = getIntermediateGroupsList().filter(
+        (g) => g.category === fasiFinaliCategory
+      );
+      let allFinalMatches = [];
+
+      for (const group of intermediateGroups) {
+        const matchesList = getIntermediateGroupMatches(group.id).map((m, idx) => {
+          const scoreL = parseInt(m.meta.scoreL || m.meta.s1L || 0);
+          const scoreR = parseInt(m.meta.scoreR || m.meta.s1R || 0);
+          const hasScore =
+            (m.meta.scoreL !== undefined && m.meta.scoreL !== "") ||
+            (m.meta.s1L !== undefined && m.meta.s1L !== "");
+          return {
+            id: `match-${group.id}-${idx}`,
+            hasScore: hasScore && (scoreL > 0 || scoreR > 0)
+          };
+        });
+        allFinalMatches = [...allFinalMatches, ...matchesList];
+      }
+
+      const playoffList = getPlayoffMatchesList().filter((group) => {
+        if (bracketConfig?.phaseType === "gold_silver") {
+          return group.title.toLowerCase().includes(fasiFinaliCategory);
+        }
+        return true;
+      });
+
+      for (const pGroup of playoffList) {
+        pGroup.matches.forEach((m, idx) => {
+          const scoreL = parseInt(m.meta.scoreL || m.meta.s1L || 0);
+          const scoreR = parseInt(m.meta.scoreR || m.meta.s1R || 0);
+          const hasScore =
+            (m.meta.scoreL !== undefined && m.meta.scoreL !== "") ||
+            (m.meta.s1L !== undefined && m.meta.s1L !== "");
+          allFinalMatches.push({
+            id: `playoff-${pGroup.title}-${idx}`,
+            hasScore: hasScore && (scoreL > 0 || scoreR > 0)
+          });
+        });
+      }
+
+      const lastPlayedIdx = allFinalMatches.reduce((acc, match, idx) => {
+        if (match.hasScore) return idx;
+        return acc;
+      }, -1);
+
+      if (lastPlayedIdx !== -1) {
+        if (lastPlayedIdx + 1 < allFinalMatches.length) {
+          targetElId = allFinalMatches[lastPlayedIdx + 1].id;
+        } else {
+          targetElId = allFinalMatches[lastPlayedIdx].id;
+        }
+      } else if (allFinalMatches.length > 0) {
+        targetElId = allFinalMatches[0].id;
       }
     }
 
-    const schedule = getSchedule(teamCount, activeGirone, assignments);
-    schedule.forEach((match, i) => {
-        const meta = metadata[`${activeGirone}-${i}`];
-        if (!meta) return;
-        
-        const teamL = match.left;
-        const teamR = match.right;
-        
-        if (!stats[teamL] || !stats[teamR]) return;
-
-        const s1L = parseInt(meta.s1L || 0), s1R = parseInt(meta.s1R || 0);
-        const s2L = parseInt(meta.s2L || 0), s2R = parseInt(meta.s2R || 0);
-        const s3L = parseInt(meta.s3L || 0), s3R = parseInt(meta.s3R || 0);
-        if (s1L === 0 && s1R === 0) return;
-
-        stats[teamL].giocate++; stats[teamR].giocate++;
-        stats[teamL].puntiFatti += (s1L + s2L + s3L);
-        stats[teamL].puntiSubiti += (s1R + s2R + s3R);
-        stats[teamR].puntiFatti += (s1R + s2R + s3R);
-        stats[teamR].puntiSubiti += (s1L + s2L + s3L);
-
-        let matchWinL = 0;
-        if (isThreeSets) {
-            let setsL = 0, setsR = 0;
-            if (s1L > s1R) setsL++; else if (s1R > s1L) setsR++;
-            if (s2L > s2R) setsL++; else if (s2R > s2L) setsR++;
-            if (s3L > s3R) setsL++; else if (s3R > s3L) setsR++;
-            matchWinL = setsL > setsR ? 1 : 0;
-        } else {
-            matchWinL = s1L > s1R ? 1 : 0;
+    if (targetElId) {
+      const timer = setTimeout(() => {
+        const el = document.getElementById(targetElId);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
         }
-        if (matchWinL) { stats[teamL].vinte++; stats[teamL].score++; stats[teamR].perse++; }
-        else { stats[teamR].vinte++; stats[teamR].score++; stats[teamL].perse++; }
-    });
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [activeTab, fasiFinaliCategory, config, bracketConfig, selectedTorneo, isPublished]);
 
-    return Object.values(stats).sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score;
-        const qzTeamA = a.puntiSubiti === 0 ? a.puntiFatti : a.puntiFatti / a.puntiSubiti;
-        const qzTeamB = b.puntiSubiti === 0 ? b.puntiFatti : b.puntiFatti / b.puntiSubiti;
-        return qzTeamB - qzTeamA;
-    });
-  };
-
-  const renderInitialStandingsTable = () => {
-    const rankings = calculateRanking();
-    return (
-      <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden mb-8 text-left">
-        <div className="px-6 py-4 bg-gray-50/50 border-b border-gray-100">
-          <h3 className="text-sm font-black text-[#0a1628] uppercase tracking-wider">Classifica Girone {activeGirone}</h3>
-        </div>
-        <div className="overflow-x-auto no-scrollbar">
-          <table className="w-full text-left min-w-[320px]">
-            <thead className="bg-gray-50/20 text-[9px] font-black text-gray-400 uppercase tracking-widest border-b">
-              <tr>
-                <th className="px-4 py-3 w-10">Pos</th>
-                <th className="px-2 py-3">Squadra</th>
-                <th className="px-2 py-3 text-center w-8">G</th>
-                <th className="px-2 py-3 text-center w-14">V/P</th>
-                <th className="px-2 py-3 text-center w-12">PF</th>
-                <th className="px-2 py-3 text-center w-12">PS</th>
-                <th className="px-2 py-3 text-center w-16">Quoz.</th>
-                <th className="px-4 py-3 text-right w-16">Punti</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50 text-xs font-bold">
-              {rankings.map((team, idx) => {
-                const quotient = team.puntiSubiti === 0 ? team.puntiFatti : (team.puntiFatti / team.puntiSubiti).toFixed(3);
-                return (
-                  <tr key={team.nome} className={`hover:bg-blue-50/20 transition-all ${idx < 2 ? 'bg-yellow-50/20' : ''}`}>
-                    <td className="px-4 py-3">
-                      <span className={`w-5 h-5 rounded flex items-center justify-center text-[10px] font-black ${idx < 2 ? 'bg-yellow-400 text-white shadow-sm' : 'bg-gray-100 text-gray-400'}`}>
-                        {idx + 1}
-                      </span>
-                    </td>
-                    <td className="px-2 py-3 text-gray-900 truncate max-w-[120px]">{team.nome}</td>
-                    <td className="px-2 py-3 text-center text-gray-400">{team.giocate}</td>
-                    <td className="px-2 py-3 text-center whitespace-nowrap">
-                      <span className="text-green-600">{team.vinte}</span>
-                      <span className="text-gray-200 mx-0.5">/</span>
-                      <span className="text-red-500">{team.perse}</span>
-                    </td>
-                    <td className="px-2 py-3 text-center text-gray-600">{team.puntiFatti}</td>
-                    <td className="px-2 py-3 text-center text-gray-400">{team.puntiSubiti}</td>
-                    <td className="px-2 py-3 text-center text-[#0a1628]">{quotient}</td>
-                    <td className="px-4 py-3 text-right text-sm font-black text-[#0a1628]">{team.score}</td>
-                  </tr>
-                );
-              })}
-              {rankings.length === 0 && (
-                <tr>
-                  <td colSpan="8" className="py-8 text-center text-gray-400 italic">Nessun dato disponibile.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    );
-  };
-
-  const renderBracketMatch = (matchId, customLabel) => {
-    if (!bracketConfig || !bracketConfig.bracketAssignments) return null;
+  // Restituisce la lista di partite playoff lineare
+  const getPlayoffMatchesList = () => {
+    if (!bracketConfig || !bracketConfig.bracketAssignments) return [];
     const assignments = bracketConfig.bracketAssignments;
     const metadata = bracketConfig.bracketMetadata || {};
-    
-    const left = assignments[`${matchId}-L`];
-    const right = assignments[`${matchId}-R`];
-    
-    const meta = metadata[matchId] || {};
-    const scoreL = parseInt(meta.scoreL || 0);
-    const scoreR = parseInt(meta.scoreR || 0);
-    const hasScore = meta.scoreL || meta.scoreR;
-    const isWinnerL = hasScore && scoreL > scoreR;
-    const isWinnerR = hasScore && scoreR > scoreL;
+    const list = [];
+
+    const getMatchData = (id, label) => {
+      const left = assignments[`${id}-L`] || "TBD";
+      const right = assignments[`${id}-R`] || "TBD";
+      const meta = metadata[id] || {};
+      return { id, label, left, right, meta };
+    };
+
+    if (bracketConfig.phaseType === "gold_silver") {
+      const isGroups = bracketConfig.subPhaseType === "groups";
+      if (isGroups) {
+        list.push({
+          title: "Semifinali Gold 🏆",
+          matches: [getMatchData("gold-s1", "Semifinale 1"), getMatchData("gold-s2", "Semifinale 2")],
+        });
+        list.push({
+          title: "Finali Gold 🏆",
+          matches: [getMatchData("gold-f3", "Finale 3°/4° Posto"), getMatchData("gold-f1", "Finale 1°/2° Posto")],
+        });
+        list.push({
+          title: "Semifinali Silver 🥈",
+          matches: [getMatchData("silver-s1", "Semifinale 1"), getMatchData("silver-s2", "Semifinale 2")],
+        });
+        list.push({
+          title: "Finali Silver 🥈",
+          matches: [getMatchData("silver-f3", "Finale 3°/4° Posto"), getMatchData("silver-f1", "Finale 1°/2° Posto")],
+        });
+      } else {
+        if (bracketConfig.bracketSize === 8) {
+          list.push({
+            title: "Quarti Gold 🏆",
+            matches: [
+              getMatchData("gold-q1", "Quarto 1"),
+              getMatchData("gold-q2", "Quarto 2"),
+              getMatchData("gold-q3", "Quarto 3"),
+              getMatchData("gold-q4", "Quarto 4"),
+            ],
+          });
+        }
+        list.push({
+          title: "Semifinali Gold 🏆",
+          matches: [getMatchData("gold-s1", "Semifinale 1"), getMatchData("gold-s2", "Semifinale 2")],
+        });
+        list.push({
+          title: "Finali Gold 🏆",
+          matches: [getMatchData("gold-f3", "Finale 3°/4° Posto"), getMatchData("gold-f1", "Finale 1°/2° Posto")],
+        });
+
+        if (bracketConfig.bracketSize === 8) {
+          list.push({
+            title: "Quarti Silver 🥈",
+            matches: [
+              getMatchData("silver-q1", "Quarto 1"),
+              getMatchData("silver-q2", "Quarto 2"),
+              getMatchData("silver-q3", "Quarto 3"),
+              getMatchData("silver-q4", "Quarto 4"),
+            ],
+          });
+        }
+        list.push({
+          title: "Semifinali Silver 🥈",
+          matches: [getMatchData("silver-s1", "Semifinale 1"), getMatchData("silver-s2", "Semifinale 2")],
+        });
+        list.push({
+          title: "Finali Silver 🥈",
+          matches: [getMatchData("silver-f3", "Finale 3°/4° Posto"), getMatchData("silver-f1", "Finale 1°/2° Posto")],
+        });
+      }
+    } else {
+      // Doppia Eliminazione
+      if (bracketConfig.bracketSize === 8) {
+        list.push({
+          title: "Quarti Vincenti (Winners QF) 🏆",
+          matches: [
+            getMatchData("wb-q1", "Winners Quarto 1"),
+            getMatchData("wb-q2", "Winners Quarto 2"),
+            getMatchData("wb-q3", "Winners Quarto 3"),
+            getMatchData("wb-q4", "Winners Quarto 4"),
+          ],
+        });
+      }
+      list.push({
+        title: "Semifinali Vincenti (Winners SF) 🏆",
+        matches: [getMatchData("wb-s1", "Winners Semifinale 1"), getMatchData("wb-s2", "Winners Semifinale 2")],
+      });
+      list.push({
+        title: "Finale Vincenti (Winners Final) 🏆",
+        matches: [getMatchData("wb-f", "Finale Vincenti")],
+      });
+      list.push({
+        title: "Semifinali Perdenti (Losers SF) 🔄",
+        matches: [getMatchData("lb-s1", "Losers Semifinale 1"), getMatchData("lb-s2", "Losers Semifinale 2")],
+      });
+      list.push({
+        title: "Finale Perdenti (Losers Final) 🔄",
+        matches: [getMatchData("lb-f", "Finale Perdenti")],
+      });
+      list.push({ title: "Grand Final 👑", matches: [getMatchData("grand-final", "Finalissima")] });
+    }
+
+    return list.filter((group) => group.matches.some((m) => m.left !== "TBD" || m.right !== "TBD"));
+  };
+
+  // Rendering del singolo blocco partita SofaScore
+  const renderMatchRow = (teamL, teamR, meta, idx, matchKeyPrefix, gironeId = null) => {
+    const scoreL = parseInt(meta?.s1L || meta?.scoreL || 0);
+    const scoreR = parseInt(meta?.s1R || meta?.scoreR || 0);
+    const hasScore =
+      (meta?.s1L !== undefined && meta?.s1L !== "") ||
+      (meta?.scoreL !== undefined && meta?.scoreL !== "");
+
+    // Altri set per partite a 3 set
+    const s2L = parseInt(meta?.s2L || 0);
+    const s2R = parseInt(meta?.s2R || 0);
+    const s3L = parseInt(meta?.s3L || 0);
+    const s3R = parseInt(meta?.s3R || 0);
+    const isThreeSets = gironeId ? config?.gironeSets?.[gironeId] === "3 set" : false;
+
+    let isWinnerL = false;
+    let isWinnerR = false;
+    if (hasScore && (scoreL > 0 || scoreR > 0)) {
+      if (isThreeSets) {
+        let winL = 0,
+          winR = 0;
+        if (scoreL > scoreR) winL++;
+        else if (scoreR > scoreL) winR++;
+        if (s2L > s2R) winL++;
+        else if (s2R > s2L) winR++;
+        if (s3L > s3R) winL++;
+        else if (s3R > s3L) winR++;
+        isWinnerL = winL > winR;
+        isWinnerR = winR > winL;
+      } else {
+        isWinnerL = scoreL > scoreR;
+        isWinnerR = scoreR > scoreL;
+      }
+    }
 
     return (
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 transition-all hover:shadow-md text-left">
-        <div className="flex justify-between items-center mb-3 border-b border-gray-50 pb-2">
-          <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{customLabel || matchId.toUpperCase()}</span>
+      <div
+        key={idx}
+        id={`${matchKeyPrefix}-${idx}`}
+        className="bg-white rounded-[1.6rem] p-4 border border-gray-100 shadow-sm flex flex-col gap-2 transition-all"
+      >
+        <div className="flex justify-between items-center text-[9px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 pb-2">
+          <span>Gara {idx + 1}</span>
           <div className="flex gap-1.5">
-            {meta.time && <span className="text-[9px] font-black text-gray-500 bg-gray-50 px-2 py-0.5 rounded">{meta.time}</span>}
-            {meta.court && <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded">C.{meta.court}</span>}
-          </div>
-        </div>
-        
-        <div className="space-y-2">
-          <div className="flex justify-between items-center">
-            <span className={`text-xs uppercase font-bold truncate pr-4 ${isWinnerL ? 'text-[#0a1628] font-black' : 'text-gray-500'}`}>{left || "TBD"}</span>
-            <span className={`text-sm font-black ${isWinnerL ? 'text-green-600' : 'text-gray-400'}`}>{hasScore ? scoreL : "-"}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className={`text-xs uppercase font-bold truncate pr-4 ${isWinnerR ? 'text-[#0a1628] font-black' : 'text-gray-500'}`}>{right || "TBD"}</span>
-            <span className={`text-sm font-black ${isWinnerR ? 'text-green-600' : 'text-gray-400'}`}>{hasScore ? scoreR : "-"}</span>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderGoldSilverFinals = () => {
-    if (!bracketConfig) return null;
-    const isGroups = bracketConfig?.subPhaseType === "groups";
-    
-    return (
-      <div className="space-y-12">
-        {/* GOLD CATEGORY */}
-        <div>
-          <div className="flex items-center gap-2 mb-6 border-b pb-2">
-            <span className="text-xl">🏆</span>
-            <h3 className="text-base font-black uppercase text-yellow-600 tracking-tight">Fasi Finali GOLD</h3>
-          </div>
-          
-          {isGroups ? (
-            <div className="space-y-8">
-              <div>
-                <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Semifinali</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {renderBracketMatch("gold-s1", "Semifinale 1")}
-                  {renderBracketMatch("gold-s2", "Semifinale 2")}
-                </div>
-              </div>
-              <div>
-                <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Finali</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {renderBracketMatch("gold-f3", "Finale 3°/4° posto")}
-                  {renderBracketMatch("gold-f1", "Finale 1°/2° posto")}
-                </div>
-              </div>
-            </div>
-          ) : (
-            // Direct Elimination Gold
-            <div className="space-y-8">
-              {bracketConfig?.bracketSize === 8 && (
-                <div>
-                  <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Quarti di Finale</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {renderBracketMatch("gold-q1", "Quarto 1")}
-                    {renderBracketMatch("gold-q2", "Quarto 2")}
-                    {renderBracketMatch("gold-q3", "Quarto 3")}
-                    {renderBracketMatch("gold-q4", "Quarto 4")}
-                  </div>
-                </div>
-              )}
-              <div>
-                <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Semifinali</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {renderBracketMatch("gold-s1", "Semifinale 1")}
-                  {renderBracketMatch("gold-s2", "Semifinale 2")}
-                </div>
-              </div>
-              <div>
-                <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Finali</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {renderBracketMatch("gold-f3", "Finale 3°/4° posto")}
-                  {renderBracketMatch("gold-f1", "Finale 1°/2° posto")}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* SILVER CATEGORY */}
-        <div>
-          <div className="flex items-center gap-2 mb-6 border-b pb-2">
-            <span className="text-xl">🥈</span>
-            <h3 className="text-base font-black uppercase text-gray-500 tracking-tight">Fasi Finali SILVER</h3>
-          </div>
-          
-          {isGroups ? (
-            <div className="space-y-8">
-              <div>
-                <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Semifinali</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {renderBracketMatch("silver-s1", "Semifinale 1")}
-                  {renderBracketMatch("silver-s2", "Semifinale 2")}
-                </div>
-              </div>
-              <div>
-                <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Finali</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {renderBracketMatch("silver-f3", "Finale 3°/4° posto")}
-                  {renderBracketMatch("silver-f1", "Finale 1°/2° posto")}
-                </div>
-              </div>
-            </div>
-          ) : (
-            // Direct Elimination Silver
-            <div className="space-y-8">
-              {bracketConfig?.bracketSize === 8 && (
-                <div>
-                  <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Quarti di Finale</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {renderBracketMatch("silver-q1", "Quarto 1")}
-                    {renderBracketMatch("silver-q2", "Quarto 2")}
-                    {renderBracketMatch("silver-q3", "Quarto 3")}
-                    {renderBracketMatch("silver-q4", "Quarto 4")}
-                  </div>
-                </div>
-              )}
-              <div>
-                <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Semifinali</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {renderBracketMatch("silver-s1", "Semifinale 1")}
-                  {renderBracketMatch("silver-s2", "Semifinale 2")}
-                </div>
-              </div>
-              <div>
-                <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Finali</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {renderBracketMatch("silver-f3", "Finale 3°/4° posto")}
-                  {renderBracketMatch("silver-f1", "Finale 1°/2° posto")}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  const renderDoubleEliminationFinals = () => {
-    if (!bracketConfig) return null;
-    return (
-      <div className="space-y-12">
-        {/* Winners Bracket */}
-        <div>
-          <div className="flex items-center gap-2 mb-6 border-b pb-2">
-            <span className="text-xl">🏆</span>
-            <h3 className="text-base font-black uppercase text-blue-600 tracking-tight">Winners Bracket</h3>
-          </div>
-          <div className="space-y-6">
-            {bracketConfig?.bracketSize === 8 && (
-              <div>
-                <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Quarti di Finale</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {renderBracketMatch("wb-q1", "Quarto Winners 1")}
-                  {renderBracketMatch("wb-q2", "Quarto Winners 2")}
-                  {renderBracketMatch("wb-q3", "Quarto Winners 3")}
-                  {renderBracketMatch("wb-q4", "Quarto Winners 4")}
-                </div>
-              </div>
+            {meta?.time && (
+              <span className="bg-gray-50 text-gray-500 px-2.5 py-0.5 rounded-lg">{meta.time}</span>
             )}
-            <div>
-              <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Semifinali</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {renderBracketMatch("wb-s1", "Semifinale Winners 1")}
-                {renderBracketMatch("wb-s2", "Semifinale Winners 2")}
-              </div>
-            </div>
-            <div>
-              <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Finale Winners</h4>
-              <div className="max-w-md mx-auto">
-                {renderBracketMatch("wb-f", "Finale Winners")}
-              </div>
-            </div>
+            {meta?.court && (
+              <span className="bg-blue-50 text-blue-600 px-2.5 py-0.5 rounded-lg font-black">
+                C.{meta.court}
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Losers Bracket */}
-        <div>
-          <div className="flex items-center gap-2 mb-6 border-b pb-2">
-            <span className="text-xl">🔄</span>
-            <h3 className="text-base font-black uppercase text-gray-500 tracking-tight">Losers Bracket</h3>
+        <div className="flex items-center justify-between gap-3 py-1">
+          {/* Team Left */}
+          <div className="flex-1 text-right min-w-0 pr-1">
+            <span
+              className={`text-xs sm:text-sm font-bold uppercase truncate block ${
+                isWinnerL ? "text-[#0a1628] font-black" : "text-gray-400 font-semibold"
+              }`}
+            >
+              {teamL}
+            </span>
           </div>
-          <div className="space-y-6">
-            <div>
-              <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Semifinali Losers</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {renderBracketMatch("lb-s1", "Semifinale Losers 1")}
-                {renderBracketMatch("lb-s2", "Semifinale Losers 2")}
-              </div>
-            </div>
-            <div>
-              <h4 className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-wider">Finale Losers</h4>
-              <div className="max-w-md mx-auto">
-                {renderBracketMatch("lb-f", "Finale Losers")}
-              </div>
-            </div>
-          </div>
-        </div>
 
-        {/* Grand Final */}
-        <div className="bg-[#0a1628] p-6 rounded-3xl text-white shadow-lg relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-400/10 rounded-full -mr-16 -mt-16"></div>
-          <h3 className="text-base font-black text-[#FFD700] uppercase mb-4 text-center tracking-tight">GRAND FINAL 👑</h3>
-          <div className="max-w-md mx-auto">
-            {renderBracketMatch("grand-final", "Finalissima")}
+          {/* Score Badge */}
+          <div className="shrink-0 flex flex-col items-center justify-center">
+            {hasScore && (scoreL > 0 || scoreR > 0) ? (
+              <div className="bg-[#0a1628] text-white font-black px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1 shadow-sm">
+                <span>{scoreL}</span>
+                <span className="opacity-30">-</span>
+                <span>{scoreR}</span>
+              </div>
+            ) : (
+              <span className="text-[9px] font-black bg-gray-50 text-gray-300 px-3 py-1.5 rounded-xl uppercase tracking-wider border border-gray-100">
+                VS
+              </span>
+            )}
+            {isThreeSets && hasScore && (scoreL > 0 || scoreR > 0) && (
+              <span className="text-[8px] font-bold text-gray-400 mt-1">
+                ({s2L}-{s2R}, {s3L}-{s3R})
+              </span>
+            )}
+          </div>
+
+          {/* Team Right */}
+          <div className="flex-1 text-left min-w-0 pl-1">
+            <span
+              className={`text-xs sm:text-sm font-bold uppercase truncate block ${
+                isWinnerR ? "text-[#0a1628] font-black" : "text-gray-400 font-semibold"
+              }`}
+            >
+              {teamR}
+            </span>
           </div>
         </div>
       </div>
     );
   };
-
-  const schedule = config ? getSchedule(config.teamCounts[activeGirone], activeGirone, config.gironeAssignments[activeGirone] || {}) : [];
-  const bracketMatches = getAllBracketMatches();
-  const matchMetadata = config?.matchMetadata || {};
-  const gironeSets = config?.gironeSets || {};
 
   return (
-    <main className="min-h-screen bg-gray-50 pb-20">
-      {/* Navbar Semplice */}
-      <header style={{backgroundColor: "#0a1628"}} className="text-white py-4 px-6 flex justify-between items-center shadow-md border-b-2 border-[#FFD700]">
-        <div className="flex items-center gap-3">
-          <Image src="/logo.png" alt="BVI Logo" width={40} height={40} />
-          <h1 className="text-xl font-bold tracking-tight">BVI Tornei</h1>
+    <main className="min-h-screen bg-[#f0f4ff] pb-24">
+      {/* Header Mobile Premium */}
+      <header
+        style={{ backgroundColor: "#0a1628" }}
+        className="text-white py-4 px-5 flex justify-between items-center shadow-md border-b-4 border-[#FFD700] sticky top-0 z-50"
+      >
+        <div className="flex items-center gap-2.5">
+          <Image src="/logo.png" alt="BVI Logo" width={32} height={32} />
+          <div>
+            <h1 className="text-sm font-black tracking-tight uppercase leading-none">BVI Live</h1>
+          </div>
         </div>
-        <a href="/" className="text-sm font-bold bg-[#FFD700] text-[#0a1628] px-4 py-1.5 rounded-full hover:bg-yellow-500">HOME</a>
+        <a
+          href="/"
+          className="text-[9px] font-black bg-[#FFD700] text-[#0a1628] px-4 py-1.5 rounded-xl transition-transform active:scale-95 shadow-sm uppercase tracking-wider"
+        >
+          Home
+        </a>
       </header>
 
-      <div className="max-w-4xl mx-auto mt-8 px-4">
-        {/* Header Sezione */}
-        <div className="mb-10 text-center">
+      <div className="max-w-md mx-auto px-4 pt-5 space-y-4">
+        {/* Torneo Info Title Card */}
+        <div className="relative bg-white rounded-3xl p-5 border border-gray-100 shadow-sm overflow-hidden text-center">
           {isConcluso ? (
-            <div className="inline-flex items-center gap-2 bg-gray-100 text-gray-800 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest mb-4 border border-gray-200">
-              <span className="w-2 h-2 rounded-full bg-gray-400"></span>
-              Torneo Concluso
-            </div>
+            <span className="inline-block px-3 py-1 rounded-full text-[8px] font-black bg-gray-100 text-gray-600 uppercase tracking-widest mb-2">
+              Concluso 🏁
+            </span>
           ) : (
-            <div className="inline-flex items-center gap-2 bg-green-100 text-green-800 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest mb-4">
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-              Torneo Attivo
+            <span className="inline-block px-3 py-1 rounded-full text-[8px] font-black bg-green-100 text-green-700 uppercase tracking-widest mb-2 animate-pulse">
+              Torneo Attivo 🟢
+            </span>
+          )}
+          <h2 className="text-xl font-black text-[#0a1628] uppercase tracking-tighter leading-tight">
+            {selectedTorneo || "Nessun Torneo"}
+          </h2>
+          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-1.5">
+            {selectedTorneoObj?.categoria} · {selectedTorneoObj?.data}
+          </p>
+
+          {/* Selector per altri tornei */}
+          {tornei.length > 1 && (
+            <div className="mt-4 pt-4 border-t border-gray-100 relative">
+              <select
+                className="w-full bg-gray-50 border-none rounded-2xl px-4 py-3 font-black text-[#0a1628] text-xs focus:ring-2 focus:ring-[#0a1628] appearance-none cursor-pointer"
+                value={selectedTorneo}
+                onChange={(e) => setSelectedTorneo(e.target.value)}
+              >
+                {tornei.map((t) => (
+                  <option key={t.id} value={t.nome}>
+                    Cambia: {t.nome}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-0.5 pointer-events-none text-[#0a1628]">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={4}
+                  stroke="currentColor"
+                  className="w-3.5 h-3.5"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                </svg>
+              </div>
             </div>
           )}
-          <h2 className="text-4xl md:text-5xl font-black text-[#0a1628] uppercase tracking-tighter">{selectedTorneo || "Nessun Torneo"}</h2>
-          <p className="text-gray-500 font-bold mt-2 uppercase text-xs tracking-[0.3em]">Gironi & Calendario</p>
         </div>
 
-        {areGironiPubblicati() ? (
+        {/* Controllo Pubblicazione */}
+        {isPublished ? (
           <>
-            {/* Phase Navigation Tabs */}
-            {bracketConfig && (
-              <div className="flex bg-gray-200/60 p-1.5 rounded-2xl mb-8 max-w-md mx-auto border border-gray-200">
-                <button
-                  onClick={() => setActiveTab("iniziali")}
-                  className={`flex-1 py-3 text-center rounded-xl font-black text-[10px] sm:text-xs uppercase tracking-wider transition-all ${activeTab === "iniziali" ? 'bg-[#0a1628] text-white shadow-md' : 'text-gray-500 hover:text-[#0a1628]'}`}
-                >
-                  Gironi Iniziali 📋
-                </button>
-                {bracketConfig?.phaseType === "gold_silver" && bracketConfig?.subPhaseType === "groups" && (
-                  <button
-                    onClick={() => setActiveTab("intermedi")}
-                    className={`flex-1 py-3 text-center rounded-xl font-black text-[10px] sm:text-xs uppercase tracking-wider transition-all ${activeTab === "intermedi" ? 'bg-[#0a1628] text-white shadow-md' : 'text-gray-500 hover:text-[#0a1628]'}`}
-                  >
-                    Gironi Intermedi 🏆
-                  </button>
-                )}
-                <button
-                  onClick={() => setActiveTab("finali")}
-                  className={`flex-1 py-3 text-center rounded-xl font-black text-[10px] sm:text-xs uppercase tracking-wider transition-all ${activeTab === "finali" ? 'bg-[#0a1628] text-white shadow-md' : 'text-gray-500 hover:text-[#0a1628]'}`}
-                >
-                  Fasi Finali ⚔️
-                </button>
-              </div>
-            )}
-
-            {/* Gironi Iniziali */}
-            {activeTab === "iniziali" && (
-              <>
-                {/* Tab Gironi */}
-                <div className="flex gap-2 mb-6 overflow-x-auto pb-2 justify-center no-scrollbar">
-                  {gironiDisponibili.map(g => (
-                    <button
-                      key={g}
-                      onClick={() => setActiveGirone(g)}
-                      className={`px-5 py-2.5 rounded-xl font-black transition-all text-xs ${
-                        activeGirone === g 
-                        ? 'bg-[#0a1628] text-white shadow-lg' 
-                        : 'bg-white text-gray-400 hover:bg-gray-100 border border-gray-200'
-                      }`}
-                    >
-                      GIRONE {g}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Classifica Girone */}
-                {renderInitialStandingsTable()}
-
-                {/* Info Girone */}
-                <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 mb-6 flex justify-around text-center text-xs">
-                    <div>
-                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Modalità</p>
-                        <p className="font-bold text-[#0a1628] mt-0.5">{config.gironeTypes[activeGirone]}</p>
-                    </div>
-                    <div className="border-x border-gray-100 px-6 sm:px-8">
-                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Formula</p>
-                        <p className="font-bold text-[#0a1628] mt-0.5">{config.gironeSets[activeGirone]}</p>
-                    </div>
-                    <div>
-                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Squadre</p>
-                        <p className="font-bold text-[#0a1628] mt-0.5">{config.teamCounts[activeGirone]}</p>
-                    </div>
-                </div>
-
-                {/* Schedule */}
-                <div className="space-y-4 text-left">
-                  {schedule.length > 0 ? schedule.map((match, idx) => {
-                    const meta = matchMetadata[`${activeGirone}-${idx}`] || {};
-                    const hasScore = meta.s1L || meta.s1R;
-                    
-                    const s1L = parseInt(meta.s1L || 0);
-                    const s1R = parseInt(meta.s1R || 0);
-                    const s2L = parseInt(meta.s2L || 0);
-                    const s2R = parseInt(meta.s2R || 0);
-                    const s3L = parseInt(meta.s3L || 0);
-                    const s3R = parseInt(meta.s3R || 0);
-
-                    // Determine winner based on sets or 1 set
-                    let isWinnerL = false;
-                    let isWinnerR = false;
-                    if (hasScore) {
-                      if (gironeSets[activeGirone] === "3 set") {
-                        let winL = 0, winR = 0;
-                        if (s1L > s1R) winL++; else if (s1R > s1L) winR++;
-                        if (s2L > s2R) winL++; else if (s2R > s2L) winR++;
-                        if (s3L > s3R) winL++; else if (s3R > s3L) winR++;
-                        isWinnerL = winL > winR;
-                        isWinnerR = winR > winL;
-                      } else {
-                        isWinnerL = s1L > s1R;
-                        isWinnerR = s1R > s1L;
-                      }
-                    }
-
+            {/* 1. SEZIONE GIRONI (COMPOSIZIONE SQUADRE INIZIALI) */}
+            {activeTab === "gironi" && (
+              <div className="space-y-5">
+                <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">
+                  Composizione Gironi
+                </h3>
+                <div className="space-y-4">
+                  {getInitialGroupsList().map((group) => {
+                    const teams = getGroupTeams(group.id, group.type);
                     return (
-                      <div key={idx} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                        <div className="flex justify-between items-center mb-3 border-b border-gray-50 pb-2">
-                          <span className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Partita {idx + 1}</span>
-                          <div className="flex gap-1.5">
-                            {meta.time && <span className="text-[9px] font-black text-gray-500 bg-gray-50 px-2 py-0.5 rounded">{meta.time}</span>}
-                            {meta.court && <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded">C.{meta.court}</span>}
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-3">
-                          {/* Team Left */}
-                          <div className="flex justify-between items-center">
-                            <span className={`text-xs uppercase font-bold truncate pr-4 ${isWinnerL ? 'text-[#0a1628] font-black' : 'text-gray-500'}`}>{match.left}</span>
-                            <div className="flex items-center gap-1.5">
-                              <span className={`text-sm font-black ${isWinnerL ? 'text-green-600' : 'text-gray-400'}`}>{hasScore ? s1L : "-"}</span>
-                              {gironeSets[activeGirone] === "3 set" && hasScore && (
-                                <span className="text-[10px] text-gray-400 font-semibold bg-gray-50 px-1 rounded">({s2L}, {s3L})</span>
-                              )}
-                            </div>
-                          </div>
-                          
-                          {/* Team Right */}
-                          <div className="flex justify-between items-center">
-                            <span className={`text-xs uppercase font-bold truncate pr-4 ${isWinnerR ? 'text-[#0a1628] font-black' : 'text-gray-500'}`}>{match.right}</span>
-                            <div className="flex items-center gap-1.5">
-                              <span className={`text-sm font-black ${isWinnerR ? 'text-green-600' : 'text-gray-400'}`}>{hasScore ? s1R : "-"}</span>
-                              {gironeSets[activeGirone] === "3 set" && hasScore && (
-                                <span className="text-[10px] text-gray-400 font-semibold bg-gray-50 px-1 rounded">({s2R}, {s3R})</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
+                      <div
+                        key={group.id}
+                        className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm"
+                      >
+                        <h4 className="text-sm font-black text-[#0a1628] uppercase tracking-tight border-b border-gray-50 pb-3 mb-3 flex items-center justify-between">
+                          <span>{group.label}</span>
+                          <span className="text-[9px] font-black bg-blue-50 text-blue-600 px-2 py-0.5 rounded-lg uppercase tracking-wider">
+                            {teams.length} Squadre
+                          </span>
+                        </h4>
+                        <ul className="space-y-2">
+                          {teams.map((team, idx) => (
+                            <li key={team} className="flex items-center gap-3 py-1">
+                              <span className="w-5 h-5 rounded-full bg-gray-50 text-gray-400 flex items-center justify-center text-[10px] font-black">
+                                {idx + 1}
+                              </span>
+                              <span className="text-xs font-bold text-gray-700 uppercase tracking-tight">
+                                {team}
+                              </span>
+                            </li>
+                          ))}
+                          {teams.length === 0 && (
+                            <li className="text-center py-4 text-gray-400 italic text-xs">
+                              Nessuna squadra in questo girone.
+                            </li>
+                          )}
+                        </ul>
                       </div>
                     );
-                  }) : (
-                    <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-gray-200">
-                        <p className="text-gray-400 font-bold italic text-xs">Nessuna partita schedulata per questo girone.</p>
+                  })}
+                  {getInitialGroupsList().length === 0 && (
+                    <div className="bg-white rounded-3xl p-6 text-center border border-gray-100">
+                      <p className="text-gray-400 italic text-xs">Nessun girone configurato.</p>
                     </div>
                   )}
                 </div>
-              </>
-            )}
-
-            {/* Gironi Intermedi */}
-            {activeTab === "intermedi" && bracketConfig?.phaseType === "gold_silver" && bracketConfig?.subPhaseType === "groups" && (
-              <div className="space-y-12 text-left">
-                <div>
-                  <h2 className="text-xl font-black text-yellow-600 uppercase tracking-tighter mb-6 text-center">🏆 Gironi Intermedi GOLD</h2>
-                  {renderIntermediateGroupForSpectator("gold-A", "Girone Gold A", "gold")}
-                  {config?.numGironi === 4 && renderIntermediateGroupForSpectator("gold-B", "Girone Gold B", "gold")}
-                </div>
-                
-                <div className="border-t border-dashed border-gray-200 my-10"></div>
-                
-                <div>
-                  <h2 className="text-xl font-black text-gray-500 uppercase tracking-tighter mb-6 text-center">🥈 Gironi Intermedi SILVER</h2>
-                  {renderIntermediateGroupForSpectator("silver-A", "Girone Silver A", "silver")}
-                  {config?.numGironi === 4 && renderIntermediateGroupForSpectator("silver-B", "Girone Silver B", "silver")}
-                </div>
               </div>
             )}
 
-            {/* Fasi Finali */}
-            {activeTab === "finali" && bracketConfig && (
-              <div className="space-y-6 text-left">
-                {bracketMatches.length > 0 ? (
-                  bracketConfig?.phaseType === "double" ? (
-                    renderDoubleEliminationFinals()
-                  ) : (
-                    renderGoldSilverFinals()
-                  )
-                ) : (
-                  <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-gray-200">
-                    <p className="text-gray-400 font-bold italic text-xs">Tabellone non ancora generato per questo torneo.</p>
+            {/* 2. SEZIONE PARTITE (CALENDARIO VERTICALE INIZIALE) */}
+            {activeTab === "partite" && (
+              <div className="space-y-6">
+                {getInitialGroupsList().map((group) => {
+                  const groupMatches = getScheduleFixed(
+                    config?.teamCounts?.[group.id] || 0,
+                    group.id,
+                    config?.gironeAssignments?.[group.id] || {}
+                  ).map((m, idx) => ({
+                    left: m.left,
+                    right: m.right,
+                    meta: config?.matchMetadata?.[`${group.id}-${idx}`] || {},
+                  }));
+
+                  return (
+                    <div key={group.id} className="space-y-3">
+                      <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1 border-l-4 border-[#FFD700] pl-2">
+                        Partite {group.label}
+                      </h3>
+                      <div className="space-y-3">
+                        {groupMatches.map((m, idx) =>
+                          renderMatchRow(
+                            m.left,
+                            m.right,
+                            m.meta,
+                            idx,
+                            `match-${group.id}`,
+                            group.id
+                          )
+                        )}
+                        {groupMatches.length === 0 && (
+                          <div className="bg-white rounded-3xl p-6 text-center border border-gray-100">
+                            <p className="text-gray-400 italic text-xs">Nessun match programmato.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* 3. SEZIONE CLASSIFICHE (TABELLE VERTICALI INIZIALI) */}
+            {activeTab === "classifica" && (
+              <div className="space-y-6">
+                {getInitialGroupsList().map((group) => {
+                  const groupStats = calculateRanking(group.id);
+
+                  return (
+                    <div key={group.id} className="space-y-3">
+                      <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1 border-l-4 border-yellow-400 pl-2">
+                        Classifica {group.label}
+                      </h3>
+                      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                        <table className="w-full text-left">
+                          <thead className="bg-gray-50/50 border-b border-gray-100 text-[8px] font-black text-gray-400 uppercase tracking-widest">
+                            <tr>
+                              <th className="pl-4 py-3 w-10 text-center">Pos</th>
+                              <th className="px-2 py-3">Squadra</th>
+                              <th className="px-2 py-3 text-center w-8">G</th>
+                              <th className="px-2 py-3 text-center w-12">V/P</th>
+                              <th className="pr-4 py-3 text-right w-12">Pt</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-50 text-xs font-bold">
+                            {groupStats.map((team, idx) => {
+                              const isQualified = idx < 2;
+                              return (
+                                <tr
+                                  key={team.nome}
+                                  className={`hover:bg-blue-50/10 transition-colors ${
+                                    isQualified ? "bg-yellow-50/10" : ""
+                                  }`}
+                                >
+                                  <td className="pl-4 py-3.5 text-center">
+                                    <span
+                                      className={`w-5.5 h-5.5 rounded-full flex items-center justify-center text-[10px] font-black mx-auto ${
+                                        isQualified
+                                          ? "bg-yellow-400 text-white shadow-sm"
+                                          : "bg-gray-100 text-gray-400"
+                                      }`}
+                                    >
+                                      {idx + 1}
+                                    </span>
+                                  </td>
+                                  <td className="px-2 py-3.5 text-[#0a1628] font-black uppercase tracking-tight truncate max-w-[140px]">
+                                    {team.nome}
+                                  </td>
+                                  <td className="px-2 py-3.5 text-center text-gray-400 font-semibold">
+                                    {team.giocate}
+                                  </td>
+                                  <td className="px-2 py-3.5 text-center whitespace-nowrap text-[10px]">
+                                    <span className="text-green-600 font-bold">{team.vinte}</span>
+                                    <span className="text-gray-200 mx-0.5">/</span>
+                                    <span className="text-red-500 font-bold">{team.perse}</span>
+                                  </td>
+                                  <td className="pr-4 py-3.5 text-right font-black text-sm text-[#0a1628]">
+                                    {team.score}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                            {groupStats.length === 0 && (
+                              <tr>
+                                <td colSpan="5" className="py-8 text-center text-gray-400 italic">
+                                  In attesa dei risultati di questo girone.
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* 4. SEZIONE FASI FINALI */}
+            {activeTab === "finali" && (
+              <div className="space-y-5">
+                {/* Switch Gold / Silver in alto (se Gold/Silver) */}
+                {bracketConfig?.phaseType === "gold_silver" && (
+                  <div className="flex bg-gray-200/60 p-1 rounded-2xl max-w-xs mx-auto border border-gray-100/50 shadow-inner">
+                    <button
+                      onClick={() => setFasiFinaliCategory("gold")}
+                      className={`flex-1 py-2 text-center rounded-xl font-black text-xs uppercase tracking-wider transition-all ${
+                        fasiFinaliCategory === "gold"
+                          ? "bg-[#0a1628] text-white shadow-md"
+                          : "text-gray-400 hover:text-[#0a1628]"
+                      }`}
+                    >
+                      Gold 🏆
+                    </button>
+                    <button
+                      onClick={() => setFasiFinaliCategory("silver")}
+                      className={`flex-1 py-2 text-center rounded-xl font-black text-xs uppercase tracking-wider transition-all ${
+                        fasiFinaliCategory === "silver"
+                          ? "bg-[#0a1628] text-white shadow-md"
+                          : "text-gray-400 hover:text-[#0a1628]"
+                      }`}
+                    >
+                      Silver 🥈
+                    </button>
                   </div>
+                )}
+
+                {/* Partite Gironi Intermedi (se Gold/Silver a gironi) */}
+                {bracketConfig?.phaseType === "gold_silver" &&
+                  getIntermediateGroupsList()
+                    .filter((g) => g.category === fasiFinaliCategory)
+                    .map((group) => {
+                      const groupMatches = getIntermediateGroupMatches(group.id);
+                      return (
+                        <div key={group.id} className="space-y-3">
+                          <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1 border-l-4 border-[#FFD700] pl-2">
+                            Partite {group.label}
+                          </h4>
+                          <div className="space-y-3">
+                            {groupMatches.map((m, idx) =>
+                              renderMatchRow(
+                                m.left,
+                                m.right,
+                                m.meta,
+                                idx,
+                                `match-${group.id}`,
+                                group.id
+                              )
+                            )}
+                            {groupMatches.length === 0 && (
+                              <div className="bg-white rounded-3xl p-6 text-center border border-gray-100">
+                                <p className="text-gray-400 italic text-xs">
+                                  Nessun match programmato.
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                {/* Partite Playoff */}
+                {getPlayoffMatchesList().filter((group) => {
+                  if (bracketConfig?.phaseType === "gold_silver") {
+                    return group.title.toLowerCase().includes(fasiFinaliCategory);
+                  }
+                  return true;
+                }).length > 0 ? (
+                  getPlayoffMatchesList()
+                    .filter((group) => {
+                      if (bracketConfig?.phaseType === "gold_silver") {
+                        return group.title.toLowerCase().includes(fasiFinaliCategory);
+                      }
+                      return true;
+                    })
+                    .map((group, gIdx) => (
+                      <div key={gIdx} className="space-y-3 animate-fade-in">
+                        <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-widest pl-1 border-b pb-2">
+                          {group.title}
+                        </h3>
+                        <div className="space-y-3">
+                          {group.matches.map((m, idx) =>
+                            renderMatchRow(
+                              m.left,
+                              m.right,
+                              m.meta,
+                              idx,
+                              `playoff-${group.title}`
+                            )
+                          )}
+                        </div>
+                      </div>
+                    ))
+                ) : (
+                  /* Mostra schermata vuota solo se non ci sono match dei gironi intermedi E non ci sono match di playoff */
+                  !(
+                    bracketConfig?.phaseType === "gold_silver" &&
+                    getIntermediateGroupsList().filter((g) => g.category === fasiFinaliCategory)
+                      .length > 0
+                  ) && (
+                    <div className="text-center py-20 bg-white rounded-[2rem] shadow-sm border border-gray-100 px-6">
+                      <span className="text-5xl mb-4 block">⚔️</span>
+                      <h3 className="text-lg font-black text-[#0a1628] uppercase tracking-tight mb-2">
+                        Fasi Finali in Preparazione
+                      </h3>
+                      <p className="text-gray-400 font-medium text-xs max-w-xs mx-auto">
+                        Il tabellone ad eliminazione diretta non è ancora stato generato dallo staff
+                        per questo torneo.
+                      </p>
+                    </div>
+                  )
                 )}
               </div>
             )}
           </>
         ) : (
-          <div className="bg-white p-12 md:p-20 rounded-[2rem] shadow-sm text-center border border-gray-100 flex flex-col items-center">
-            <span className="text-6xl mb-4">🏐</span>
-            <h4 className="text-xl font-bold text-[#0a1628] mb-2 uppercase tracking-tight">Gironi non ancora pubblicati</h4>
-            <p className="text-gray-500 font-medium max-w-md">La configurazione dei gironi per questo torneo sarà disponibile a breve.</p>
+          /* Messaggio Gironi non Pubblicati */
+          <div className="text-center py-20 bg-white rounded-[2rem] shadow-sm border border-gray-100 px-6">
+            <span className="text-5xl mb-4 block">⏳</span>
+            <h3 className="text-lg font-black text-[#0a1628] uppercase tracking-tight mb-2">
+              Calendario in Elaborazione
+            </h3>
+            <p className="text-gray-400 font-medium text-xs max-w-xs mx-auto">
+              Lo staff sta configurando i gironi e le partite per il torneo. I dati saranno visibili in
+              tempo reale su questa pagina non appena verranno pubblicati!
+            </p>
           </div>
         )}
       </div>
+
+      {/* BOTTOM NAV BAR FISSA - 4 Pulsanti */}
+      {isPublished && (
+        <nav className="fixed bottom-0 left-0 right-0 z-50">
+          <div className="absolute inset-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 shadow-[0_-4px_30px_rgba(0,0,0,0.08)]" />
+          <div className="relative flex justify-around px-1 pb-safe">
+            {/* Pulsante Gironi (Composizione) */}
+            <button
+              onClick={() => setActiveTab("gironi")}
+              className="relative flex flex-col items-center gap-1.5 py-3.5 px-3 flex-1 active:scale-95 transition-transform"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill={activeTab === "gironi" ? "currentColor" : "none"}
+                stroke="currentColor"
+                strokeWidth={activeTab === "gironi" ? 0 : 2}
+                className="w-5 h-5 text-[#0a1628]"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z"
+                />
+              </svg>
+              <span
+                className={`text-[9px] font-black uppercase tracking-widest ${
+                  activeTab === "gironi" ? "text-[#0a1628]" : "text-gray-300"
+                }`}
+              >
+                Gironi
+              </span>
+              {activeTab === "gironi" && (
+                <span className="absolute top-2.5 w-1 h-1 rounded-full bg-[#FFD700]" />
+              )}
+            </button>
+
+            {/* Pulsante Partite */}
+            <button
+              onClick={() => setActiveTab("partite")}
+              className="relative flex flex-col items-center gap-1.5 py-3.5 px-3 flex-1 active:scale-95 transition-transform"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill={activeTab === "partite" ? "currentColor" : "none"}
+                stroke="currentColor"
+                strokeWidth={activeTab === "partite" ? 0 : 2}
+                className="w-5 h-5 text-[#0a1628]"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"
+                />
+              </svg>
+              <span
+                className={`text-[9px] font-black uppercase tracking-widest ${
+                  activeTab === "partite" ? "text-[#0a1628]" : "text-gray-300"
+                }`}
+              >
+                Partite
+              </span>
+              {activeTab === "partite" && (
+                <span className="absolute top-2.5 w-1 h-1 rounded-full bg-[#FFD700]" />
+              )}
+            </button>
+
+            {/* Pulsante Classifiche */}
+            <button
+              onClick={() => setActiveTab("classifica")}
+              className="relative flex flex-col items-center gap-1.5 py-3.5 px-3 flex-1 active:scale-95 transition-transform"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill={activeTab === "classifica" ? "currentColor" : "none"}
+                stroke="currentColor"
+                strokeWidth={activeTab === "classifica" ? 0 : 2}
+                className="w-5 h-5 text-[#0a1628]"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M16.5 18.75h-9m9 0a3 3 0 0 1 3 3h-15a3 3 0 0 1 3-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-6.75a1.125 1.125 0 0 0-1.125 1.125v3.375m9 0h-9M9 10.5a3 3 0 1 1 6 0 3 3 0 0 1-6 0Z"
+                />
+              </svg>
+              <span
+                className={`text-[9px] font-black uppercase tracking-widest ${
+                  activeTab === "classifica" ? "text-[#0a1628]" : "text-gray-300"
+                }`}
+              >
+                Classifiche
+              </span>
+              {activeTab === "classifica" && (
+                <span className="absolute top-2.5 w-1 h-1 rounded-full bg-[#FFD700]" />
+              )}
+            </button>
+
+            {/* Pulsante Fasi Finali */}
+            <button
+              onClick={() => setActiveTab("finali")}
+              className="relative flex flex-col items-center gap-1.5 py-3.5 px-3 flex-1 active:scale-95 transition-transform"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill={activeTab === "finali" ? "currentColor" : "none"}
+                stroke="currentColor"
+                strokeWidth={activeTab === "finali" ? 0 : 2}
+                className="w-5 h-5 text-[#0a1628]"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15.362 5.214A8.252 8.252 0 0 1 12 21 8.25 8.25 0 0 1 6.038 7.047 8.287 8.287 0 0 0 9 9.601a8.983 8.983 0 0 1 3.361-6.867 8.21 8.21 0 0 0 3 2.48Z"
+                />
+              </svg>
+              <span
+                className={`text-[9px] font-black uppercase tracking-widest ${
+                  activeTab === "finali" ? "text-[#0a1628]" : "text-gray-300"
+                }`}
+              >
+                Fasi Finali
+              </span>
+              {activeTab === "finali" && (
+                <span className="absolute top-2.5 w-1 h-1 rounded-full bg-[#FFD700]" />
+              )}
+            </button>
+          </div>
+          {/* iOS spacer */}
+          <div className="h-safe-area-inset-bottom bg-transparent" />
+        </nav>
+      )}
     </main>
   );
 }

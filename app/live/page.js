@@ -748,9 +748,6 @@ export default function PortaleLiveMobile() {
           <Image src="/logo.png" alt="BVI Logo" width={32} height={32} />
           <div>
             <h1 className="text-sm font-black tracking-tight uppercase leading-none">BVI Live</h1>
-            <p className="text-[7px] text-[#FFD700] font-black uppercase tracking-[0.2em] mt-0.5">
-              Smartphone Portal
-            </p>
           </div>
         </div>
         <a
