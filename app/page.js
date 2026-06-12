@@ -22,13 +22,13 @@ export default function Home() {
   }, []);
 
   return (
-    <main className="min-h-screen" style={{backgroundColor: "#f0f4ff"}}>
-      
+    <main className="min-h-screen" style={{ backgroundColor: "#f0f4ff" }}>
+
       {/* Header */}
-      <header style={{backgroundColor: "#0a1628"}} className="text-white py-4 px-8 flex flex-col sm:flex-row justify-between items-center shadow-md gap-4">
+      <header style={{ backgroundColor: "#0a1628" }} className="text-white py-4 px-8 flex flex-col sm:flex-row justify-between items-center shadow-md gap-4">
         <div className="flex items-center gap-3">
           <Image src="/logo.png" alt="BVI Logo" width={50} height={50} className="rounded-full" />
-          <h1 className="text-2xl font-bold" style={{color: "#FFD700"}}>BVI Tornei</h1>
+          <h1 className="text-2xl font-bold" style={{ color: "#FFD700" }}>BVI Tornei</h1>
         </div>
         <nav className="flex gap-6 items-center">
           <div className="flex gap-4">
@@ -43,16 +43,16 @@ export default function Home() {
         <div className="max-w-3xl flex flex-col items-center">
           <div className="mb-8 relative">
             <div className="absolute inset-0 bg-yellow-400 blur-2xl opacity-20 rounded-full"></div>
-            <Image 
-              src="/logo.png" 
-              alt="BVI Logo" 
-              width={160} 
-              height={160} 
+            <Image
+              src="/logo.png"
+              alt="BVI Logo"
+              width={160}
+              height={160}
               className="object-contain relative drop-shadow-xl"
               priority
             />
           </div>
-          <h2 className="text-4xl sm:text-5xl font-extrabold mb-6 leading-tight" style={{color: "#0a1628"}}>
+          <h2 className="text-4xl sm:text-5xl font-extrabold mb-6 leading-tight" style={{ color: "#0a1628" }}>
             #Live your passion
           </h2>
           <p className="text-lg sm:text-xl text-gray-600 mb-10 font-medium max-w-2xl leading-relaxed">
@@ -63,13 +63,13 @@ export default function Home() {
 
       {/* Sezione Tornei in Evidenza */}
       <section className="px-4 sm:px-8 pb-24 max-w-6xl mx-auto">
-        <div className="flex items-center gap-4 mb-8 border-b-2 pb-4" style={{borderColor: "#FFD700"}}>
+        <div className="flex items-center gap-4 mb-8 border-b-2 pb-4" style={{ borderColor: "#FFD700" }}>
           <span className="text-3xl">🔥</span>
-          <h3 className="text-2xl font-extrabold" style={{color: "#0a1628"}}>
+          <h3 className="text-2xl font-extrabold" style={{ color: "#0a1628" }}>
             Tornei in Evidenza
           </h3>
         </div>
-        
+
         {torneiAperti.length === 0 ? (
           <div className="bg-white p-12 rounded-3xl shadow-md text-center border border-gray-100 flex flex-col items-center">
             <span className="text-6xl mb-4">🏖️</span>
@@ -95,7 +95,7 @@ export default function Home() {
                     )}
                     <span className="text-sm font-semibold text-gray-400">{t.data}</span>
                   </div>
-                  <h4 className="text-2xl font-black mb-2 leading-tight" style={{color: "#0a1628"}}>{t.nome}</h4>
+                  <h4 className="text-2xl font-black mb-2 leading-tight" style={{ color: "#0a1628" }}>{t.nome}</h4>
                   <div className="flex flex-col gap-2 mb-6">
                     <span className="text-sm font-bold text-gray-500 bg-gray-50 inline-block px-3 py-1 rounded-lg self-start">
                       {t.categoria || 'Categoria Libera'}
@@ -119,20 +119,20 @@ export default function Home() {
                   ) : (
                     <div className="mt-auto pt-6 border-t border-gray-100 flex flex-col sm:flex-row gap-3">
                       {t.tipoIscrizione === "esterno" && t.googleFormUrl ? (
-                        <a 
-                          href={t.googleFormUrl} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="flex-1 py-3 text-center rounded-xl font-bold text-sm text-[#0a1628] hover:bg-gray-50 transition-colors border-2" 
-                          style={{borderColor: "#0a1628"}}
+                        <a
+                          href={t.googleFormUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 py-3 text-center rounded-xl font-bold text-sm text-[#0a1628] hover:bg-gray-50 transition-colors border-2"
+                          style={{ borderColor: "#0a1628" }}
                         >
                           📋 Iscriviti
                         </a>
                       ) : (
-                        <a 
-                          href={`/iscrizioni?tour=${encodeURIComponent(t.nome)}`} 
-                          className="flex-1 py-3 text-center rounded-xl font-bold text-sm text-[#0a1628] hover:bg-gray-50 transition-colors border-2" 
-                          style={{borderColor: "#0a1628"}}
+                        <a
+                          href={`/iscrizioni?tour=${encodeURIComponent(t.nome)}`}
+                          className="flex-1 py-3 text-center rounded-xl font-bold text-sm text-[#0a1628] hover:bg-gray-50 transition-colors border-2"
+                          style={{ borderColor: "#0a1628" }}
                         >
                           📋 Iscriviti
                         </a>
@@ -152,13 +152,13 @@ export default function Home() {
       {/* Sezione Tornei Conclusi */}
       {torneiConclusi.length > 0 && (
         <section className="px-4 sm:px-8 pb-24 max-w-6xl mx-auto">
-          <div className="flex items-center gap-4 mb-8 border-b-2 pb-4" style={{borderColor: "#cbd5e1"}}>
+          <div className="flex items-center gap-4 mb-8 border-b-2 pb-4" style={{ borderColor: "#cbd5e1" }}>
             <span className="text-3xl">🏁</span>
-            <h3 className="text-2xl font-extrabold" style={{color: "#0a1628"}}>
+            <h3 className="text-2xl font-extrabold" style={{ color: "#0a1628" }}>
               Tornei Conclusi
             </h3>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {torneiConclusi.map((t, i) => (
               <div key={i} className="bg-white rounded-3xl shadow-md hover:shadow-xl border border-gray-100 overflow-hidden flex flex-col transition-all hover:-translate-y-2">
@@ -169,7 +169,7 @@ export default function Home() {
                     </span>
                     <span className="text-sm font-semibold text-gray-400">{t.data}</span>
                   </div>
-                  <h4 className="text-2xl font-black mb-2 leading-tight" style={{color: "#0a1628"}}>{t.nome}</h4>
+                  <h4 className="text-2xl font-black mb-2 leading-tight" style={{ color: "#0a1628" }}>{t.nome}</h4>
                   <div className="flex flex-col gap-2 mb-6">
                     <span className="text-sm font-bold text-gray-500 bg-gray-50 inline-block px-3 py-1 rounded-lg self-start">
                       {t.categoria || 'Categoria Libera'}
@@ -181,8 +181,8 @@ export default function Home() {
                     )}
                   </div>
                   <div className="mt-auto pt-6 border-t border-gray-100">
-                    <a 
-                      href={`/classifica?tour=${encodeURIComponent(t.nome)}`} 
+                    <a
+                      href={`/classifica?tour=${encodeURIComponent(t.nome)}`}
                       className="block w-full py-3 text-center rounded-xl font-bold text-sm text-[#0a1628] bg-yellow-400 hover:bg-yellow-500 transition-colors shadow-md"
                     >
                       🏆 Vedi Classifica Finale
@@ -196,28 +196,28 @@ export default function Home() {
       )}
 
       {/* Footer */}
-      <footer className="text-white py-12 px-8 mt-auto border-t-4" style={{borderColor: "#FFD700", backgroundColor: "#0a1628"}}>
+      <footer className="text-white py-12 px-8 mt-auto border-t-4" style={{ borderColor: "#FFD700", backgroundColor: "#0a1628" }}>
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="flex items-center gap-3">
             <Image src="/logo.png" alt="BVI Logo" width={50} height={50} className="rounded-full bg-white p-0.5" />
             <div className="flex flex-col text-left">
-              <h4 className="text-lg font-bold" style={{color: "#FFD700"}}>Beach Volley Institute</h4>
+              <h4 className="text-lg font-bold" style={{ color: "#FFD700" }}>Beach Volley Institute</h4>
               <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">#Live your passion 🏐</p>
             </div>
           </div>
-          
+
           <div className="flex gap-6 items-center">
-            <a 
-              href="https://www.beachvolleyinstitute.it" 
-              target="_blank" 
+            <a
+              href="https://www.beachvolleyinstitute.it"
+              target="_blank"
               rel="noopener noreferrer"
               className="px-6 py-3.5 bg-white/10 hover:bg-white/20 rounded-2xl text-xs font-black uppercase tracking-widest transition-all text-white border border-white/10 hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer"
             >
-              🌐 Sito Ufficiale
+              🌐 Sito BVI
             </a>
-            <a 
-              href="https://www.instagram.com/beachvolleyinstitutebvi/" 
-              target="_blank" 
+            <a
+              href="https://www.instagram.com/beachvolleyinstitutebvi/"
+              target="_blank"
               rel="noopener noreferrer"
               className="hover:scale-110 active:scale-95 transition-all cursor-pointer flex items-center justify-center bg-gradient-to-tr from-[#f9ce3f] via-[#e1306c] to-[#833ab4] p-3 rounded-2xl shadow-lg border border-white/10"
               aria-label="Seguici su Instagram"
