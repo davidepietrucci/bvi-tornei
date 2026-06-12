@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { getTornei, getGironi, getBracket } from "@/app/utils/db";
 
 export default function PortaleLiveMobile() {
@@ -10,7 +10,7 @@ export default function PortaleLiveMobile() {
   const [activeGirone, setActiveGirone] = useState("A");
   const [config, setConfig] = useState(null);
   const [bracketConfig, setBracketConfig] = useState(null);
-  const [activeTab, setActiveTab] = useState("gironi"); // "gironi", "finali"
+  const [activeTab, setActiveTab] = useState("partite"); // "partite", "classifica", "finali"
   const [loading, setLoading] = useState(true);
 
   // 1. Carica l'elenco dei tornei e determina quello da visualizzare
@@ -387,7 +387,7 @@ export default function PortaleLiveMobile() {
 
   // 4. Auto-Scroll alla prima partita senza punteggio
   useEffect(() => {
-    if (activeTab === "gironi" && isPublished && selectedTorneo) {
+    if (activeTab === "partite" && isPublished && selectedTorneo) {
       const isIntermediate = activeGroupObj.type === "intermedio";
       const matchesList = isIntermediate
         ? getIntermediateGroupMatches(activeGirone)
@@ -427,7 +427,7 @@ export default function PortaleLiveMobile() {
 
     const getMatchData = (id, label) => {
       const left = assignments[`${id}-L`] || "TBD";
-      const right = assignments[`${id}-R` || "TBD"];
+      const right = assignments[`${id}-R`] || "TBD";
       const meta = metadata[id] || {};
       return { id, label, left, right, meta };
     };
@@ -693,8 +693,49 @@ export default function PortaleLiveMobile() {
         {/* Controllo Pubblicazione */}
         {isPublished ? (
           <>
-            {/* 1. SEZIONE GIRONI */}
-            {activeTab === "gironi" && (
+            {/* 1. SEZIONE GIRONI (SOLO PARTITE) */}
+            {activeTab === "partite" && (
+              <div className="space-y-5">
+                {/* Horizontal Gironi selector */}
+                {getGroupsList().length > 0 && (
+                  <div className="flex gap-2 overflow-x-auto pb-1.5 no-scrollbar justify-start">
+                    {getGroupsList().map((g) => (
+                      <button
+                        key={g.id}
+                        onClick={() => setActiveGirone(g.id)}
+                        className={`px-5 py-2.5 rounded-xl font-black transition-all text-xs shrink-0 ${
+                          activeGirone === g.id
+                            ? "bg-[#0a1628] text-white shadow-md"
+                            : "bg-white text-gray-400 hover:bg-gray-50 border border-gray-100"
+                        }`}
+                      >
+                        {g.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Partite Girone */}
+                <div className="space-y-2.5">
+                  <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-widest pl-1">
+                    Calendario Incontri
+                  </h3>
+                  <div className="space-y-3">
+                    {groupMatches.map((m, idx) =>
+                      renderMatchRow(m.left, m.right, m.meta, idx, `match-${activeGirone}`)
+                    )}
+                    {groupMatches.length === 0 && (
+                      <div className="bg-white rounded-3xl p-6 text-center border border-gray-100">
+                        <p className="text-gray-400 italic text-xs">Nessun match programmato.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 2. SEZIONE CLASSIFICHE (SOLO TABELLA) */}
+            {activeTab === "classifica" && (
               <div className="space-y-5">
                 {/* Horizontal Gironi selector */}
                 {getGroupsList().length > 0 && (
@@ -780,27 +821,10 @@ export default function PortaleLiveMobile() {
                     </table>
                   </div>
                 </div>
-
-                {/* Partite Girone */}
-                <div className="space-y-2.5">
-                  <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-widest pl-1">
-                    Calendario Incontri
-                  </h3>
-                  <div className="space-y-3">
-                    {groupMatches.map((m, idx) =>
-                      renderMatchRow(m.left, m.right, m.meta, idx, `match-${activeGirone}`)
-                    )}
-                    {groupMatches.length === 0 && (
-                      <div className="bg-white rounded-3xl p-6 text-center border border-gray-100">
-                        <p className="text-gray-400 italic text-xs">Nessun match programmato.</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
               </div>
             )}
 
-            {/* 2. SEZIONE FASI FINALI */}
+            {/* 3. SEZIONE FASI FINALI */}
             {activeTab === "finali" && (
               <div className="space-y-5">
                 {getPlayoffMatchesList().length > 0 ? (
@@ -844,38 +868,69 @@ export default function PortaleLiveMobile() {
         )}
       </div>
 
-      {/* BOTTOM NAV BAR FISSA - 2 Pulsanti */}
+      {/* BOTTOM NAV BAR FISSA - 3 Pulsanti */}
       {isPublished && (
         <nav className="fixed bottom-0 left-0 right-0 z-50">
           <div className="absolute inset-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 shadow-[0_-4px_30px_rgba(0,0,0,0.08)]" />
           <div className="relative flex justify-around px-2 pb-safe">
-            {/* Pulsante Gironi */}
+            {/* Pulsante Partite */}
             <button
-              onClick={() => setActiveTab("gironi")}
+              onClick={() => setActiveTab("partite")}
               className="relative flex flex-col items-center gap-1.5 py-3.5 px-4 flex-1 active:scale-95 transition-transform"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
-                fill={activeTab === "gironi" ? "currentColor" : "none"}
+                fill={activeTab === "partite" ? "currentColor" : "none"}
                 stroke="currentColor"
-                strokeWidth={activeTab === "gironi" ? 0 : 2}
+                strokeWidth={activeTab === "partite" ? 0 : 2}
                 className="w-5 h-5 text-[#0a1628]"
               >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25Z"
+                  d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"
                 />
               </svg>
               <span
                 className={`text-[9px] font-black uppercase tracking-widest ${
-                  activeTab === "gironi" ? "text-[#0a1628]" : "text-gray-300"
+                  activeTab === "partite" ? "text-[#0a1628]" : "text-gray-300"
                 }`}
               >
-                Gironi
+                Partite
               </span>
-              {activeTab === "gironi" && (
+              {activeTab === "partite" && (
+                <span className="absolute top-2.5 w-1 h-1 rounded-full bg-[#FFD700]" />
+              )}
+            </button>
+
+            {/* Pulsante Classifiche */}
+            <button
+              onClick={() => setActiveTab("classifica")}
+              className="relative flex flex-col items-center gap-1.5 py-3.5 px-4 flex-1 active:scale-95 transition-transform"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill={activeTab === "classifica" ? "currentColor" : "none"}
+                stroke="currentColor"
+                strokeWidth={activeTab === "classifica" ? 0 : 2}
+                className="w-5 h-5 text-[#0a1628]"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M16.5 18.75h-9m9 0a3 3 0 0 1 3 3h-15a3 3 0 0 1 3-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-6.75a1.125 1.125 0 0 0-1.125 1.125v3.375m9 0h-9M9 10.5a3 3 0 1 1 6 0 3 3 0 0 1-6 0Z"
+                />
+              </svg>
+              <span
+                className={`text-[9px] font-black uppercase tracking-widest ${
+                  activeTab === "classifica" ? "text-[#0a1628]" : "text-gray-300"
+                }`}
+              >
+                Classifiche
+              </span>
+              {activeTab === "classifica" && (
                 <span className="absolute top-2.5 w-1 h-1 rounded-full bg-[#FFD700]" />
               )}
             </button>
