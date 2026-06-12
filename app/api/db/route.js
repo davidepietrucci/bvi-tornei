@@ -62,17 +62,17 @@ export async function POST(req) {
     const role = token?.role;
 
     // Controllo dei permessi di scrittura lato server
-    if (type === "tornei" || type === "moduli") {
+    if (type === "moduli") {
       if (role !== "admin") {
         return NextResponse.json({ error: "Accesso negato: richiesto ruolo Admin" }, { status: 403 });
       }
-      if (type === "tornei") await saveTornei(data);
-      if (type === "moduli") await saveModuli(data);
+      await saveModuli(data);
     } 
-    else if (type === "gironi" || type === "bracket" || type === "iscrizioni" || type === "notifiche") {
+    else if (type === "tornei" || type === "gironi" || type === "bracket" || type === "iscrizioni" || type === "notifiche") {
       if (role !== "admin" && role !== "staff") {
         return NextResponse.json({ error: "Accesso negato: richiesto ruolo Staff" }, { status: 403 });
       }
+      if (type === "tornei") await saveTornei(data);
       if (type === "gironi") await saveGironi(slug, data);
       if (type === "bracket") await saveBracket(slug, data);
       if (type === "iscrizioni") await saveIscrizioni(data);
