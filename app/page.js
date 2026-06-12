@@ -32,7 +32,7 @@ export default function Home() {
         </div>
         <nav className="flex gap-6 items-center">
           <div className="flex gap-4">
-            <a href="/atleta" className="hover:text-yellow-400 text-sm font-medium text-gray-300 transition-colors">Area Atleta</a>
+            {/* <a href="/atleta" className="hover:text-yellow-400 text-sm font-medium text-gray-300 transition-colors">Area Atleta</a> */}
             <a href="/staff" className="hover:text-yellow-400 text-sm font-medium text-gray-300 transition-colors">Area Staff</a>
           </div>
         </nav>
