@@ -31,9 +31,15 @@ export default function Home() {
           <h1 className="text-2xl font-bold" style={{color: "#FFD700"}}>BVI Tornei</h1>
         </div>
         <nav className="flex gap-6 items-center">
-          <div className="flex gap-4">
-            {/* <a href="/atleta" className="hover:text-yellow-400 text-sm font-medium text-gray-300 transition-colors">Area Atleta</a> */}
-            <a href="/staff" className="hover:text-yellow-400 text-sm font-medium text-gray-300 transition-colors">Area Staff</a>
+          <div className="flex gap-4 items-center">
+            <a href="https://www.beachvolleyinstitute.it" target="_blank" rel="noopener noreferrer" className="hover:text-yellow-400 text-sm font-semibold text-gray-300 transition-colors flex items-center gap-1.5">
+              🌐 Sito BVI
+            </a>
+            <a href="https://www.instagram.com/beachvolleyinstitute/" target="_blank" rel="noopener noreferrer" className="hover:text-yellow-400 text-sm font-semibold text-gray-300 transition-colors flex items-center gap-1.5">
+              📸 Instagram
+            </a>
+            <span className="text-gray-700 hidden sm:inline">|</span>
+            <a href="/staff" className="hover:text-yellow-400 text-sm font-semibold text-gray-300 transition-colors">Area Staff</a>
           </div>
         </nav>
       </header>
@@ -55,9 +61,27 @@ export default function Home() {
           <h2 className="text-4xl sm:text-5xl font-extrabold mb-6 leading-tight" style={{color: "#0a1628"}}>
             #Live your passion
           </h2>
-          <p className="text-lg sm:text-xl text-gray-600 mb-10 font-medium max-w-2xl leading-relaxed">
+          <p className="text-lg sm:text-xl text-gray-600 mb-8 font-medium max-w-2xl leading-relaxed">
             Qui puoi iscriverti ai tornei attivi e guardare i risultati in diretta
           </p>
+          <div className="flex flex-wrap gap-4 justify-center mb-6">
+            <a 
+              href="https://www.beachvolleyinstitute.it" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="px-6 py-3.5 bg-white hover:bg-gray-50 text-[#0a1628] rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-md hover:shadow-lg hover:scale-105 active:scale-95 flex items-center gap-2 border border-gray-100 cursor-pointer"
+            >
+              🌐 Visita il Sito Principale
+            </a>
+            <a 
+              href="https://www.instagram.com/beachvolleyinstitute/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="px-6 py-3.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-md hover:shadow-lg hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer"
+            >
+              📸 Seguici su Instagram
+            </a>
+          </div>
         </div>
       </section>
 
@@ -195,6 +219,40 @@ export default function Home() {
         </section>
       )}
 
+      {/* Footer */}
+      <footer className="text-white py-12 px-8 mt-auto border-t-4" style={{borderColor: "#FFD700", backgroundColor: "#0a1628"}}>
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
+          <div className="flex items-center gap-3">
+            <Image src="/logo.png" alt="BVI Logo" width={50} height={50} className="rounded-full bg-white p-0.5" />
+            <div className="flex flex-col text-left">
+              <h4 className="text-lg font-bold" style={{color: "#FFD700"}}>Beach Volley Institute</h4>
+              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">#Live your passion 🏐</p>
+            </div>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row gap-6 items-center">
+            <a 
+              href="https://www.beachvolleyinstitute.it" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-2xl text-xs font-black uppercase tracking-widest transition-all text-white border border-white/10 hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer"
+            >
+              🌐 Sito Ufficiale
+            </a>
+            <a 
+              href="https://www.instagram.com/beachvolleyinstitute/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 rounded-2xl text-xs font-black uppercase tracking-widest transition-all text-white hover:scale-105 active:scale-95 flex items-center gap-2 shadow-lg cursor-pointer"
+            >
+              📸 Seguici su Instagram
+            </a>
+          </div>
+        </div>
+        <div className="max-w-6xl mx-auto mt-8 pt-8 border-t border-white/10 text-center text-xs text-gray-500 font-medium">
+          &copy; {new Date().getFullYear()} Beach Volley Institute. Tutti i diritti riservati.
+        </div>
+      </footer>
     </main>
   );
 }
