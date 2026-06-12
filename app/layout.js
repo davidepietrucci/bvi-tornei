@@ -17,6 +17,9 @@ export const metadata = {
   title: "Beach Volley Institute",
   description: "Gestione tornei e iscrizioni Beach Volley Institute",
   manifest: "/manifest.json",
+  icons: {
+    apple: "/webapp-icon.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
