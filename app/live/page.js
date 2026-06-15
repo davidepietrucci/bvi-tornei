@@ -62,6 +62,7 @@ export default function PortaleLiveMobile() {
   const selectedTorneoObj = tornei.find((t) => t.nome === selectedTorneo);
   const isConcluso = selectedTorneoObj?.stato === "Concluso";
   const isPublished = config && config.pubblicato;
+  const rankingType = config?.rankingType || "avulsa";
 
   // 3. Calcola la lista dei gironi iniziali
   const getInitialGroupsList = (currentConfig = config) => {
@@ -232,7 +233,7 @@ export default function PortaleLiveMobile() {
         { left: getName(1), right: getName(3) },
         { left: getName(2), right: getName(4) },
         { left: getName(0), right: getName(1) },
-        { left: getName(2), right: fontName(3) }, // Note: naming bug fontName fixed to getName below
+        { left: getName(2), right: getName(3) },
       ];
     return [];
   };
@@ -1483,7 +1484,7 @@ export default function PortaleLiveMobile() {
                 />
               </svg>
               <span className="text-xs font-black uppercase tracking-widest transition-colors">
-                Classifiche
+                {rankingType === "avulsa" ? "Classifica Avulsa" : "Classifiche"}
               </span>
               {activeTab === "classifica" && (
                 <span className="absolute top-3 w-1.5 h-1.5 rounded-full bg-[#FFD700]" />

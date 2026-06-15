@@ -62,6 +62,7 @@ export default function GironiPubblici() {
   const selectedTorneoObj = tornei.find((t) => t.nome === selectedTorneo);
   const isConcluso = selectedTorneoObj?.stato === "Concluso";
   const isPublished = config && config.pubblicato;
+  const rankingType = config?.rankingType || "avulsa";
 
   // 3. Calcola la lista dei gironi iniziali
   const getInitialGroupsList = (currentConfig = config) => {
@@ -232,7 +233,7 @@ export default function GironiPubblici() {
         { left: getName(1), right: getName(3) },
         { left: getName(2), right: getName(4) },
         { left: getName(0), right: getName(1) },
-        { left: getName(2), right: fontName(3) },
+        { left: getName(2), right: getName(3) },
       ];
     return [];
   };
@@ -294,7 +295,7 @@ export default function GironiPubblici() {
         if (s1L > s1R)
           return {
             winner: idx === 0 ? getName(0) : getName(1),
-            loser: idx === 0 ? getName(3) : fontName(2),
+            loser: idx === 0 ? getName(3) : getName(2),
           };
         return {
           winner: idx === 0 ? getName(3) : getName(2),
