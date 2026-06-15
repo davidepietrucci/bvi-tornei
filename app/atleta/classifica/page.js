@@ -272,6 +272,7 @@ export default function AtletaClassifica() {
     config && config.pubblicato
       ? Array.from({ length: config.numGironi || 0 }, (_, i) => String.fromCharCode(65 + i))
       : [];
+  const rankingType = config?.rankingType || "avulsa";
 
   if (status === "loading" || loading) {
     return (
@@ -301,7 +302,7 @@ export default function AtletaClassifica() {
               Classifica Torneo
             </h1>
             <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-2">
-              Risultati del tuo girone in tempo reale
+              Risultati {rankingType === "avulsa" ? "della classifica avulsa" : "del tuo girone"} in tempo reale
             </p>
           </div>
         </div>
@@ -350,109 +351,201 @@ export default function AtletaClassifica() {
             {/* Config & Pubblicazione Checks */}
             {config && config.pubblicato ? (
               <div className="space-y-3">
-                <div className="flex items-center justify-between px-2">
-                  <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                    Classifica Complessiva Torneo
-                  </h2>
-                  <span className="text-[9px] font-black text-green-600 bg-green-50 px-2.5 py-1 rounded-full border border-green-100 uppercase tracking-widest">
-                    Live
-                  </span>
-                </div>
+                {rankingType === "avulsa" ? (
+                  <>
+                    <div className="flex items-center justify-between px-2">
+                      <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                        Classifica Generale Complessiva Torneo (Avulsa)
+                      </h2>
+                      <span className="text-[9px] font-black text-green-600 bg-green-50 px-2.5 py-1 rounded-full border border-green-100 uppercase tracking-widest">
+                        Live
+                      </span>
+                    </div>
 
-                <div className="space-y-3">
-                  {calculateUnifiedRanking(config).map((team, idx) => {
-                    const quotient =
-                      team.puntiSubiti === 0
-                        ? team.puntiFatti
-                        : (team.puntiFatti / team.puntiSubiti).toFixed(3);
-                    const isGold = idx < 12;
-                    const isGoldDirect = idx < 4;
-                    const highlight = isMe(team.nome);
+                    <div className="space-y-3">
+                      {calculateUnifiedRanking(config).map((team, idx) => {
+                        const quotient =
+                          team.puntiSubiti === 0
+                            ? team.puntiFatti
+                            : (team.puntiFatti / team.puntiSubiti).toFixed(3);
+                        const isGold = idx < 12;
+                        const isGoldDirect = idx < 4;
+                        const highlight = isMe(team.nome);
 
-                    return (
-                      <div
-                        key={team.nome}
-                        className={`bg-white rounded-3xl p-5 shadow-sm border ${
-                          highlight
-                            ? "border-[#FFD700] ring-4 ring-[#FFD700]/5 scale-[1.01]"
-                            : "border-gray-100"
-                        } flex items-center justify-between transition-all hover:scale-[1.01] ${
-                          isGold
-                            ? highlight
-                              ? "border-l-4 border-l-[#FFD700]"
-                              : "border-l-4 border-l-yellow-400"
-                            : ""
-                        }`}
-                      >
-                        <div className="flex items-center gap-4 min-w-0">
-                          <span
-                            className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
-                              isGoldDirect
-                                ? "bg-yellow-400 text-white shadow-sm"
-                                : isGold
-                                ? "bg-yellow-100 text-yellow-700"
-                                : "bg-gray-100 text-gray-500"
+                        return (
+                          <div
+                            key={team.nome}
+                            className={`bg-white rounded-3xl p-5 shadow-sm border ${
+                              highlight
+                                ? "border-[#FFD700] ring-4 ring-[#FFD700]/5 scale-[1.01]"
+                                : "border-gray-100"
+                            } flex items-center justify-between transition-all hover:scale-[1.01] ${
+                              isGold
+                                ? highlight
+                                  ? "border-l-4 border-l-[#FFD700]"
+                                  : "border-l-4 border-l-yellow-400"
+                                : ""
                             }`}
                           >
-                            {idx + 1}
-                          </span>
-                          <div className="min-w-0">
-                            <p className="font-black text-[#0a1628] text-sm uppercase tracking-tight truncate flex items-center gap-1.5 flex-wrap">
-                              <span>{team.nome}</span>
-                              <span className="bg-blue-50 text-blue-600 text-[8px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider">
-                                Girone {team.girone}
+                            <div className="flex items-center gap-4 min-w-0">
+                              <span
+                                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
+                                  isGoldDirect
+                                    ? "bg-yellow-400 text-white shadow-sm"
+                                    : isGold
+                                    ? "bg-yellow-100 text-yellow-700"
+                                    : "bg-gray-100 text-gray-500"
+                                }`}
+                              >
+                                {idx + 1}
                               </span>
-                              {highlight && (
-                                <span className="bg-[#FFD700]/20 text-[#0a1628] text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">
-                                  Tu
-                                </span>
-                              )}
-                            </p>
-                            <p className="text-[10px] text-gray-400 font-semibold mt-1 flex flex-wrap gap-x-2 gap-y-0.5 items-center">
-                              <span>
-                                G: <strong className="text-[#0a1628]">{team.giocate}</strong>
-                              </span>
-                              <span className="text-gray-200">|</span>
-                              <span>
-                                V/P:{" "}
-                                <strong className="text-green-600">{team.vinte}</strong>/
-                                <strong className="text-red-500">{team.perse}</strong>
-                              </span>
-                              <span className="text-gray-200">|</span>
-                              <span>
-                                Quoz: <strong className="text-blue-600">{quotient}</strong>
-                              </span>
-                              <span className="text-gray-200 hidden sm:inline">|</span>
-                              <span className="hidden sm:inline">
-                                P.Fatti: <strong className="text-gray-700">{team.puntiFatti}</strong>
-                              </span>
-                              <span className="text-gray-200 hidden sm:inline">|</span>
-                              <span className="hidden sm:inline">
-                                P.Subiti: <strong className="text-gray-500">{team.puntiSubiti}</strong>
-                              </span>
-                            </p>
+                              <div className="min-w-0">
+                                <p className="font-black text-[#0a1628] text-sm uppercase tracking-tight truncate flex items-center gap-1.5 flex-wrap">
+                                  <span>{team.nome}</span>
+                                  <span className="bg-blue-50 text-blue-600 text-[8px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider">
+                                    Girone {team.girone}
+                                  </span>
+                                  {highlight && (
+                                    <span className="bg-[#FFD700]/20 text-[#0a1628] text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">
+                                      Tu
+                                    </span>
+                                  )}
+                                </p>
+                                <p className="text-[10px] text-gray-400 font-semibold mt-1 flex flex-wrap gap-x-2 gap-y-0.5 items-center">
+                                  <span>
+                                    V: <strong className="text-green-600 font-bold">{team.vinte}</strong>
+                                  </span>
+                                  <span className="text-gray-200">|</span>
+                                  <span>
+                                    PF: <strong className="text-gray-700">{team.puntiFatti}</strong>
+                                  </span>
+                                  <span className="text-gray-200">|</span>
+                                  <span>
+                                    PS: <strong className="text-gray-500">{team.puntiSubiti}</strong>
+                                  </span>
+                                  <span className="text-gray-200">|</span>
+                                  <span>
+                                    Quoz: <strong className="text-blue-600 font-mono">{quotient}</strong>
+                                  </span>
+                                </p>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-xl font-black text-[#0a1628] tracking-tighter leading-none">
-                            {team.score}
-                          </p>
-                          <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mt-1">
-                            Punti
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
+                        );
+                      })}
 
-                  {(!config || calculateUnifiedRanking(config).length === 0) && (
-                    <div className="bg-white rounded-3xl p-8 border border-gray-100 text-center">
-                      <p className="text-gray-400 font-medium italic text-xs">
-                        Nessuna squadra ancora assegnata o nessun risultato inserito.
-                      </p>
+                      {(!config || calculateUnifiedRanking(config).length === 0) && (
+                        <div className="bg-white rounded-3xl p-8 border border-gray-100 text-center">
+                          <p className="text-gray-400 font-medium italic text-xs">
+                            Nessuna squadra ancora assegnata o nessun risultato inserito.
+                          </p>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between px-2">
+                      <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                        Classifiche dei Gironi
+                      </h2>
+                      <span className="text-[9px] font-black text-green-600 bg-green-50 px-2.5 py-1 rounded-full border border-green-100 uppercase tracking-widest">
+                        Live
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 py-2">
+                      {gironiDisponibili.map((g) => (
+                        <button
+                          key={g}
+                          onClick={() => setActiveGirone(g)}
+                          className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                            activeGirone === g
+                              ? "bg-[#0a1628] text-white shadow-md"
+                              : "bg-white text-gray-400 hover:text-[#0a1628]"
+                          }`}
+                        >
+                          Girone {g}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="space-y-3">
+                      {calculateRanking().map((team, idx) => {
+                        const quotient =
+                          team.puntiSubiti === 0
+                            ? team.puntiFatti
+                            : (team.puntiFatti / team.puntiSubiti).toFixed(3);
+                        const isQualified = idx < 2;
+                        const highlight = isMe(team.nome);
+
+                        return (
+                          <div
+                            key={team.nome}
+                            className={`bg-white rounded-3xl p-5 shadow-sm border ${
+                              highlight
+                                ? "border-[#FFD700] ring-4 ring-[#FFD700]/5 scale-[1.01]"
+                                : "border-gray-100"
+                            } flex items-center justify-between transition-all hover:scale-[1.01] ${
+                              isQualified
+                                ? highlight
+                                  ? "border-l-4 border-l-[#FFD700]"
+                                  : "border-l-4 border-l-yellow-400"
+                                : ""
+                            }`}
+                          >
+                            <div className="flex items-center gap-4 min-w-0">
+                              <span
+                                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
+                                  isQualified
+                                    ? "bg-yellow-400 text-white shadow-sm"
+                                    : "bg-gray-100 text-gray-500"
+                                }`}
+                              >
+                                {idx + 1}
+                              </span>
+                              <div className="min-w-0">
+                                <p className="font-black text-[#0a1628] text-sm uppercase tracking-tight truncate flex items-center gap-1.5 flex-wrap">
+                                  <span>{team.nome}</span>
+                                  {highlight && (
+                                    <span className="bg-[#FFD700]/20 text-[#0a1628] text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">
+                                      Tu
+                                    </span>
+                                  )}
+                                </p>
+                                <p className="text-[10px] text-gray-400 font-semibold mt-1 flex flex-wrap gap-x-2 gap-y-0.5 items-center">
+                                  <span>
+                                    V: <strong className="text-green-600 font-bold">{team.vinte}</strong>
+                                  </span>
+                                  <span className="text-gray-200">|</span>
+                                  <span>
+                                    PF: <strong className="text-gray-700">{team.puntiFatti}</strong>
+                                  </span>
+                                  <span className="text-gray-200">|</span>
+                                  <span>
+                                    PS: <strong className="text-gray-500">{team.puntiSubiti}</strong>
+                                  </span>
+                                  <span className="text-gray-200">|</span>
+                                  <span>
+                                    Quoz: <strong className="text-blue-600 font-mono">{quotient}</strong>
+                                  </span>
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {calculateRanking().length === 0 && (
+                        <div className="bg-white rounded-3xl p-8 border border-gray-100 text-center">
+                          <p className="text-gray-400 font-medium italic text-xs">
+                            Nessuna squadra ancora assegnata o nessun risultato inserito in questo girone.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             ) : (
               <div className="text-center py-20 bg-white rounded-[2rem] shadow-sm border border-gray-100 px-6">

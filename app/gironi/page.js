@@ -933,14 +933,16 @@ export default function GironiPubblici() {
                               <tr>
                                 <th className="pl-4 py-3 w-10 text-center">Pos</th>
                                 <th className="px-2 py-3">Squadra</th>
-                                <th className="px-2 py-3 text-center w-8">G</th>
-                                <th className="px-2 py-3 text-center w-12">V/P</th>
-                                <th className="pr-4 py-3 text-right w-12">Pt</th>
+                                <th className="px-2 py-3 text-center w-8">V</th>
+                                <th className="px-2 py-3 text-center w-10">PF</th>
+                                <th className="px-2 py-3 text-center w-10">PS</th>
+                                <th className="pr-4 py-3 text-right w-12">Quoz.</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50 text-xs font-bold">
                               {calculateRanking(group.id).map((team, idx) => {
                                 const isQualified = idx < 2;
+                                const quotient = team.puntiSubiti === 0 ? team.puntiFatti : (team.puntiFatti / team.puntiSubiti).toFixed(3);
                                 return (
                                   <tr
                                     key={team.nome}
@@ -962,23 +964,24 @@ export default function GironiPubblici() {
                                     <td className="px-2 py-3.5 text-[#0a1628] font-black uppercase tracking-tight truncate max-w-[140px]">
                                       {team.nome}
                                     </td>
-                                    <td className="px-2 py-3.5 text-center text-gray-400 font-semibold">
-                                      {team.giocate}
+                                    <td className="px-2 py-3.5 text-center text-green-600 font-bold">
+                                      {team.vinte}
                                     </td>
-                                    <td className="px-2 py-3.5 text-center whitespace-nowrap text-[10px]">
-                                      <span className="text-green-600 font-bold">{team.vinte}</span>
-                                      <span className="text-gray-200 mx-0.5">/</span>
-                                      <span className="text-red-500 font-bold">{team.perse}</span>
+                                    <td className="px-2 py-3.5 text-center text-gray-600">
+                                      {team.puntiFatti}
                                     </td>
-                                    <td className="pr-4 py-3.5 text-right font-black text-sm text-[#0a1628]">
-                                      {team.score}
+                                    <td className="px-2 py-3.5 text-center text-gray-400">
+                                      {team.puntiSubiti}
+                                    </td>
+                                    <td className="pr-4 py-3.5 text-right font-black text-xs text-[#0a1628]">
+                                      {quotient}
                                     </td>
                                   </tr>
                                 );
                               })}
                               {calculateRanking(group.id).length === 0 && (
                                 <tr>
-                                  <td colSpan="5" className="py-8 text-center text-gray-400 italic">
+                                  <td colSpan="6" className="py-8 text-center text-gray-400 italic">
                                     Nessuna squadra in questo girone.
                                   </td>
                                 </tr>
@@ -1094,92 +1097,172 @@ export default function GironiPubblici() {
             {/* 3. SEZIONE CLASSIFICHE (TABELLE VERTICALI INIZIALI) */}
             {activeTab === "classifica" && (
               <div className="space-y-6">
-                <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1 border-l-4 border-yellow-400 pl-2">
-                  Classifica Generale Complessiva Torneo
-                </h3>
-                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left min-w-[500px]">
-                      <thead className="bg-gray-50/50 border-b border-gray-100 text-[8px] font-black text-gray-400 uppercase tracking-widest">
-                        <tr>
-                          <th className="pl-4 py-3 w-10 text-center">Pos</th>
-                          <th className="px-2 py-3">Squadra</th>
-                          <th className="px-2 py-3 text-center w-12">Girone</th>
-                          <th className="px-2 py-3 text-center w-8">G</th>
-                          <th className="px-2 py-3 text-center w-12">V/P</th>
-                          <th className="px-2 py-3 text-center w-10 hidden sm:table-cell">PF</th>
-                          <th className="px-2 py-3 text-center w-10 hidden sm:table-cell">PS</th>
-                          <th className="px-2 py-3 text-center w-16 hidden sm:table-cell">Quoz.</th>
-                          <th className="pr-4 py-3 text-right w-12">Pt</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-50 text-xs font-bold">
-                        {calculateUnifiedRanking(config).map((team, idx) => {
-                          const quotient = team.puntiSubiti === 0 ? team.puntiFatti : (team.puntiFatti / team.puntiSubiti).toFixed(3);
-                          const isGold = idx < 12; // first 12 qualify to Gold
-                          const isGoldDirect = idx < 4; // top 4 get bye
-                          return (
-                            <tr
-                              key={team.nome}
-                              className={`hover:bg-blue-50/10 transition-colors ${
-                                isGold ? "bg-yellow-50/10" : "bg-slate-50/20"
-                              }`}
-                            >
-                              <td className="pl-4 py-3.5 text-center">
-                                <span
-                                  className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black mx-auto ${
-                                    isGoldDirect
-                                      ? "bg-yellow-400 text-white shadow-sm"
-                                      : isGold
-                                      ? "bg-yellow-100 text-yellow-700"
-                                      : "bg-gray-100 text-gray-400"
+                {rankingType === "avulsa" ? (
+                  <>
+                    <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1 border-l-4 border-yellow-400 pl-2">
+                      Classifica Generale Complessiva Torneo
+                    </h3>
+                    <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left min-w-[320px]">
+                          <thead className="bg-gray-50/50 border-b border-gray-100 text-[8px] font-black text-gray-400 uppercase tracking-widest">
+                            <tr>
+                              <th className="pl-4 py-3 w-10 text-center">Pos</th>
+                              <th className="px-2 py-3">Squadra</th>
+                              <th className="px-2 py-3 text-center w-12">Girone</th>
+                              <th className="px-2 py-3 text-center w-8">V</th>
+                              <th className="px-2 py-3 text-center w-10">PF</th>
+                              <th className="px-2 py-3 text-center w-10">PS</th>
+                              <th className="pr-4 py-3 text-right w-16">Quoz.</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-50 text-xs font-bold">
+                            {calculateUnifiedRanking(config).map((team, idx) => {
+                              const quotient = team.puntiSubiti === 0 ? team.puntiFatti : (team.puntiFatti / team.puntiSubiti).toFixed(3);
+                              const isGold = idx < 12; // first 12 qualify to Gold
+                              const isGoldDirect = idx < 4; // top 4 get bye
+                              return (
+                                <tr
+                                  key={team.nome}
+                                  className={`hover:bg-blue-50/10 transition-colors ${
+                                    isGold ? "bg-yellow-50/10" : "bg-slate-50/20"
                                   }`}
                                 >
-                                  {idx + 1}
-                                </span>
-                              </td>
-                              <td className="px-2 py-3.5 text-[#0a1628] font-black uppercase tracking-tight truncate max-w-[140px]">
-                                {team.nome}
-                              </td>
-                              <td className="px-2 py-3.5 text-center">
-                                <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-lg bg-blue-50 text-blue-600 border border-blue-100/50">
-                                  {team.girone}
-                                </span>
-                              </td>
-                              <td className="px-2 py-3.5 text-center text-gray-400 font-semibold">
-                                {team.giocate}
-                              </td>
-                              <td className="px-2 py-3.5 text-center whitespace-nowrap text-[10px]">
-                                <span className="text-green-600 font-bold">{team.vinte}</span>
-                                <span className="text-gray-200 mx-0.5">/</span>
-                                <span className="text-red-500 font-bold">{team.perse}</span>
-                              </td>
-                              <td className="px-2 py-3.5 text-center text-gray-500 hidden sm:table-cell">
-                                {team.puntiFatti}
-                              </td>
-                              <td className="px-2 py-3.5 text-center text-gray-400 hidden sm:table-cell">
-                                {team.puntiSubiti}
-                              </td>
-                              <td className="px-2 py-3.5 text-center text-[#0a1628] hidden sm:table-cell font-mono text-[10px]">
-                                {quotient}
-                              </td>
-                              <td className="pr-4 py-3.5 text-right font-black text-sm text-[#0a1628]">
-                                {team.score}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                        {(!config || calculateUnifiedRanking(config).length === 0) && (
-                          <tr>
-                            <td colSpan="9" className="py-20 text-center text-gray-400 italic">
-                              Nessuna squadra configurata o nessun risultato disponibile.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                                  <td className="pl-4 py-3.5 text-center">
+                                    <span
+                                      className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black mx-auto ${
+                                        isGoldDirect
+                                          ? "bg-yellow-400 text-white shadow-sm"
+                                          : isGold
+                                          ? "bg-yellow-100 text-yellow-700"
+                                          : "bg-gray-100 text-gray-400"
+                                      }`}
+                                    >
+                                      {idx + 1}
+                                    </span>
+                                  </td>
+                                  <td className="px-2 py-3.5 text-[#0a1628] font-black uppercase tracking-tight truncate max-w-[140px]">
+                                    {team.nome}
+                                  </td>
+                                  <td className="px-2 py-3.5 text-center">
+                                    <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-lg bg-blue-50 text-blue-600 border border-blue-100/50">
+                                      {team.girone}
+                                    </span>
+                                  </td>
+                                  <td className="px-2 py-3.5 text-center text-green-600 font-bold">
+                                    {team.vinte}
+                                  </td>
+                                  <td className="px-2 py-3.5 text-center text-gray-500">
+                                    {team.puntiFatti}
+                                  </td>
+                                  <td className="px-2 py-3.5 text-center text-gray-400">
+                                    {team.puntiSubiti}
+                                  </td>
+                                  <td className="pr-4 py-3.5 text-right text-[#0a1628] font-mono text-[10px]">
+                                    {quotient}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                            {(!config || calculateUnifiedRanking(config).length === 0) && (
+                              <tr>
+                                <td colSpan="7" className="py-20 text-center text-gray-400 italic">
+                                  Nessuna squadra configurata o nessun risultato disponibile.
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1 border-l-4 border-blue-600 pl-2">
+                      Classifiche dei Gironi
+                    </h3>
+                    <div className="space-y-4">
+                      {getInitialGroupsList().map((group) => {
+                        const teams = getGroupTeams(group.id, group.type);
+                        return (
+                          <div
+                            key={group.id}
+                            className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm"
+                          >
+                            <h4 className="text-sm font-black text-[#0a1628] uppercase tracking-tight border-b border-gray-50 pb-3 mb-3 flex items-center justify-between">
+                              <span>{group.label}</span>
+                              <span className="text-[9px] font-black bg-blue-50 text-blue-600 px-2 py-0.5 rounded-lg uppercase tracking-wider">
+                                {teams.length} Squadre
+                              </span>
+                            </h4>
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-left">
+                                <thead className="bg-gray-50/50 border-b border-gray-100 text-[8px] font-black text-gray-400 uppercase tracking-widest">
+                                  <tr>
+                                    <th className="pl-4 py-3 w-10 text-center">Pos</th>
+                                    <th className="px-2 py-3">Squadra</th>
+                                    <th className="px-2 py-3 text-center w-8">V</th>
+                                    <th className="px-2 py-3 text-center w-10">PF</th>
+                                    <th className="px-2 py-3 text-center w-10">PS</th>
+                                    <th className="pr-4 py-3 text-right w-12">Quoz.</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50 text-xs font-bold">
+                                  {calculateRanking(group.id).map((team, idx) => {
+                                    const isQualified = idx < 2;
+                                    const quotient = team.puntiSubiti === 0 ? team.puntiFatti : (team.puntiFatti / team.puntiSubiti).toFixed(3);
+                                    return (
+                                      <tr
+                                        key={team.nome}
+                                        className={`hover:bg-blue-50/10 transition-colors ${
+                                          isQualified ? "bg-yellow-50/10" : ""
+                                        }`}
+                                      >
+                                        <td className="pl-4 py-3.5 text-center">
+                                          <span
+                                            className={`w-5.5 h-5.5 rounded-full flex items-center justify-center text-[10px] font-black mx-auto ${
+                                              isQualified
+                                                ? "bg-yellow-400 text-white shadow-sm"
+                                                : "bg-gray-100 text-gray-400"
+                                            }`}
+                                          >
+                                            {idx + 1}
+                                          </span>
+                                        </td>
+                                        <td className="px-2 py-3.5 text-[#0a1628] font-black uppercase tracking-tight truncate max-w-[140px]">
+                                          {team.nome}
+                                        </td>
+                                        <td className="px-2 py-3.5 text-center text-green-600 font-bold">
+                                          {team.vinte}
+                                        </td>
+                                        <td className="px-2 py-3.5 text-center text-gray-600">
+                                          {team.puntiFatti}
+                                        </td>
+                                        <td className="px-2 py-3.5 text-center text-gray-400">
+                                          {team.puntiSubiti}
+                                        </td>
+                                        <td className="pr-4 py-3.5 text-right font-black text-xs text-[#0a1628]">
+                                          {quotient}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                  {calculateRanking(group.id).length === 0 && (
+                                    <tr>
+                                      <td colSpan="6" className="py-8 text-center text-gray-400 italic">
+                                        Nessuna squadra in questo girone.
+                                      </td>
+                                    </tr>
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
@@ -1402,7 +1485,7 @@ export default function GironiPubblici() {
                 />
               </svg>
               <span className="text-xs font-black uppercase tracking-widest transition-colors">
-                Classifiche
+                {rankingType === "avulsa" ? "Classifica Avulsa" : "Classifiche"}
               </span>
               {activeTab === "classifica" && (
                 <span className="absolute top-3 w-1.5 h-1.5 rounded-full bg-[#FFD700]" />

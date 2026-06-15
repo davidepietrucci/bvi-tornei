@@ -26,6 +26,7 @@ export default function StaffGironi() {
   const [matchMetadata, setMatchMetadata] = useState({});
   const [isLoaded, setIsLoaded] = useState(false);
   const [pubblicato, setPubblicato] = useState(false);
+  const [rankingType, setRankingType] = useState("avulsa"); // "avulsa" o "gironi"
   
   const [isDragging, setIsDragging] = useState(false);
   const [dragOverSlot, setDragOverSlot] = useState(null);
@@ -108,6 +109,7 @@ export default function StaffGironi() {
         setGironeAssignments(config.gironeAssignments || {});
         setMatchMetadata(config.matchMetadata || {});
         setPubblicato(config.pubblicato || false);
+        setRankingType(config.rankingType || "avulsa");
       } else {
         setNumGironi(4);
         setTeamCounts({ A: 4, B: 4, C: 4, D: 4, E: 4, F: 4, G: 4, H: 4 });
@@ -116,6 +118,7 @@ export default function StaffGironi() {
         setGironeAssignments({});
         setMatchMetadata({});
         setPubblicato(false);
+        setRankingType("avulsa");
       }
       setIsLoaded(true);
     });
@@ -131,7 +134,8 @@ export default function StaffGironi() {
       gironeSets,
       gironeAssignments,
       matchMetadata,
-      pubblicato
+      pubblicato,
+      rankingType
     };
     
     // Immediate save to localStorage
@@ -144,7 +148,7 @@ export default function StaffGironi() {
     }, 1000);
 
     return () => clearTimeout(handler);
-  }, [numGironi, teamCounts, gironeTypes, gironeSets, gironeAssignments, matchMetadata, pubblicato, selectedTorneo, isLoaded]);
+  }, [numGironi, teamCounts, gironeTypes, gironeSets, gironeAssignments, matchMetadata, pubblicato, rankingType, selectedTorneo, isLoaded]);
 
   const giocatoriFiltrati = tutteLeIscrizioni.filter(isc => {
     const tName = (isc.torneo || "").toLowerCase();
@@ -228,7 +232,8 @@ export default function StaffGironi() {
       gironeSets,
       gironeAssignments,
       matchMetadata,
-      pubblicato
+      pubblicato,
+      rankingType
     };
     
     localStorage.setItem(configKey, JSON.stringify(config));
@@ -283,6 +288,7 @@ export default function StaffGironi() {
     setGironeAssignments({});
     setMatchMetadata({});
     setPubblicato(false);
+    setRankingType("avulsa");
     
     localStorage.removeItem(getConfigKey(selectedTorneo));
     await saveGironi(slug, null);
@@ -441,7 +447,7 @@ export default function StaffGironi() {
             {/* Configurazione Gironi */}
             <div className="flex-1 space-y-8">
                 <div className="bg-white p-6 rounded-[2.5rem] shadow-xl border border-gray-100">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-gray-50 pb-4">
                         <h3 className="text-sm font-black uppercase tracking-widest text-gray-400">Parametri Globali</h3>
                         <div className="flex flex-wrap items-center gap-6">
                             <div className="flex items-center gap-2">
@@ -456,6 +462,17 @@ export default function StaffGironi() {
                                 >
                                     {pubblicato ? "🟢 Pubblicati (Visibili)" : "🟡 Bozza (Nascosti)"}
                                 </button>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <span className="text-xs font-bold text-gray-500">Tipo Classifica:</span>
+                                <select
+                                    value={rankingType}
+                                    onChange={(e) => setRankingType(e.target.value)}
+                                    className="bg-gray-50 border-none rounded-xl px-3 py-2 font-bold text-[#0a1628] text-xs shadow-inner focus:ring-1 focus:ring-[#0a1628] cursor-pointer"
+                                >
+                                    <option value="avulsa">Classifica Avulsa (Unica)</option>
+                                    <option value="gironi">Classifiche Separate (Gironi)</option>
+                                </select>
                             </div>
                             <div className="flex items-center gap-3">
                                 <span className="text-xs font-bold text-gray-500">Numero Gironi:</span>

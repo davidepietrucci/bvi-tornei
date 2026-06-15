@@ -348,68 +348,120 @@ function ClassificaContent() {
           </div>
         )}
 
+        {config && (config.rankingType || "avulsa") === "gironi" && (
+          <div className="flex flex-wrap gap-2 mb-6">
+            {gironiDisponibili.map((g) => (
+              <button
+                key={g}
+                onClick={() => setActiveGirone(g)}
+                className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                  activeGirone === g
+                    ? "bg-[#0a1628] text-white shadow-md"
+                    : "bg-white text-gray-400 hover:text-[#0a1628] border border-gray-100 shadow-sm"
+                }`}
+              >
+                Girone {g}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-white">
             <div className="overflow-x-auto no-scrollbar">
-                <table className="w-full text-left min-w-[800px] md:min-w-0">
-                    <thead className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b bg-white">
-                        <tr>
-                            <th className="px-6 py-6">Pos</th>
-                            <th className="px-6 py-6">Squadra</th>
-                            <th className="px-4 py-6 text-center">Girone</th>
-                            <th className="px-4 py-6 text-center">G</th>
-                            <th className="px-4 py-6 text-center">V / P</th>
-                            <th className="px-4 py-6 text-center">PF</th>
-                            <th className="px-4 py-6 text-center">PS</th>
-                            <th className="px-4 py-6 text-center bg-gray-50/30">Quoz.</th>
-                            <th className="px-6 py-6 text-right">Punti</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                        {calculateUnifiedRanking(config).map((team, idx) => {
-                            const quotient = team.puntiSubiti === 0 ? team.puntiFatti : (team.puntiFatti / team.puntiSubiti).toFixed(3);
-                            const isGold = idx < 12;
-                            return (
-                                <tr key={team.nome} className={`hover:bg-blue-50/20 transition-all ${isGold ? 'bg-yellow-50/30' : ''}`}>
-                                    <td className="px-6 py-6">
-                                        <span className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs shadow-sm ${isGold ? 'bg-yellow-400 text-white' : 'bg-gray-100 text-gray-400'}`}>
-                                            {idx + 1}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-6">
-                                        <p className="font-black text-[#0a1628] text-lg leading-none mb-1">{team.nome}</p>
-                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                                            {isGold ? "Qualificato Gold" : "Qualificato Silver"}
-                                        </p>
-                                    </td>
-                                    <td className="px-4 py-6 text-center">
-                                        <span className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg bg-blue-50 text-blue-600 border border-blue-100/50">
-                                            Girone {team.girone}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-6 text-center font-bold text-gray-400">{team.giocate}</td>
-                                    <td className="px-4 py-6 text-center whitespace-nowrap">
-                                        <span className="text-green-600 font-black">{team.vinte}</span>
-                                        <span className="mx-1 text-gray-200">/</span>
-                                        <span className="text-red-500 font-black">{team.perse}</span>
-                                    </td>
-                                    <td className="px-4 py-6 text-center font-bold text-gray-600">{team.puntiFatti}</td>
-                                    <td className="px-4 py-6 text-center font-bold text-gray-400">{team.puntiSubiti}</td>
-                                    <td className="px-4 py-6 text-center font-black text-[#0a1628] bg-gray-50/30">{quotient}</td>
-                                    <td className="px-6 py-6 text-right">
-                                        <span className="text-3xl font-black text-[#0a1628]">{team.score}</span>
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                        {(!config || calculateUnifiedRanking(config).length === 0) && (
-                            <tr>
-                                <td colSpan="9" className="py-20 text-center text-gray-400 font-bold italic">
-                                    Nessun dato disponibile. Inserisci i risultati nei gironi.
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
+                {config && (config.rankingType || "avulsa") === "avulsa" ? (
+                  <table className="w-full text-left min-w-[600px] md:min-w-0">
+                      <thead className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b bg-white">
+                          <tr>
+                              <th className="px-6 py-6">Pos</th>
+                              <th className="px-6 py-6">Squadra</th>
+                              <th className="px-4 py-6 text-center">Girone</th>
+                              <th className="px-4 py-6 text-center">V</th>
+                              <th className="px-4 py-6 text-center">PF</th>
+                              <th className="px-4 py-6 text-center">PS</th>
+                              <th className="px-6 py-6 text-right">Quoz.</th>
+                          </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                          {calculateUnifiedRanking(config).map((team, idx) => {
+                              const quotient = team.puntiSubiti === 0 ? team.puntiFatti : (team.puntiFatti / team.puntiSubiti).toFixed(3);
+                              const isGold = idx < 12;
+                              return (
+                                  <tr key={team.nome} className={`hover:bg-blue-50/20 transition-all ${isGold ? 'bg-yellow-50/30' : ''}`}>
+                                      <td className="px-6 py-6">
+                                          <span className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs shadow-sm ${isGold ? 'bg-yellow-400 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                                              {idx + 1}
+                                          </span>
+                                      </td>
+                                      <td className="px-6 py-6">
+                                          <p className="font-black text-[#0a1628] text-lg leading-none mb-1">{team.nome}</p>
+                                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                                              {isGold ? "Qualificato Gold" : "Qualificato Silver"}
+                                          </p>
+                                      </td>
+                                      <td className="px-4 py-6 text-center">
+                                          <span className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg bg-blue-50 text-blue-600 border border-blue-100/50">
+                                              Girone {team.girone}
+                                          </span>
+                                      </td>
+                                      <td className="px-4 py-6 text-center font-black text-green-600">{team.vinte}</td>
+                                      <td className="px-4 py-6 text-center font-bold text-gray-600">{team.puntiFatti}</td>
+                                      <td className="px-4 py-6 text-center font-bold text-gray-400">{team.puntiSubiti}</td>
+                                      <td className="px-6 py-6 text-right font-black text-[#0a1628] font-mono">{quotient}</td>
+                                  </tr>
+                              );
+                          })}
+                          {(!config || calculateUnifiedRanking(config).length === 0) && (
+                              <tr>
+                                  <td colSpan="7" className="py-20 text-center text-gray-400 font-bold italic">
+                                      Nessun dato disponibile. Inserisci i risultati nei gironi.
+                                  </td>
+                              </tr>
+                          )}
+                      </tbody>
+                  </table>
+                ) : (
+                  <table className="w-full text-left min-w-[600px] md:min-w-0">
+                      <thead className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b bg-white">
+                          <tr>
+                              <th className="px-6 py-6">Pos</th>
+                              <th className="px-6 py-6">Squadra</th>
+                              <th className="px-4 py-6 text-center">V</th>
+                              <th className="px-4 py-6 text-center">PF</th>
+                              <th className="px-4 py-6 text-center">PS</th>
+                              <th className="px-6 py-6 text-right">Quoz.</th>
+                          </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                          {calculateRanking().map((team, idx) => {
+                              const quotient = team.puntiSubiti === 0 ? team.puntiFatti : (team.puntiFatti / team.puntiSubiti).toFixed(3);
+                              const isQualified = idx < 2;
+                              return (
+                                  <tr key={team.nome} className={`hover:bg-blue-50/20 transition-all ${isQualified ? 'bg-yellow-50/30' : ''}`}>
+                                      <td className="px-6 py-6">
+                                          <span className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs shadow-sm ${isQualified ? 'bg-yellow-400 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                                              {idx + 1}
+                                          </span>
+                                      </td>
+                                      <td className="px-6 py-6">
+                                          <p className="font-black text-[#0a1628] text-lg leading-none mb-1">{team.nome}</p>
+                                      </td>
+                                      <td className="px-4 py-6 text-center font-black text-green-600">{team.vinte}</td>
+                                      <td className="px-4 py-6 text-center font-bold text-gray-600">{team.puntiFatti}</td>
+                                      <td className="px-4 py-6 text-center font-bold text-gray-400">{team.puntiSubiti}</td>
+                                      <td className="px-6 py-6 text-right font-black text-[#0a1628] font-mono">{quotient}</td>
+                                  </tr>
+                              );
+                          })}
+                          {(!config || calculateRanking().length === 0) && (
+                              <tr>
+                                  <td colSpan="6" className="py-20 text-center text-gray-400 font-bold italic">
+                                      Nessun dato disponibile. Inserisci i risultati nei gironi.
+                                  </td>
+                              </tr>
+                          )}
+                      </tbody>
+                  </table>
+                )}
             </div>
         </div>
       </div>
