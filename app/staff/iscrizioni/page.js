@@ -254,26 +254,75 @@ export default function StaffIscrizioni() {
       ? iscrizioni 
       : iscrizioni.filter(isc => isc.torneo === selectedTorneoFilter);
 
-    const headers = ["ID", "Data", "Torneo", "Giocatori", "Contatto", "Stato"];
-    const csvRows = [
-      headers.join(","),
-      ...targetIscrizioni.map(isc => [
-        isc.id, 
-        `"${isc.data}"`, 
-        `"${isc.torneo}"`, 
-        `"${isc.giocatori}"`, 
-        `"${isc.tel}"`, 
-        isc.stato
-      ].join(","))
+    const escapeCSV = (val) => {
+      if (val === undefined || val === null) return '""';
+      const str = String(val);
+      const escaped = str.replace(/"/g, '""');
+      return `"${escaped}"`;
+    };
+
+    // Raccoglie tutte le domande/etichette personalizzate uniche presenti nelle iscrizioni filtrate
+    const customLabels = [];
+    targetIscrizioni.forEach(isc => {
+      if (isc.risposte && Array.isArray(isc.risposte)) {
+        isc.risposte.forEach(r => {
+          if (r.label && !customLabels.includes(r.label)) {
+            customLabels.push(r.label);
+          }
+        });
+      }
+    });
+
+    const headers = [
+      "ID",
+      "Data Iscrizione",
+      "Torneo",
+      "Giocatori / Squadra",
+      "Email",
+      "Telefono",
+      "Quota Pagata",
+      "Stato",
+      "Note",
+      ...customLabels
     ];
-    const csvContent = "data:text/csv;charset=utf-8," + csvRows.join("\n");
-    const encodedUri = encodeURI(csvContent);
+
+    const csvRows = [
+      headers.map(escapeCSV).join(","),
+      ...targetIscrizioni.map(isc => {
+        const row = [
+          isc.id,
+          isc.data,
+          isc.torneo,
+          isc.giocatori,
+          isc.email || "",
+          isc.tel || "",
+          isc.quotaPagata !== undefined ? isc.quotaPagata : 0,
+          isc.stato,
+          isc.note || ""
+        ];
+
+        // Aggiunge le risposte ai campi custom corrispondenti
+        customLabels.forEach(label => {
+          const answer = isc.risposte && Array.isArray(isc.risposte)
+            ? isc.risposte.find(r => r.label === label)
+            : null;
+          row.push(answer ? answer.valore : "");
+        });
+
+        return row.map(escapeCSV).join(",");
+      })
+    ];
+
+    const csvContent = "\uFEFF" + csvRows.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
+    link.setAttribute("href", url);
     link.setAttribute("download", `iscrizioni_bvi_${selectedTorneoFilter.replace(/\s+/g, '_').toLowerCase()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const filteredIscrizioni = selectedTorneoFilter === "Tutti" 
