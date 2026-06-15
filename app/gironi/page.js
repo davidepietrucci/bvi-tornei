@@ -842,10 +842,15 @@ export default function GironiPubblici() {
 
           {/* Score Badge */}
           <div className="shrink-0 flex flex-col items-center justify-center">
+            {hasScore && (scoreL > 0 || scoreR > 0) && (
+              <span className="text-[8px] font-black text-green-600 uppercase tracking-widest mb-1.5 animate-pulse">
+                Finita
+              </span>
+            )}
             {hasScore && (scoreL > 0 || scoreR > 0) ? (
-              <div className="bg-[#0a1628] text-white font-black px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1 shadow-sm">
+              <div className="text-[#0a1628] font-black text-sm flex items-center gap-1">
                 <span>{scoreL}</span>
-                <span className="opacity-30">-</span>
+                <span className="opacity-40">-</span>
                 <span>{scoreR}</span>
               </div>
             ) : (
