@@ -670,6 +670,28 @@ export default function GironiPubblici() {
       }
     }
 
+    const splitNames = (name) => {
+      if (!name) return [""];
+      let parts = [];
+      if (name.includes(" & ")) {
+        parts = name.split(" & ");
+      } else if (name.includes(" / ")) {
+        parts = name.split(" / ");
+      } else if (name.includes(" - ")) {
+        parts = name.split(" - ");
+      } else if (name.includes("/")) {
+        parts = name.split("/");
+      } else {
+        parts = [name];
+      }
+      return parts.map((p) => p.trim());
+    };
+
+    const namesL = splitNames(teamL);
+    const namesR = splitNames(teamR);
+
+    const showResultsColors = hasScore && (scoreL > 0 || scoreR > 0);
+
     return (
       <div
         key={idx}
@@ -695,14 +717,18 @@ export default function GironiPubblici() {
           <div className="flex-1 text-right min-w-0 pr-1">
             <span
               className={`text-[11px] sm:text-xs font-bold uppercase break-words leading-tight block ${
-                hasScore && (scoreL > 0 || scoreR > 0)
+                showResultsColors
                   ? isWinnerL
                     ? "text-green-700 font-black"
                     : "text-red-600 font-bold"
                   : "text-gray-400 font-semibold"
               }`}
             >
-              {teamL}
+              {namesL.map((name, pIdx) => (
+                <span key={pIdx} className="block">
+                  {name}
+                </span>
+              ))}
             </span>
           </div>
 
@@ -730,14 +756,18 @@ export default function GironiPubblici() {
           <div className="flex-1 text-left min-w-0 pl-1">
             <span
               className={`text-[11px] sm:text-xs font-bold uppercase break-words leading-tight block ${
-                hasScore && (scoreL > 0 || scoreR > 0)
+                showResultsColors
                   ? isWinnerR
                     ? "text-green-700 font-black"
                     : "text-red-600 font-bold"
                   : "text-gray-400 font-semibold"
               }`}
             >
-              {teamR}
+              {namesR.map((name, pIdx) => (
+                <span key={pIdx} className="block">
+                  {name}
+                </span>
+              ))}
             </span>
           </div>
         </div>
