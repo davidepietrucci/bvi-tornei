@@ -73,6 +73,49 @@ export default function PortaleLiveMobile() {
     return list;
   };
 
+  const parseTimeToMinutes = (timeStr) => {
+    if (!timeStr) return Infinity; // Put untimed matches at the end
+    const parts = timeStr.trim().split(":");
+    if (parts.length < 2) return Infinity;
+    const hours = parseInt(parts[0], 10);
+    const minutes = parseInt(parts[1], 10);
+    if (isNaN(hours) || isNaN(minutes)) return Infinity;
+    return hours * 60 + minutes;
+  };
+
+  const sortMatchesChronologically = (matches) => {
+    return [...matches].sort((a, b) => {
+      const timeA = parseTimeToMinutes(a.meta?.time);
+      const timeB = parseTimeToMinutes(b.meta?.time);
+      if (timeA !== timeB) return timeA - timeB;
+      const courtA = parseInt(a.meta?.court) || 0;
+      const courtB = parseInt(b.meta?.court) || 0;
+      return courtA - courtB;
+    });
+  };
+
+  const getAllInitialMatches = () => {
+    const initialGroups = getInitialGroupsList();
+    let all = [];
+    initialGroups.forEach((group) => {
+      const schedule = getScheduleFixed(
+        config?.teamCounts?.[group.id] || 0,
+        group.id,
+        config?.gironeAssignments?.[group.id] || {}
+      );
+      schedule.forEach((m, idx) => {
+        all.push({
+          left: m.left,
+          right: m.right,
+          meta: config?.matchMetadata?.[`${group.id}-${idx}`] || {},
+          gironeId: group.id,
+          idx: idx
+        });
+      });
+    });
+    return all;
+  };
+
   // 4. Calcola la lista dei gironi intermedi (Gold/Silver) se presenti
   const getIntermediateGroupsList = () => {
     const list = [];
@@ -422,26 +465,16 @@ export default function PortaleLiveMobile() {
     let targetElId = null;
 
     if (activeTab === "partite") {
-      const initialGroups = getInitialGroupsList();
-      let allMatches = [];
-
-      for (const group of initialGroups) {
-        const matchesList = getScheduleFixed(
-          config?.teamCounts?.[group.id] || 0,
-          group.id,
-          config?.gironeAssignments?.[group.id] || {}
-        ).map((m, idx) => {
-          const meta = config?.matchMetadata?.[`${group.id}-${idx}`] || {};
-          const scoreL = parseInt(meta.s1L || 0);
-          const scoreR = parseInt(meta.s1R || 0);
-          const hasScore = meta.s1L !== undefined && meta.s1L !== "";
-          return {
-            id: `match-${group.id}-${idx}`,
-            hasScore: hasScore && (scoreL > 0 || scoreR > 0)
-          };
-        });
-        allMatches = [...allMatches, ...matchesList];
-      }
+      const sortedMatches = sortMatchesChronologically(getAllInitialMatches());
+      const allMatches = sortedMatches.map((m) => {
+        const scoreL = parseInt(m.meta.s1L || 0);
+        const scoreR = parseInt(m.meta.s1R || 0);
+        const hasScore = m.meta.s1L !== undefined && m.meta.s1L !== "";
+        return {
+          id: `match-${m.gironeId}-${m.idx}`,
+          hasScore: hasScore && (scoreL > 0 || scoreR > 0)
+        };
+      });
 
       const lastPlayedIdx = allMatches.reduce((acc, match, idx) => {
         if (match.hasScore) return idx;
@@ -636,7 +669,7 @@ export default function PortaleLiveMobile() {
   };
 
   // Rendering del singolo blocco partita SofaScore
-  const renderMatchRow = (teamL, teamR, meta, idx, matchKeyPrefix, gironeId = null) => {
+  const renderMatchRow = (teamL, teamR, meta, idx, matchKeyPrefix, gironeId = null, matchLabel = null) => {
     const scoreL = parseInt(meta?.s1L || meta?.scoreL || 0);
     const scoreR = parseInt(meta?.s1R || meta?.scoreR || 0);
     const hasScore =
@@ -710,7 +743,7 @@ export default function PortaleLiveMobile() {
         className="bg-white rounded-[1.6rem] p-4 border border-gray-100 shadow-sm flex flex-col gap-2 transition-all"
       >
         <div className="flex justify-between items-center text-[9px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 pb-2">
-          <span>Gara {idx + 1}</span>
+          <span>{matchLabel || (gironeId ? `Girone ${gironeId.replace("gold-", "Gold ").replace("silver-", "Silver ")}` : `Gara ${idx + 1}`)}</span>
           <div className="flex gap-1.5">
             {meta?.time && (
               <span className="bg-gray-50 text-gray-500 px-2.5 py-0.5 rounded-lg">{meta.time}</span>
@@ -881,45 +914,29 @@ export default function PortaleLiveMobile() {
               </div>
             )}
 
-            {/* 2. SEZIONE PARTITE (CALENDARIO VERTICALE INIZIALE) */}
+            {/* 2. SEZIONE PARTITE (CALENDARIO CRONOLOGICO INIZIALE) */}
             {activeTab === "partite" && (
-              <div className="space-y-6">
-                {getInitialGroupsList().map((group) => {
-                  const groupMatches = getScheduleFixed(
-                    config?.teamCounts?.[group.id] || 0,
-                    group.id,
-                    config?.gironeAssignments?.[group.id] || {}
-                  ).map((m, idx) => ({
-                    left: m.left,
-                    right: m.right,
-                    meta: config?.matchMetadata?.[`${group.id}-${idx}`] || {},
-                  }));
-
-                  return (
-                    <div key={group.id} className="space-y-3">
-                      <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1 border-l-4 border-[#FFD700] pl-2">
-                        Partite {group.label}
-                      </h3>
-                      <div className="space-y-3">
-                        {groupMatches.map((m, idx) =>
-                          renderMatchRow(
-                            m.left,
-                            m.right,
-                            m.meta,
-                            idx,
-                            `match-${group.id}`,
-                            group.id
-                          )
-                        )}
-                        {groupMatches.length === 0 && (
-                          <div className="bg-white rounded-3xl p-6 text-center border border-gray-100">
-                            <p className="text-gray-400 italic text-xs">Nessun match programmato.</p>
-                          </div>
-                        )}
-                      </div>
+              <div className="space-y-4">
+                <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1 border-l-4 border-[#FFD700] pl-2 mb-2">
+                  Calendario Incontri (Ordine Cronologico)
+                </h3>
+                <div className="space-y-3">
+                  {sortMatchesChronologically(getAllInitialMatches()).map((m, sortedIdx) =>
+                    renderMatchRow(
+                      m.left,
+                      m.right,
+                      m.meta,
+                      m.idx,
+                      `match-${m.gironeId}`,
+                      m.gironeId
+                    )
+                  )}
+                  {getAllInitialMatches().length === 0 && (
+                    <div className="bg-white rounded-3xl p-6 text-center border border-gray-100">
+                      <p className="text-gray-400 italic text-xs">Nessun match programmato.</p>
                     </div>
-                  );
-                })}
+                  )}
+                </div>
               </div>
             )}
 
@@ -1088,7 +1105,9 @@ export default function PortaleLiveMobile() {
                               m.right,
                               m.meta,
                               idx,
-                              `playoff-${group.title}`
+                              `playoff-${group.title}`,
+                              null,
+                              m.label
                             )
                           )}
                         </div>
