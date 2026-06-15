@@ -465,7 +465,7 @@ export default function GironiPubblici() {
 
     let targetElId = null;
 
-    if (activeTab === "partite") {
+    if (activeTab === "partite" && viewMode === "cronologico") {
       const sortedMatches = sortMatchesChronologically(getAllInitialMatches());
       const allMatches = sortedMatches.map((m) => {
         const scoreL = parseInt(m.meta.s1L || 0);
@@ -558,7 +558,7 @@ export default function GironiPubblici() {
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [activeTab, fasiFinaliCategory, config, bracketConfig, selectedTorneo, isPublished]);
+  }, [activeTab, fasiFinaliCategory, config, bracketConfig, selectedTorneo, isPublished, viewMode]);
 
   // Restituisce la lista di partite playoff lineare
   const getPlayoffMatchesList = () => {
@@ -751,7 +751,7 @@ export default function GironiPubblici() {
             )}
             {meta?.court && (
               <span className="bg-blue-50 text-blue-600 px-2.5 py-0.5 rounded-lg font-black">
-                C.{meta.court}
+                Campo {meta.court}
               </span>
             )}
           </div>
