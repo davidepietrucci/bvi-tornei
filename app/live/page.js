@@ -1228,7 +1228,9 @@ export default function PortaleLiveMobile() {
             {/* Pulsante Gironi (Composizione) */}
             <button
               onClick={() => setActiveTab("gironi")}
-              className="relative flex flex-col items-center gap-1.5 py-3.5 px-3 flex-1 active:scale-95 transition-transform"
+              className={`relative flex flex-col items-center gap-1.5 py-4.5 px-3 flex-1 active:scale-95 transition-transform ${
+                activeTab === "gironi" ? "text-blue-600" : "text-slate-400"
+              }`}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -1236,7 +1238,7 @@ export default function PortaleLiveMobile() {
                 fill={activeTab === "gironi" ? "currentColor" : "none"}
                 stroke="currentColor"
                 strokeWidth={activeTab === "gironi" ? 0 : 2}
-                className="w-5 h-5 text-[#0a1628]"
+                className="w-6 h-6 transition-colors"
               >
                 <path
                   strokeLinecap="round"
@@ -1244,22 +1246,20 @@ export default function PortaleLiveMobile() {
                   d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z"
                 />
               </svg>
-              <span
-                className={`text-[9px] font-black uppercase tracking-widest ${
-                  activeTab === "gironi" ? "text-[#0a1628]" : "text-gray-300"
-                }`}
-              >
+              <span className="text-[10.5px] font-black uppercase tracking-widest transition-colors">
                 Gironi
               </span>
               {activeTab === "gironi" && (
-                <span className="absolute top-2.5 w-1 h-1 rounded-full bg-[#FFD700]" />
+                <span className="absolute top-2.5 w-1.5 h-1.5 rounded-full bg-blue-600" />
               )}
             </button>
 
             {/* Pulsante Partite */}
             <button
               onClick={() => setActiveTab("partite")}
-              className="relative flex flex-col items-center gap-1.5 py-3.5 px-3 flex-1 active:scale-95 transition-transform"
+              className={`relative flex flex-col items-center gap-1.5 py-4.5 px-3 flex-1 active:scale-95 transition-transform ${
+                activeTab === "partite" ? "text-blue-600" : "text-slate-400"
+              }`}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -1267,7 +1267,7 @@ export default function PortaleLiveMobile() {
                 fill={activeTab === "partite" ? "currentColor" : "none"}
                 stroke="currentColor"
                 strokeWidth={activeTab === "partite" ? 0 : 2}
-                className="w-5 h-5 text-[#0a1628]"
+                className="w-6 h-6 transition-colors"
               >
                 <path
                   strokeLinecap="round"
@@ -1275,22 +1275,20 @@ export default function PortaleLiveMobile() {
                   d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"
                 />
               </svg>
-              <span
-                className={`text-[9px] font-black uppercase tracking-widest ${
-                  activeTab === "partite" ? "text-[#0a1628]" : "text-gray-300"
-                }`}
-              >
+              <span className="text-[10.5px] font-black uppercase tracking-widest transition-colors">
                 Partite
               </span>
               {activeTab === "partite" && (
-                <span className="absolute top-2.5 w-1 h-1 rounded-full bg-[#FFD700]" />
+                <span className="absolute top-2.5 w-1.5 h-1.5 rounded-full bg-blue-600" />
               )}
             </button>
 
             {/* Pulsante Classifiche */}
             <button
               onClick={() => setActiveTab("classifica")}
-              className="relative flex flex-col items-center gap-1.5 py-3.5 px-3 flex-1 active:scale-95 transition-transform"
+              className={`relative flex flex-col items-center gap-1.5 py-4.5 px-3 flex-1 active:scale-95 transition-transform ${
+                activeTab === "classifica" ? "text-blue-600" : "text-slate-400"
+              }`}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -1298,7 +1296,7 @@ export default function PortaleLiveMobile() {
                 fill={activeTab === "classifica" ? "currentColor" : "none"}
                 stroke="currentColor"
                 strokeWidth={activeTab === "classifica" ? 0 : 2}
-                className="w-5 h-5 text-[#0a1628]"
+                className="w-6 h-6 transition-colors"
               >
                 <path
                   strokeLinecap="round"
@@ -1306,22 +1304,20 @@ export default function PortaleLiveMobile() {
                   d="M16.5 18.75h-9m9 0a3 3 0 0 1 3 3h-15a3 3 0 0 1 3-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-6.75a1.125 1.125 0 0 0-1.125 1.125v3.375m9 0h-9M9 10.5a3 3 0 1 1 6 0 3 3 0 0 1-6 0Z"
                 />
               </svg>
-              <span
-                className={`text-[9px] font-black uppercase tracking-widest ${
-                  activeTab === "classifica" ? "text-[#0a1628]" : "text-gray-300"
-                }`}
-              >
+              <span className="text-[10.5px] font-black uppercase tracking-widest transition-colors">
                 Classifiche
               </span>
               {activeTab === "classifica" && (
-                <span className="absolute top-2.5 w-1 h-1 rounded-full bg-[#FFD700]" />
+                <span className="absolute top-2.5 w-1.5 h-1.5 rounded-full bg-blue-600" />
               )}
             </button>
 
             {/* Pulsante Fasi Finali */}
             <button
               onClick={() => setActiveTab("finali")}
-              className="relative flex flex-col items-center gap-1.5 py-3.5 px-3 flex-1 active:scale-95 transition-transform"
+              className={`relative flex flex-col items-center gap-1.5 py-4.5 px-3 flex-1 active:scale-95 transition-transform ${
+                activeTab === "finali" ? "text-blue-600" : "text-slate-400"
+              }`}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -1329,7 +1325,7 @@ export default function PortaleLiveMobile() {
                 fill={activeTab === "finali" ? "currentColor" : "none"}
                 stroke="currentColor"
                 strokeWidth={activeTab === "finali" ? 0 : 2}
-                className="w-5 h-5 text-[#0a1628]"
+                className="w-6 h-6 transition-colors"
               >
                 <path
                   strokeLinecap="round"
@@ -1337,15 +1333,11 @@ export default function PortaleLiveMobile() {
                   d="M15.362 5.214A8.252 8.252 0 0 1 12 21 8.25 8.25 0 0 1 6.038 7.047 8.287 8.287 0 0 0 9 9.601a8.983 8.983 0 0 1 3.361-6.867 8.21 8.21 0 0 0 3 2.48Z"
                 />
               </svg>
-              <span
-                className={`text-[9px] font-black uppercase tracking-widest ${
-                  activeTab === "finali" ? "text-[#0a1628]" : "text-gray-300"
-                }`}
-              >
+              <span className="text-[10.5px] font-black uppercase tracking-widest transition-colors">
                 Fasi Finali
               </span>
               {activeTab === "finali" && (
-                <span className="absolute top-2.5 w-1 h-1 rounded-full bg-[#FFD700]" />
+                <span className="absolute top-2.5 w-1.5 h-1.5 rounded-full bg-blue-600" />
               )}
             </button>
           </div>
