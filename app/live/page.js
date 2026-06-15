@@ -690,6 +690,17 @@ export default function PortaleLiveMobile() {
     const namesL = splitNames(teamL);
     const namesR = splitNames(teamR);
 
+    const getFontSizeClass = (namesArray) => {
+      const maxL = Math.max(...namesArray.map((n) => n.length));
+      if (maxL > 20) return "text-[9px] sm:text-[11px]";
+      if (maxL > 15) return "text-[10px] sm:text-[12px]";
+      if (maxL > 10) return "text-[11px] sm:text-[13px]";
+      return "text-[12px] sm:text-[14px]";
+    };
+
+    const fontSizeL = getFontSizeClass(namesL);
+    const fontSizeR = getFontSizeClass(namesR);
+
     const showResultsColors = hasScore && (scoreL > 0 || scoreR > 0);
 
     return (
@@ -716,7 +727,7 @@ export default function PortaleLiveMobile() {
           {/* Team Left */}
           <div className="flex-1 text-right min-w-0 pr-1">
             <span
-              className={`text-[11px] sm:text-xs font-bold uppercase break-words leading-tight block ${
+              className={`font-bold uppercase break-words leading-tight block ${fontSizeL} ${
                 showResultsColors
                   ? isWinnerL
                     ? "text-green-700 font-black"
@@ -755,7 +766,7 @@ export default function PortaleLiveMobile() {
           {/* Team Right */}
           <div className="flex-1 text-left min-w-0 pl-1">
             <span
-              className={`text-[11px] sm:text-xs font-bold uppercase break-words leading-tight block ${
+              className={`font-bold uppercase break-words leading-tight block ${fontSizeR} ${
                 showResultsColors
                   ? isWinnerR
                     ? "text-green-700 font-black"
