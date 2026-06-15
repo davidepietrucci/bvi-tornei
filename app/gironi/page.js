@@ -125,12 +125,25 @@ export default function GironiPubblici() {
       bracketConfig.phaseType === "gold_silver" &&
       bracketConfig.subPhaseType === "groups"
     ) {
+      let goldSlots = 0;
+      let silverSlots = 0;
+      if (config && config.numGironi) {
+        for (let i = 0; i < config.numGironi; i++) {
+          const gid = String.fromCharCode(65 + i);
+          const count = config.teamCounts?.[gid] || 0;
+          goldSlots += Math.min(2, count);
+          silverSlots += Math.max(0, count - 2);
+        }
+      }
+      const numGoldGironi = goldSlots > 4 ? 2 : 1;
+      const numSilverGironi = silverSlots > 4 ? 2 : 1;
+
       list.push({ id: "gold-A", label: "Gold A 🏆", type: "intermedio", category: "gold" });
-      if (config?.numGironi === 4) {
+      if (numGoldGironi === 2) {
         list.push({ id: "gold-B", label: "Gold B 🏆", type: "intermedio", category: "gold" });
       }
       list.push({ id: "silver-A", label: "Silver A 🥈", type: "intermedio", category: "silver" });
-      if (config?.numGironi === 4) {
+      if (numSilverGironi === 2) {
         list.push({ id: "silver-B", label: "Silver B 🥈", type: "intermedio", category: "silver" });
       }
     }

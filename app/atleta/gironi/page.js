@@ -644,23 +644,38 @@ export default function AtletaGironi() {
             )}
 
             {/* Gironi Intermedi */}
-            {activeTab === "intermedi" && bracketConfig?.phaseType === "gold_silver" && bracketConfig?.subPhaseType === "groups" && (
-              <div className="space-y-12 text-left">
-                <div>
-                  <h2 className="text-xl font-black text-yellow-600 uppercase tracking-tighter mb-6 text-center">🏆 Gironi Intermedi GOLD</h2>
-                  {renderIntermediateGroupForAthlete("gold-A", "Girone Gold A", "gold")}
-                  {config?.numGironi === 4 && renderIntermediateGroupForAthlete("gold-B", "Girone Gold B", "gold")}
+            {activeTab === "intermedi" && bracketConfig?.phaseType === "gold_silver" && bracketConfig?.subPhaseType === "groups" && (() => {
+              let goldSlots = 0;
+              let silverSlots = 0;
+              if (config && config.numGironi) {
+                for (let i = 0; i < config.numGironi; i++) {
+                  const gid = String.fromCharCode(65 + i);
+                  const count = config.teamCounts?.[gid] || 0;
+                  goldSlots += Math.min(2, count);
+                  silverSlots += Math.max(0, count - 2);
+                }
+              }
+              const numGoldGironi = goldSlots > 4 ? 2 : 1;
+              const numSilverGironi = silverSlots > 4 ? 2 : 1;
+
+              return (
+                <div className="space-y-12 text-left">
+                  <div>
+                    <h2 className="text-xl font-black text-yellow-600 uppercase tracking-tighter mb-6 text-center">🏆 Gironi Intermedi GOLD</h2>
+                    {renderIntermediateGroupForAthlete("gold-A", "Girone Gold A", "gold")}
+                    {numGoldGironi === 2 && renderIntermediateGroupForAthlete("gold-B", "Girone Gold B", "gold")}
+                  </div>
+                  
+                  <div className="border-t border-dashed border-gray-200 my-10"></div>
+                  
+                  <div>
+                    <h2 className="text-xl font-black text-gray-500 uppercase tracking-tighter mb-6 text-center">🥈 Gironi Intermedi SILVER</h2>
+                    {renderIntermediateGroupForAthlete("silver-A", "Girone Silver A", "silver")}
+                    {numSilverGironi === 2 && renderIntermediateGroupForAthlete("silver-B", "Girone Silver B", "silver")}
+                  </div>
                 </div>
-                
-                <div className="border-t border-dashed border-gray-200 my-10"></div>
-                
-                <div>
-                  <h2 className="text-xl font-black text-gray-500 uppercase tracking-tighter mb-6 text-center">🥈 Gironi Intermedi SILVER</h2>
-                  {renderIntermediateGroupForAthlete("silver-A", "Girone Silver A", "silver")}
-                  {config?.numGironi === 4 && renderIntermediateGroupForAthlete("silver-B", "Girone Silver B", "silver")}
-                </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Fasi Finali */}
             {activeTab === "finali" && bracketConfig && (
