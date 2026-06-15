@@ -11,6 +11,7 @@ export default function GironiPubblici() {
   const [bracketConfig, setBracketConfig] = useState(null);
   const [activeTab, setActiveTab] = useState("gironi"); // "gironi", "partite", "classifica", "finali"
   const [fasiFinaliCategory, setFasiFinaliCategory] = useState("gold"); // "gold" or "silver"
+  const [viewMode, setViewMode] = useState("cronologico"); // "cronologico" or "girone"
   const [loading, setLoading] = useState(true);
 
   // 1. Carica l'elenco dei tornei e determina quello da visualizzare
@@ -914,29 +915,96 @@ export default function GironiPubblici() {
               </div>
             )}
 
-            {/* 2. SEZIONE PARTITE (CALENDARIO CRONOLOGICO INIZIALE) */}
+            {/* 2. SEZIONE PARTITE (CALENDARIO CRONOLOGICO / PER GIRONE INIZIALE) */}
             {activeTab === "partite" && (
-              <div className="space-y-4">
-                <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1 border-l-4 border-[#FFD700] pl-2 mb-2">
-                  Calendario Incontri (Ordine Cronologico)
-                </h3>
-                <div className="space-y-3">
-                  {sortMatchesChronologically(getAllInitialMatches()).map((m, sortedIdx) =>
-                    renderMatchRow(
-                      m.left,
-                      m.right,
-                      m.meta,
-                      m.idx,
-                      `match-${m.gironeId}`,
-                      m.gironeId
-                    )
-                  )}
-                  {getAllInitialMatches().length === 0 && (
-                    <div className="bg-white rounded-3xl p-6 text-center border border-gray-100">
-                      <p className="text-gray-400 italic text-xs">Nessun match programmato.</p>
-                    </div>
-                  )}
+              <div className="space-y-6">
+                {/* Toggle Selettore Vista */}
+                <div className="flex bg-gray-200/60 p-1 rounded-2xl max-w-xs mx-auto border border-gray-100/50 shadow-inner mb-6">
+                  <button
+                    onClick={() => setViewMode("cronologico")}
+                    className={`flex-1 py-2 text-center rounded-xl font-black text-[10px] uppercase tracking-wider transition-all ${
+                      viewMode === "cronologico"
+                        ? "bg-[#0a1628] text-white shadow-md"
+                        : "text-gray-400 hover:text-[#0a1628]"
+                    }`}
+                  >
+                    Cronologico 📅
+                  </button>
+                  <button
+                    onClick={() => setViewMode("girone")}
+                    className={`flex-1 py-2 text-center rounded-xl font-black text-[10px] uppercase tracking-wider transition-all ${
+                      viewMode === "girone"
+                        ? "bg-[#0a1628] text-white shadow-md"
+                        : "text-gray-400 hover:text-[#0a1628]"
+                    }`}
+                  >
+                    Per Girone 📋
+                  </button>
                 </div>
+
+                {viewMode === "cronologico" ? (
+                  <div className="space-y-4">
+                    <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1 border-l-4 border-[#FFD700] pl-2 mb-2">
+                      Calendario Incontri (Ordine Cronologico)
+                    </h3>
+                    <div className="space-y-3">
+                      {sortMatchesChronologically(getAllInitialMatches()).map((m, sortedIdx) =>
+                        renderMatchRow(
+                          m.left,
+                          m.right,
+                          m.meta,
+                          m.idx,
+                          `match-${m.gironeId}`,
+                          m.gironeId
+                        )
+                      )}
+                      {getAllInitialMatches().length === 0 && (
+                        <div className="bg-white rounded-3xl p-6 text-center border border-gray-100">
+                          <p className="text-gray-400 italic text-xs">Nessun match programmato.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {getInitialGroupsList().map((group) => {
+                      const groupMatches = getScheduleFixed(
+                        config?.teamCounts?.[group.id] || 0,
+                        group.id,
+                        config?.gironeAssignments?.[group.id] || {}
+                      ).map((m, idx) => ({
+                        left: m.left,
+                        right: m.right,
+                        meta: config?.matchMetadata?.[`${group.id}-${idx}`] || {},
+                      }));
+
+                      return (
+                        <div key={group.id} className="space-y-3">
+                          <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1 border-l-4 border-[#FFD700] pl-2">
+                            Partite {group.label}
+                          </h3>
+                          <div className="space-y-3">
+                            {groupMatches.map((m, idx) =>
+                              renderMatchRow(
+                                m.left,
+                                m.right,
+                                m.meta,
+                                idx,
+                                `match-${group.id}`,
+                                group.id
+                              )
+                            )}
+                            {groupMatches.length === 0 && (
+                              <div className="bg-white rounded-3xl p-6 text-center border border-gray-100">
+                                <p className="text-gray-400 italic text-xs">Nessun match programmato.</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
