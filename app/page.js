@@ -11,8 +11,20 @@ export default function Home() {
   useEffect(() => {
     // Leggi i tornei dal database per mostrarli in home
     getTornei().then(allTornei => {
-      // Mostriamo i tornei che non sono conclusi, dando priorità a quelli "Iscrizioni Aperte"
+      // Mostriamo i tornei che non sono conclusi, dando priorità a "In Programmazione" e poi "Iscrizioni Aperte"
       const aperti = allTornei.filter(t => t.stato === "Iscrizioni Aperte" || t.stato === "In Programmazione" || !t.stato);
+      
+      // Ordina i tornei: "In Programmazione" per primi, seguiti da "Iscrizioni Aperte", e poi gli altri
+      aperti.sort((a, b) => {
+        const statoA = a.stato || "";
+        const statoB = b.stato || "";
+        if (statoA === "In Programmazione" && statoB !== "In Programmazione") return -1;
+        if (statoB === "In Programmazione" && statoA !== "In Programmazione") return 1;
+        if (statoA === "Iscrizioni Aperte" && statoB !== "Iscrizioni Aperte") return -1;
+        if (statoB === "Iscrizioni Aperte" && statoA !== "Iscrizioni Aperte") return 1;
+        return 0;
+      });
+
       setTorneiAperti(aperti.slice(0, 6)); // Mostriamo un massimo di 6 tornei in home
 
       // Mostriamo i tornei conclusi
@@ -78,8 +90,14 @@ export default function Home() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {torneiAperti.map((t, i) => (
-              <div key={i} className="bg-white rounded-3xl shadow-md hover:shadow-xl border border-gray-100 overflow-hidden flex flex-col transition-all hover:-translate-y-2">
+            {torneiAperti.map((t, i) => {
+              const isLive = t.stato === "In Programmazione";
+              return (
+                <div key={i} className={`bg-white rounded-3xl shadow-md hover:shadow-xl border overflow-hidden flex flex-col transition-all hover:-translate-y-2 ${
+                  isLive
+                    ? "border-red-500/40 ring-4 ring-red-500/5 md:col-span-2 lg:col-span-2"
+                    : "border-gray-100"
+                }`}>
                 <div className="p-6 flex-1 flex flex-col">
                   <div className="flex justify-between items-start mb-4">
                     {t.stato === "In Programmazione" ? (
@@ -144,7 +162,8 @@ export default function Home() {
                   )}
                 </div>
               </div>
-            ))}
+            );
+          })}
           </div>
         )}
       </section>
