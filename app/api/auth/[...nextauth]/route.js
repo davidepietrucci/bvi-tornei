@@ -23,7 +23,7 @@ const handler = NextAuth({
           { id: "admin", name: "Administrator", username: "admin", password: process.env.STAFF_PASSWORD_ADMIN || "admin", role: "admin" },
           { id: "staff", name: "Staff Member", username: "staff", password: process.env.STAFF_PASSWORD_STAFF || "staff", role: "staff" },
           { id: "vale", name: "Valentina", username: "vale", password: process.env.STAFF_PASSWORD_VALE || "bvi2026", role: "staff" },
-          { id: "davide", name: "Davide", username: "davide", password: process.env.STAFF_PASSWORD_DAVIDE || "bvi2026", role: "staff" },
+          { id: "davide", name: "Davide", username: "davide", password: process.env.STAFF_PASSWORD_DAVIDE || "bvi2026", role: "admin" },
           { id: "fra.b", name: "Francesco B.", username: "fra.b", password: process.env.STAFF_PASSWORD_FRAB || "Bvi2026", role: "staff" }
         ];
 

@@ -11,7 +11,7 @@ const systemStaff = [
   { id: "admin", name: "Administrator", username: "admin", role: "admin", type: "system" },
   { id: "staff", name: "Staff Member", username: "staff", role: "staff", type: "system" },
   { id: "vale", name: "Valentina", username: "vale", role: "staff", type: "system" },
-  { id: "davide", name: "Davide", username: "davide", role: "staff", type: "system" },
+  { id: "davide", name: "Davide", username: "davide", role: "admin", type: "system" },
   { id: "fra.b", name: "Francesco B.", username: "fra.b", role: "staff", type: "system" }
 ];
 
