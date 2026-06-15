@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import StaffHeader from "@/app/components/StaffHeader";
 import { getTornei, getGironi, getBracket, saveBracket } from "@/app/utils/db";
+import { calculateUnifiedRanking } from "@/app/utils/ranking";
 
 const getSchedule = (numTeams, gironeId, assignments = {}, gironeTypes = {}, gironeSets = {}, matchMetadata = {}) => {
   const getName = (idx) => assignments[idx] && assignments[idx] !== "—" && assignments[idx] !== "Slot Libero" ? assignments[idx] : `Slot ${idx + 1}`;
@@ -302,6 +303,13 @@ function TabelloneContent() {
 
     if (phaseType === "gold_silver" && subPhaseType === "direct") {
       ["gold", "silver"].forEach(p => {
+          const hasOttavi = bracketAssignments[`${p}-o1-L`] !== undefined;
+          if (hasOttavi) {
+              update(`${p}-q1-R`, resolveWinner(`${p}-o4`));
+              update(`${p}-q2-R`, resolveWinner(`${p}-o3`));
+              update(`${p}-q3-R`, resolveWinner(`${p}-o2`));
+              update(`${p}-q4-R`, resolveWinner(`${p}-o1`));
+          }
           update(`${p}-s1-L`, resolveWinner(`${p}-q1`));
           update(`${p}-s1-R`, resolveWinner(`${p}-q2`));
           update(`${p}-s2-L`, resolveWinner(`${p}-q3`));
@@ -526,28 +534,95 @@ function TabelloneContent() {
         }
       }
     } else {
-      if (numGironi === 2) {
-          setBracketSize(4);
-          const p = phaseType === "gold_silver" ? "gold" : "wb";
-          newAssignments[`${p}-s1-L`] = getRanked('A', 0); newAssignments[`${p}-s1-R`] = getRanked('B', 1);
-          newAssignments[`${p}-s2-L`] = getRanked('B', 0); newAssignments[`${p}-s2-R`] = getRanked('A', 1);
-          if (phaseType === "gold_silver") {
-              newAssignments['silver-s1-L'] = getRanked('A', 2); newAssignments['silver-s1-R'] = getRanked('B', 3);
-              newAssignments['silver-s2-L'] = getRanked('B', 2); newAssignments['silver-s2-R'] = getRanked('A', 3);
-          }
-      } else if (numGironi === 4) {
+      let totalSlots = 0;
+      for (let i = 0; i < numGironi; i++) {
+        const gid = String.fromCharCode(65 + i);
+        totalSlots += gConfig.teamCounts[gid] || 0;
+      }
+
+      if (phaseType === "gold_silver" && subPhaseType === "direct" && (numGironi === 5 || numGironi === 6 || totalSlots === 20 || totalSlots === 24)) {
+          // Clean previous assignments
+          Object.keys(newAssignments).forEach(key => {
+            if (key.startsWith("gold-") || key.startsWith("silver-") || key.startsWith("wb-") || key.startsWith("lb-") || key.startsWith("grand-final-")) {
+              delete newAssignments[key];
+            }
+          });
+
+          const unifiedRanking = calculateUnifiedRanking(gConfig);
+          const getTeamByRank = (rankIdx) => {
+            if (unifiedRanking[rankIdx]) {
+              return unifiedRanking[rankIdx].nome;
+            }
+            return `TBD ${rankIdx + 1}° Classificato`;
+          };
+
           setBracketSize(8);
-          const p = phaseType === "gold_silver" ? "gold" : "wb";
-          newAssignments[`${p}-q1-L`] = getRanked('A', 0); newAssignments[`${p}-q1-R`] = getRanked('B', 1);
-          newAssignments[`${p}-q2-L`] = getRanked('C', 0); newAssignments[`${p}-q2-R`] = getRanked('D', 1);
-          newAssignments[`${p}-q3-L`] = getRanked('B', 0); newAssignments[`${p}-q3-R`] = getRanked('A', 1);
-          newAssignments[`${p}-q4-L`] = getRanked('D', 0); newAssignments[`${p}-q4-R`] = getRanked('C', 1);
-          if (phaseType === "gold_silver") {
-              newAssignments['silver-q1-L'] = getRanked('A', 2); newAssignments['silver-q1-R'] = getRanked('B', 3);
-              newAssignments['silver-q2-L'] = getRanked('C', 2); newAssignments['silver-q2-R'] = getRanked('D', 3);
-              newAssignments['silver-q3-L'] = getRanked('B', 2); newAssignments['silver-q3-R'] = getRanked('A', 3);
-              newAssignments['silver-q4-L'] = getRanked('D', 2); newAssignments['silver-q4-R'] = getRanked('C', 3);
+
+          // Gold Assignments (top 12 teams)
+          newAssignments['gold-q1-L'] = getTeamByRank(0); // 1°
+          newAssignments['gold-q2-L'] = getTeamByRank(1); // 2°
+          newAssignments['gold-q3-L'] = getTeamByRank(2); // 3°
+          newAssignments['gold-q4-L'] = getTeamByRank(3); // 4°
+
+          newAssignments['gold-o1-L'] = getTeamByRank(4);  // 5°
+          newAssignments['gold-o1-R'] = getTeamByRank(11); // 12°
+          newAssignments['gold-o2-L'] = getTeamByRank(5);  // 6°
+          newAssignments['gold-o2-R'] = getTeamByRank(10); // 11°
+          newAssignments['gold-o3-L'] = getTeamByRank(6);  // 7°
+          newAssignments['gold-o3-R'] = getTeamByRank(9);  // 10°
+          newAssignments['gold-o4-L'] = getTeamByRank(7);  // 8°
+          newAssignments['gold-o4-R'] = getTeamByRank(8);  // 9°
+
+          if (numGironi === 5 || totalSlots === 20) {
+            // Silver has 8 teams (direct Quarti)
+            newAssignments['silver-q1-L'] = getTeamByRank(12); // 13°
+            newAssignments['silver-q1-R'] = getTeamByRank(19); // 20°
+            newAssignments['silver-q2-L'] = getTeamByRank(13); // 14°
+            newAssignments['silver-q2-R'] = getTeamByRank(18); // 19°
+            newAssignments['silver-q3-L'] = getTeamByRank(14); // 15°
+            newAssignments['silver-q3-R'] = getTeamByRank(17); // 18°
+            newAssignments['silver-q4-L'] = getTeamByRank(15); // 16°
+            newAssignments['silver-q4-R'] = getTeamByRank(16); // 17°
+          } else {
+            // Silver has 12 teams (Ottavi + Quarti)
+            newAssignments['silver-q1-L'] = getTeamByRank(12); // 13°
+            newAssignments['silver-q2-L'] = getTeamByRank(13); // 14°
+            newAssignments['silver-q3-L'] = getTeamByRank(14); // 15°
+            newAssignments['silver-q4-L'] = getTeamByRank(15); // 16°
+
+            newAssignments['silver-o1-L'] = getTeamByRank(16); // 17°
+            newAssignments['silver-o1-R'] = getTeamByRank(23); // 24°
+            newAssignments['silver-o2-L'] = getTeamByRank(17); // 18°
+            newAssignments['silver-o2-R'] = getTeamByRank(22); // 23°
+            newAssignments['silver-o3-L'] = getTeamByRank(18); // 19°
+            newAssignments['silver-o3-R'] = getTeamByRank(21); // 22°
+            newAssignments['silver-o4-L'] = getTeamByRank(19); // 20°
+            newAssignments['silver-o4-R'] = getTeamByRank(20); // 21°
           }
+      } else {
+        if (numGironi === 2) {
+            setBracketSize(4);
+            const p = phaseType === "gold_silver" ? "gold" : "wb";
+            newAssignments[`${p}-s1-L`] = getRanked('A', 0); newAssignments[`${p}-s1-R`] = getRanked('B', 1);
+            newAssignments[`${p}-s2-L`] = getRanked('B', 0); newAssignments[`${p}-s2-R`] = getRanked('A', 1);
+            if (phaseType === "gold_silver") {
+                newAssignments['silver-s1-L'] = getRanked('A', 2); newAssignments['silver-s1-R'] = getRanked('B', 3);
+                newAssignments['silver-s2-L'] = getRanked('B', 2); newAssignments['silver-s2-R'] = getRanked('A', 3);
+            }
+        } else if (numGironi === 4) {
+            setBracketSize(8);
+            const p = phaseType === "gold_silver" ? "gold" : "wb";
+            newAssignments[`${p}-q1-L`] = getRanked('A', 0); newAssignments[`${p}-q1-R`] = getRanked('B', 1);
+            newAssignments[`${p}-q2-L`] = getRanked('C', 0); newAssignments[`${p}-q2-R`] = getRanked('D', 1);
+            newAssignments[`${p}-q3-L`] = getRanked('B', 0); newAssignments[`${p}-q3-R`] = getRanked('A', 1);
+            newAssignments[`${p}-q4-L`] = getRanked('D', 0); newAssignments[`${p}-q4-R`] = getRanked('C', 1);
+            if (phaseType === "gold_silver") {
+                newAssignments['silver-q1-L'] = getRanked('A', 2); newAssignments['silver-q1-R'] = getRanked('B', 3);
+                newAssignments['silver-q2-L'] = getRanked('C', 2); newAssignments['silver-q2-R'] = getRanked('D', 3);
+                newAssignments['silver-q3-L'] = getRanked('B', 2); newAssignments['silver-q3-R'] = getRanked('A', 3);
+                newAssignments['silver-q4-L'] = getRanked('D', 2); newAssignments['silver-q4-R'] = getRanked('C', 3);
+            }
+        }
       }
     }
 
@@ -737,23 +812,47 @@ function TabelloneContent() {
     );
   };
 
-  const renderSection = (p, title, color) => (
-    <div className="mb-16">
-      <h3 className={`text-2xl font-black uppercase mb-8 ${color==='gold'?'text-yellow-600':color==='silver'?'text-gray-500':'text-blue-600'}`}>{title}</h3>
-      {bracketSize===8 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10 overflow-x-auto no-scrollbar">
-          {renderMatch(`${p}-q1`,'M1',color)} {renderMatch(`${p}-q2`,'M2',color)} {renderMatch(`${p}-q3`,'M3',color)} {renderMatch(`${p}-q4`,'M4',color)}
+  const renderSection = (p, title, color) => {
+    const hasOttavi = bracketAssignments[`${p}-o1-L`] !== undefined;
+    return (
+      <div className="mb-16">
+        <h3 className={`text-2xl font-black uppercase mb-8 ${color==='gold'?'text-yellow-600':color==='silver'?'text-gray-500':'text-blue-600'}`}>{title}</h3>
+        
+        {hasOttavi && (
+          <div className="mb-10">
+            <h4 className="text-[11px] font-black text-gray-400 mb-4 uppercase tracking-widest">Ottavi di finale</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 overflow-x-auto no-scrollbar">
+              {renderMatch(`${p}-o1`,'Ottavi 1',color)} {renderMatch(`${p}-o2`,'Ottavi 2',color)} {renderMatch(`${p}-o3`,'Ottavi 3',color)} {renderMatch(`${p}-o4`,'Ottavi 4',color)}
+            </div>
+          </div>
+        )}
+
+        {(bracketSize===8 || hasOttavi) && (
+          <div className="mb-10">
+            {hasOttavi && <h4 className="text-[11px] font-black text-gray-400 mb-4 uppercase tracking-widest">Quarti di finale</h4>}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 overflow-x-auto no-scrollbar">
+              {renderMatch(`${p}-q1`,'M1',color)} {renderMatch(`${p}-q2`,'M2',color)} {renderMatch(`${p}-q3`,'M3',color)} {renderMatch(`${p}-q4`,'M4',color)}
+            </div>
+          </div>
+        )}
+
+        <div className="mb-10">
+          {hasOttavi && <h4 className="text-[11px] font-black text-gray-400 mb-4 uppercase tracking-widest">Semifinali</h4>}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-4xl">
+            {renderMatch(`${p}-s1`,'S1',color)} {renderMatch(`${p}-s2`,'S2',color)}
+          </div>
         </div>
-      )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-4xl mb-10">
-        {renderMatch(`${p}-s1`,'S1',color)} {renderMatch(`${p}-s2`,'S2',color)}
+
+        <div>
+          {hasOttavi && <h4 className="text-[11px] font-black text-gray-400 mb-4 uppercase tracking-widest">Finali</h4>}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-4xl">
+            <div><h4 className="text-[10px] font-black text-red-400 mb-2 uppercase tracking-widest">Finale 3°/4°</h4>{renderMatch(`${p}-f3`,'BRONZO',color)}</div>
+            <div><h4 className="text-[10px] font-black text-yellow-500 mb-2 uppercase tracking-widest">Finale 1°/2°</h4>{renderMatch(`${p}-f1`,'ORO',color)}</div>
+          </div>
+        </div>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-4xl">
-        <div><h4 className="text-[10px] font-black text-red-400 mb-2 uppercase tracking-widest">Finale 3°/4°</h4>{renderMatch(`${p}-f3`,'BRONZO',color)}</div>
-        <div><h4 className="text-[10px] font-black text-yellow-500 mb-2 uppercase tracking-widest">Finale 1°/2°</h4>{renderMatch(`${p}-f1`,'ORO',color)}</div>
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <main className="min-h-screen pb-20 bg-[#f8faff]">

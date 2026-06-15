@@ -254,10 +254,30 @@ export default function AtletaGironi() {
         return !mid.includes("-A-") && !mid.includes("-B-") && !mid.match(/-(?:A|B)-\d/) && !mid.match(/-(?:A|B)-m\d/);
       });
 
-    return matchIds.map(mid => ({
+    const getSortOrder = (id) => {
+      const parts = id.split('-');
+      const round = parts[parts.length - 1]; // o1, q1, s1, f1, f3
+      let weight = 0;
+      if (round.startsWith('o')) weight = 10 + parseInt(round.slice(1));
+      else if (round.startsWith('q')) weight = 20 + parseInt(round.slice(1));
+      else if (round.startsWith('s')) weight = 30 + parseInt(round.slice(1));
+      else if (round === 'f3') weight = 40;
+      else if (round === 'f1') weight = 50;
+      else weight = 60;
+
+      if (id.startsWith('gold')) weight += 0;
+      else if (id.startsWith('silver')) weight += 100;
+      else if (id.startsWith('wb')) weight += 200;
+      else if (id.startsWith('lb')) weight += 300;
+      return weight;
+    };
+
+    return matchIds
+      .sort((a, b) => getSortOrder(a) - getSortOrder(b))
+      .map(mid => ({
         id: mid, label: mid.toUpperCase(), left: assignments[`${mid}-L`], right: assignments[`${mid}-R`],
         scoreL: metadata[mid]?.scoreL, scoreR: metadata[mid]?.scoreR, time: metadata[mid]?.time, court: metadata[mid]?.court
-    }));
+      }));
   };
 
   const getIntermediateGroupStats = (groupKey) => {

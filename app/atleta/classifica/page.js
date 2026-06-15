@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import AthleteHeader from "@/app/components/AthleteHeader";
 import AthleteBottomNav from "@/app/components/AthleteBottomNav";
 import { getTornei, getIscrizioni, getGironi, getBracket } from "@/app/utils/db";
+import { calculateUnifiedRanking } from "@/app/utils/ranking";
 
 export default function AtletaClassifica() {
   const { data: session, status } = useSession();
@@ -344,24 +345,6 @@ export default function AtletaClassifica() {
                 </div>
               </div>
 
-              {/* Gironi Tabs */}
-              {gironiDisponibili.length > 0 && (
-                <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar pt-2">
-                  {gironiDisponibili.map((g) => (
-                    <button
-                      key={g}
-                      onClick={() => setActiveGirone(g)}
-                      className={`px-5 py-2.5 rounded-xl font-black transition-all text-xs shrink-0 ${
-                        activeGirone === g
-                          ? "bg-[#0a1628] text-white shadow-md"
-                          : "bg-gray-50 text-gray-400 hover:bg-gray-100 border border-gray-100"
-                      }`}
-                    >
-                      GIRONE {g}
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
 
             {/* Config & Pubblicazione Checks */}
@@ -369,7 +352,7 @@ export default function AtletaClassifica() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between px-2">
                   <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                    Posizioni Girone {activeGirone}
+                    Classifica Complessiva Torneo
                   </h2>
                   <span className="text-[9px] font-black text-green-600 bg-green-50 px-2.5 py-1 rounded-full border border-green-100 uppercase tracking-widest">
                     Live
@@ -377,12 +360,13 @@ export default function AtletaClassifica() {
                 </div>
 
                 <div className="space-y-3">
-                  {rankings.map((team, idx) => {
+                  {calculateUnifiedRanking(config).map((team, idx) => {
                     const quotient =
                       team.puntiSubiti === 0
                         ? team.puntiFatti
                         : (team.puntiFatti / team.puntiSubiti).toFixed(3);
-                    const isQualified = idx < 2;
+                    const isGold = idx < 12;
+                    const isGoldDirect = idx < 4;
                     const highlight = isMe(team.nome);
 
                     return (
@@ -393,7 +377,7 @@ export default function AtletaClassifica() {
                             ? "border-[#FFD700] ring-4 ring-[#FFD700]/5 scale-[1.01]"
                             : "border-gray-100"
                         } flex items-center justify-between transition-all hover:scale-[1.01] ${
-                          isQualified
+                          isGold
                             ? highlight
                               ? "border-l-4 border-l-[#FFD700]"
                               : "border-l-4 border-l-yellow-400"
@@ -403,18 +387,23 @@ export default function AtletaClassifica() {
                         <div className="flex items-center gap-4 min-w-0">
                           <span
                             className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
-                              isQualified
+                              isGoldDirect
                                 ? "bg-yellow-400 text-white shadow-sm"
+                                : isGold
+                                ? "bg-yellow-100 text-yellow-700"
                                 : "bg-gray-100 text-gray-500"
                             }`}
                           >
                             {idx + 1}
                           </span>
                           <div className="min-w-0">
-                            <p className="font-black text-[#0a1628] text-sm uppercase tracking-tight truncate">
-                              {team.nome}
+                            <p className="font-black text-[#0a1628] text-sm uppercase tracking-tight truncate flex items-center gap-1.5 flex-wrap">
+                              <span>{team.nome}</span>
+                              <span className="bg-blue-50 text-blue-600 text-[8px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider">
+                                Girone {team.girone}
+                              </span>
                               {highlight && (
-                                <span className="inline-block bg-[#FFD700]/20 text-[#0a1628] text-[8px] font-black px-2 py-0.5 rounded-full ml-2 uppercase tracking-widest">
+                                <span className="bg-[#FFD700]/20 text-[#0a1628] text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">
                                   Tu
                                 </span>
                               )}
@@ -433,6 +422,14 @@ export default function AtletaClassifica() {
                               <span>
                                 Quoz: <strong className="text-blue-600">{quotient}</strong>
                               </span>
+                              <span className="text-gray-200 hidden sm:inline">|</span>
+                              <span className="hidden sm:inline">
+                                P.Fatti: <strong className="text-gray-700">{team.puntiFatti}</strong>
+                              </span>
+                              <span className="text-gray-200 hidden sm:inline">|</span>
+                              <span className="hidden sm:inline">
+                                P.Subiti: <strong className="text-gray-500">{team.puntiSubiti}</strong>
+                              </span>
                             </p>
                           </div>
                         </div>
@@ -448,7 +445,7 @@ export default function AtletaClassifica() {
                     );
                   })}
 
-                  {rankings.length === 0 && (
+                  {(!config || calculateUnifiedRanking(config).length === 0) && (
                     <div className="bg-white rounded-3xl p-8 border border-gray-100 text-center">
                       <p className="text-gray-400 font-medium italic text-xs">
                         Nessuna squadra ancora assegnata o nessun risultato inserito.

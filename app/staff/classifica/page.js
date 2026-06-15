@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import StaffHeader from "@/app/components/StaffHeader";
 import { getTornei, getGironi, getBracket } from "@/app/utils/db";
+import { calculateUnifiedRanking } from "@/app/utils/ranking";
 
 function ClassificaContent() {
   const router = useRouter();
@@ -348,26 +349,13 @@ function ClassificaContent() {
         )}
 
         <div className="bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-white">
-            {gironiDisponibili.length > 0 && (
-              <div className="bg-gray-50/50 p-4 border-b flex gap-2 overflow-x-auto no-scrollbar">
-                  {gironiDisponibili.map(g => (
-                      <button
-                          key={g}
-                          onClick={() => setActiveGirone(g)}
-                          className={`px-6 py-3 rounded-2xl font-black text-xs transition-all whitespace-nowrap ${activeGirone === g ? 'bg-[#0a1628] text-white shadow-lg' : 'bg-white text-gray-400 border border-gray-100 hover:text-gray-600'}`}
-                      >
-                          GIRONE {g}
-                      </button>
-                  ))}
-              </div>
-            )}
-
             <div className="overflow-x-auto no-scrollbar">
                 <table className="w-full text-left min-w-[800px] md:min-w-0">
                     <thead className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b bg-white">
                         <tr>
                             <th className="px-6 py-6">Pos</th>
                             <th className="px-6 py-6">Squadra</th>
+                            <th className="px-4 py-6 text-center">Girone</th>
                             <th className="px-4 py-6 text-center">G</th>
                             <th className="px-4 py-6 text-center">V / P</th>
                             <th className="px-4 py-6 text-center">PF</th>
@@ -377,20 +365,26 @@ function ClassificaContent() {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
-                        {rankings.map((team, idx) => {
+                        {calculateUnifiedRanking(config).map((team, idx) => {
                             const quotient = team.puntiSubiti === 0 ? team.puntiFatti : (team.puntiFatti / team.puntiSubiti).toFixed(3);
+                            const isGold = idx < 12;
                             return (
-                                <tr key={team.nome} className={`hover:bg-blue-50/20 transition-all ${idx < 2 ? 'bg-yellow-50/30' : ''}`}>
+                                <tr key={team.nome} className={`hover:bg-blue-50/20 transition-all ${isGold ? 'bg-yellow-50/30' : ''}`}>
                                     <td className="px-6 py-6">
-                                        <span className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs shadow-sm ${idx < 2 ? 'bg-yellow-400 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                                        <span className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs shadow-sm ${isGold ? 'bg-yellow-400 text-white' : 'bg-gray-100 text-gray-400'}`}>
                                             {idx + 1}
                                         </span>
                                     </td>
                                     <td className="px-6 py-6">
                                         <p className="font-black text-[#0a1628] text-lg leading-none mb-1">{team.nome}</p>
                                         <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                                            {idx < 2 ? "Qualificato Gold" : "Qualificato Silver"}
+                                            {isGold ? "Qualificato Gold" : "Qualificato Silver"}
                                         </p>
+                                    </td>
+                                    <td className="px-4 py-6 text-center">
+                                        <span className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg bg-blue-50 text-blue-600 border border-blue-100/50">
+                                            Girone {team.girone}
+                                        </span>
                                     </td>
                                     <td className="px-4 py-6 text-center font-bold text-gray-400">{team.giocate}</td>
                                     <td className="px-4 py-6 text-center whitespace-nowrap">
@@ -407,9 +401,9 @@ function ClassificaContent() {
                                 </tr>
                             );
                         })}
-                        {rankings.length === 0 && (
+                        {(!config || calculateUnifiedRanking(config).length === 0) && (
                             <tr>
-                                <td colSpan="8" className="py-20 text-center text-gray-400 font-bold italic">
+                                <td colSpan="9" className="py-20 text-center text-gray-400 font-bold italic">
                                     Nessun dato disponibile. Inserisci i risultati nei gironi.
                                 </td>
                             </tr>
