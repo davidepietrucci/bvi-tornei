@@ -8,6 +8,16 @@ import StaffHeader from "@/app/components/StaffHeader";
 import { getTornei, getGironi, getBracket } from "@/app/utils/db";
 import { calculateUnifiedRanking } from "@/app/utils/ranking";
 
+const capitalizeWord = (word) => {
+  if (!word) return "";
+  return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+};
+
+const capitalizeName = (nameStr) => {
+  if (!nameStr) return "";
+  return nameStr.split(/\s+/).map(capitalizeWord).join(" ");
+};
+
 const splitNames = (name) => {
   if (!name) return [""];
   let parts = [];
@@ -39,11 +49,13 @@ const formatPlayerName = (fullName) => {
     return cleanName;
   }
   const parts = cleanName.split(/\s+/);
-  if (parts.length < 2) return cleanName;
+  if (parts.length < 2) return capitalizeName(cleanName);
   const firstName = parts[0];
   const surname = parts.slice(1).join(" ");
-  const initial = firstName.charAt(0).toUpperCase();
-  return `${surname} ${initial}.`;
+  const firstNameCap = capitalizeName(firstName);
+  const surnameCap = capitalizeName(surname);
+  const initial = firstNameCap.charAt(0).toUpperCase();
+  return `${surnameCap} ${initial}.`;
 };
 
 function ClassificaContent() {

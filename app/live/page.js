@@ -5,6 +5,16 @@ import { useState, useEffect } from "react";
 import { getTornei, getGironi, getBracket } from "@/app/utils/db";
 import { calculateUnifiedRanking } from "@/app/utils/ranking";
 
+const capitalizeWord = (word) => {
+  if (!word) return "";
+  return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+};
+
+const capitalizeName = (nameStr) => {
+  if (!nameStr) return "";
+  return nameStr.split(/\s+/).map(capitalizeWord).join(" ");
+};
+
 const splitNames = (name) => {
   if (!name) return [""];
   let parts = [];
@@ -36,11 +46,13 @@ const formatPlayerName = (fullName) => {
     return cleanName;
   }
   const parts = cleanName.split(/\s+/);
-  if (parts.length < 2) return cleanName;
+  if (parts.length < 2) return capitalizeName(cleanName);
   const firstName = parts[0];
   const surname = parts.slice(1).join(" ");
-  const initial = firstName.charAt(0).toUpperCase();
-  return `${surname} ${initial}.`;
+  const firstNameCap = capitalizeName(firstName);
+  const surnameCap = capitalizeName(surname);
+  const initial = firstNameCap.charAt(0).toUpperCase();
+  return `${surnameCap} ${initial}.`;
 };
 
 export default function PortaleLiveMobile() {
@@ -784,8 +796,8 @@ export default function PortaleLiveMobile() {
       }
     }
 
-    const namesL = splitNames(teamL);
-    const namesR = splitNames(teamR);
+    const namesL = splitNames(teamL).map(formatPlayerName);
+    const namesR = splitNames(teamR).map(formatPlayerName);
 
     const getFontSizeClass = (namesArray) => {
       const maxL = Math.max(...namesArray.map((n) => n.length));
@@ -824,7 +836,7 @@ export default function PortaleLiveMobile() {
           {/* Team Left */}
           <div className="flex-1 text-right min-w-0 pr-1">
             <span
-              className={`font-bold uppercase break-words leading-tight block ${fontSizeL} ${
+              className={`font-bold break-words leading-tight block ${fontSizeL} ${
                 showResultsColors
                   ? isWinnerL
                     ? "text-green-700 font-black"
@@ -868,7 +880,7 @@ export default function PortaleLiveMobile() {
           {/* Team Right */}
           <div className="flex-1 text-left min-w-0 pl-1">
             <span
-              className={`font-bold uppercase break-words leading-tight block ${fontSizeR} ${
+              className={`font-bold break-words leading-tight block ${fontSizeR} ${
                 showResultsColors
                   ? isWinnerR
                     ? "text-green-700 font-black"
@@ -986,7 +998,7 @@ export default function PortaleLiveMobile() {
                                         {idx + 1}
                                       </span>
                                     </td>
-                                    <td className="px-2 py-3.5 text-[#0a1628] font-black uppercase tracking-tight leading-tight">
+                                    <td className="px-2 py-3.5 text-[#0a1628] font-black tracking-tight leading-tight">
                                       {splitNames(team.nome).map(formatPlayerName).map((player, pIdx) => (
                                         <span key={pIdx} className="block truncate max-w-[140px]">
                                           {player}
@@ -1170,7 +1182,7 @@ export default function PortaleLiveMobile() {
                                       {idx + 1}
                                     </span>
                                   </td>
-                                  <td className="px-2 py-3.5 text-[#0a1628] font-black uppercase tracking-tight leading-tight">
+                                  <td className="px-2 py-3.5 text-[#0a1628] font-black tracking-tight leading-tight">
                                     {splitNames(team.nome).map(formatPlayerName).map((player, pIdx) => (
                                       <span key={pIdx} className="block truncate max-w-[140px]">
                                         {player}
@@ -1262,7 +1274,7 @@ export default function PortaleLiveMobile() {
                                             {idx + 1}
                                           </span>
                                         </td>
-                                        <td className="px-2 py-3.5 text-[#0a1628] font-black uppercase tracking-tight leading-tight">
+                                        <td className="px-2 py-3.5 text-[#0a1628] font-black tracking-tight leading-tight">
                                           {splitNames(team.nome).map(formatPlayerName).map((player, pIdx) => (
                                             <span key={pIdx} className="block truncate max-w-[140px]">
                                               {player}

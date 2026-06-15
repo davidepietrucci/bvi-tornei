@@ -8,6 +8,16 @@ import AthleteBottomNav from "@/app/components/AthleteBottomNav";
 import { getTornei, getIscrizioni, getGironi, getBracket } from "@/app/utils/db";
 import { calculateUnifiedRanking } from "@/app/utils/ranking";
 
+const capitalizeWord = (word) => {
+  if (!word) return "";
+  return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+};
+
+const capitalizeName = (nameStr) => {
+  if (!nameStr) return "";
+  return nameStr.split(/\s+/).map(capitalizeWord).join(" ");
+};
+
 const splitNames = (name) => {
   if (!name) return [""];
   let parts = [];
@@ -39,11 +49,13 @@ const formatPlayerName = (fullName) => {
     return cleanName;
   }
   const parts = cleanName.split(/\s+/);
-  if (parts.length < 2) return cleanName;
+  if (parts.length < 2) return capitalizeName(cleanName);
   const firstName = parts[0];
   const surname = parts.slice(1).join(" ");
-  const initial = firstName.charAt(0).toUpperCase();
-  return `${surname} ${initial}.`;
+  const firstNameCap = capitalizeName(firstName);
+  const surnameCap = capitalizeName(surname);
+  const initial = firstNameCap.charAt(0).toUpperCase();
+  return `${surnameCap} ${initial}.`;
 };
 
 export default function AtletaClassifica() {
@@ -438,7 +450,7 @@ export default function AtletaClassifica() {
                                 {idx + 1}
                               </span>
                               <div className="min-w-0">
-                                <p className="font-black text-[#0a1628] text-sm uppercase tracking-tight truncate flex items-center gap-1.5 flex-wrap">
+                                <p className="font-black text-[#0a1628] text-sm tracking-tight truncate flex items-center gap-1.5 flex-wrap">
                                   <span className="leading-tight block">
                                     {splitNames(team.nome).map(formatPlayerName).map((player, pIdx) => (
                                       <span key={pIdx} className="block truncate max-w-[140px]">
@@ -549,7 +561,7 @@ export default function AtletaClassifica() {
                                 {idx + 1}
                               </span>
                               <div className="min-w-0">
-                                <p className="font-black text-[#0a1628] text-sm uppercase tracking-tight truncate flex items-center gap-1.5 flex-wrap">
+                                <p className="font-black text-[#0a1628] text-sm tracking-tight truncate flex items-center gap-1.5 flex-wrap">
                                   <span className="leading-tight block">
                                     {splitNames(team.nome).map(formatPlayerName).map((player, pIdx) => (
                                       <span key={pIdx} className="block truncate max-w-[140px]">
