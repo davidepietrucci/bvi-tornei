@@ -789,10 +789,10 @@ export default function PortaleLiveMobile() {
 
     const getFontSizeClass = (namesArray) => {
       const maxL = Math.max(...namesArray.map((n) => n.length));
-      if (maxL > 20) return "text-[9px] sm:text-[11px]";
-      if (maxL > 15) return "text-[10px] sm:text-[12px]";
-      if (maxL > 10) return "text-[11px] sm:text-[13px]";
-      return "text-[12px] sm:text-[14px]";
+      if (maxL > 20) return "text-[11px] sm:text-[13px]";
+      if (maxL > 15) return "text-[12px] sm:text-[14px]";
+      if (maxL > 10) return "text-[13px] sm:text-[15px]";
+      return "text-[14px] sm:text-[16px]";
     };
 
     const fontSizeL = getFontSizeClass(namesL);
@@ -804,23 +804,23 @@ export default function PortaleLiveMobile() {
       <div
         key={idx}
         id={`${matchKeyPrefix}-${idx}`}
-        className="bg-white rounded-[1.6rem] p-4 border border-gray-100 shadow-sm flex flex-col gap-2 transition-all"
+        className="bg-white rounded-[1.6rem] p-5 border border-gray-100 shadow-sm flex flex-col gap-3 transition-all"
       >
-        <div className="flex justify-between items-center text-[9px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 pb-2">
+        <div className="flex justify-between items-center text-[10px] sm:text-[11px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 pb-2">
           <span>{matchLabel || (gironeId ? `Girone ${gironeId.replace("gold-", "Gold ").replace("silver-", "Silver ")}` : `Gara ${idx + 1}`)}</span>
           <div className="flex gap-1.5">
             {meta?.time && (
-              <span className="bg-gray-50 text-gray-500 px-2.5 py-0.5 rounded-lg">{meta.time}</span>
+              <span className="bg-gray-50 text-gray-500 px-3 py-1 rounded-lg text-[10px] font-bold">{meta.time}</span>
             )}
             {meta?.court && (
-              <span className="bg-blue-50 text-blue-600 px-2.5 py-0.5 rounded-lg font-black">
+              <span className="bg-blue-50 text-blue-600 px-3 py-1 rounded-lg font-black text-[10px]">
                 Campo {meta.court}
               </span>
             )}
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-3 py-1">
+        <div className="flex items-center justify-between gap-3 py-1.5">
           {/* Team Left */}
           <div className="flex-1 text-right min-w-0 pr-1">
             <span
@@ -829,7 +829,7 @@ export default function PortaleLiveMobile() {
                   ? isWinnerL
                     ? "text-green-700 font-black"
                     : "text-red-600 font-bold"
-                  : "text-gray-400 font-semibold"
+                  : "text-gray-700 font-bold"
               }`}
             >
               {namesL.map((name, pIdx) => (
@@ -841,25 +841,25 @@ export default function PortaleLiveMobile() {
           </div>
 
           {/* Score Badge */}
-          <div className="shrink-0 flex flex-col items-center justify-center">
+          <div className="shrink-0 flex flex-col items-center justify-center min-w-[70px]">
             {hasScore && (scoreL > 0 || scoreR > 0) && (
               <span className="text-[10px] font-black text-black uppercase tracking-wider mb-1.5">
                 Finita
               </span>
             )}
             {hasScore && (scoreL > 0 || scoreR > 0) ? (
-              <div className="text-[#0a1628] font-black text-sm flex items-center gap-1">
+              <div className="text-[#0a1628] font-black text-base sm:text-lg flex items-center gap-1.5">
                 <span>{scoreL}</span>
                 <span className="opacity-40">-</span>
                 <span>{scoreR}</span>
               </div>
             ) : (
-              <span className="text-[9px] font-black bg-gray-50 text-gray-300 px-3 py-1.5 rounded-xl uppercase tracking-wider border border-gray-100">
+              <span className="text-[10px] font-black bg-gray-50 text-gray-400 px-3.5 py-2 rounded-xl uppercase tracking-wider border border-gray-100">
                 VS
               </span>
             )}
             {isThreeSets && hasScore && (scoreL > 0 || scoreR > 0) && (
-              <span className="text-[8px] font-bold text-gray-400 mt-1">
+              <span className="text-[10px] font-bold text-gray-400 mt-1">
                 ({s2L}-{s2R}, {s3L}-{s3R})
               </span>
             )}
@@ -873,7 +873,7 @@ export default function PortaleLiveMobile() {
                   ? isWinnerR
                     ? "text-green-700 font-black"
                     : "text-red-600 font-bold"
-                  : "text-gray-400 font-semibold"
+                  : "text-gray-700 font-bold"
               }`}
             >
               {namesR.map((name, pIdx) => (
