@@ -8,6 +8,44 @@ import StaffHeader from "@/app/components/StaffHeader";
 import { getTornei, getGironi, getBracket } from "@/app/utils/db";
 import { calculateUnifiedRanking } from "@/app/utils/ranking";
 
+const splitNames = (name) => {
+  if (!name) return [""];
+  let parts = [];
+  if (name.includes(" & ")) {
+    parts = name.split(" & ");
+  } else if (name.includes(" / ")) {
+    parts = name.split(" / ");
+  } else if (name.includes(" - ")) {
+    parts = name.split(" - ");
+  } else if (name.includes("/")) {
+    parts = name.split("/");
+  } else {
+    parts = [name];
+  }
+  return parts.map((p) => p.trim());
+};
+
+const formatPlayerName = (fullName) => {
+  if (!fullName) return "";
+  const cleanName = fullName.trim();
+  if (!cleanName) return "";
+  if (
+    cleanName.toLowerCase().startsWith("slot") ||
+    cleanName === "—" ||
+    cleanName.toLowerCase().startsWith("vincente") ||
+    cleanName.toLowerCase().startsWith("perdente") ||
+    cleanName === "TBD"
+  ) {
+    return cleanName;
+  }
+  const parts = cleanName.split(/\s+/);
+  if (parts.length < 2) return cleanName;
+  const firstName = parts[0];
+  const surname = parts.slice(1).join(" ");
+  const initial = firstName.charAt(0).toUpperCase();
+  return `${surname} ${initial}.`;
+};
+
 function ClassificaContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -393,7 +431,13 @@ function ClassificaContent() {
                                           </span>
                                       </td>
                                       <td className="px-6 py-6">
-                                          <p className="font-black text-[#0a1628] text-lg leading-none mb-1">{team.nome}</p>
+                                          <div className="leading-tight block font-black text-[#0a1628] text-lg mb-1">
+                                            {splitNames(team.nome).map(formatPlayerName).map((player, pIdx) => (
+                                              <span key={pIdx} className="block truncate max-w-[200px]">
+                                                {player}
+                                              </span>
+                                            ))}
+                                          </div>
                                           <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
                                               {isGold ? "Qualificato Gold" : "Qualificato Silver"}
                                           </p>
@@ -443,7 +487,13 @@ function ClassificaContent() {
                                           </span>
                                       </td>
                                       <td className="px-6 py-6">
-                                          <p className="font-black text-[#0a1628] text-lg leading-none mb-1">{team.nome}</p>
+                                          <div className="leading-tight block font-black text-[#0a1628] text-lg mb-1">
+                                            {splitNames(team.nome).map(formatPlayerName).map((player, pIdx) => (
+                                              <span key={pIdx} className="block truncate max-w-[200px]">
+                                                {player}
+                                              </span>
+                                            ))}
+                                          </div>
                                       </td>
                                       <td className="px-4 py-6 text-center font-black text-green-600">{team.vinte}</td>
                                       <td className="px-4 py-6 text-center font-bold text-gray-600">{team.puntiFatti}</td>

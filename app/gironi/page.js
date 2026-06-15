@@ -5,6 +5,44 @@ import { useState, useEffect } from "react";
 import { getTornei, getGironi, getBracket } from "@/app/utils/db";
 import { calculateUnifiedRanking } from "@/app/utils/ranking";
 
+const splitNames = (name) => {
+  if (!name) return [""];
+  let parts = [];
+  if (name.includes(" & ")) {
+    parts = name.split(" & ");
+  } else if (name.includes(" / ")) {
+    parts = name.split(" / ");
+  } else if (name.includes(" - ")) {
+    parts = name.split(" - ");
+  } else if (name.includes("/")) {
+    parts = name.split("/");
+  } else {
+    parts = [name];
+  }
+  return parts.map((p) => p.trim());
+};
+
+const formatPlayerName = (fullName) => {
+  if (!fullName) return "";
+  const cleanName = fullName.trim();
+  if (!cleanName) return "";
+  if (
+    cleanName.toLowerCase().startsWith("slot") ||
+    cleanName === "—" ||
+    cleanName.toLowerCase().startsWith("vincente") ||
+    cleanName.toLowerCase().startsWith("perdente") ||
+    cleanName === "TBD"
+  ) {
+    return cleanName;
+  }
+  const parts = cleanName.split(/\s+/);
+  if (parts.length < 2) return cleanName;
+  const firstName = parts[0];
+  const surname = parts.slice(1).join(" ");
+  const initial = firstName.charAt(0).toUpperCase();
+  return `${surname} ${initial}.`;
+};
+
 export default function GironiPubblici() {
   const [tornei, setTornei] = useState([]);
   const [selectedTorneo, setSelectedTorneo] = useState("");
@@ -746,25 +784,8 @@ export default function GironiPubblici() {
       }
     }
 
-    const splitNames = (name) => {
-      if (!name) return [""];
-      let parts = [];
-      if (name.includes(" & ")) {
-        parts = name.split(" & ");
-      } else if (name.includes(" / ")) {
-        parts = name.split(" / ");
-      } else if (name.includes(" - ")) {
-        parts = name.split(" - ");
-      } else if (name.includes("/")) {
-        parts = name.split("/");
-      } else {
-        parts = [name];
-      }
-      return parts.map((p) => p.trim());
-    };
-
-    const namesL = splitNames(teamL);
-    const namesR = splitNames(teamR);
+    const namesL = splitNames(teamL).map(formatPlayerName);
+    const namesR = splitNames(teamR).map(formatPlayerName);
 
     const getFontSizeClass = (namesArray) => {
       const maxL = Math.max(...namesArray.map((n) => n.length));
@@ -962,8 +983,12 @@ export default function GironiPubblici() {
                                         {idx + 1}
                                       </span>
                                     </td>
-                                    <td className="px-2 py-3.5 text-[#0a1628] font-black uppercase tracking-tight truncate max-w-[140px]">
-                                      {team.nome}
+                                    <td className="px-2 py-3.5 text-[#0a1628] font-black uppercase tracking-tight leading-tight">
+                                      {splitNames(team.nome).map(formatPlayerName).map((player, pIdx) => (
+                                        <span key={pIdx} className="block truncate max-w-[140px]">
+                                          {player}
+                                        </span>
+                                      ))}
                                     </td>
                                     <td className="px-2 py-3.5 text-center text-green-600 font-bold">
                                       {team.vinte}
@@ -1142,8 +1167,12 @@ export default function GironiPubblici() {
                                       {idx + 1}
                                     </span>
                                   </td>
-                                  <td className="px-2 py-3.5 text-[#0a1628] font-black uppercase tracking-tight truncate max-w-[140px]">
-                                    {team.nome}
+                                  <td className="px-2 py-3.5 text-[#0a1628] font-black uppercase tracking-tight leading-tight">
+                                    {splitNames(team.nome).map(formatPlayerName).map((player, pIdx) => (
+                                      <span key={pIdx} className="block truncate max-w-[200px]">
+                                        {player}
+                                      </span>
+                                    ))}
                                   </td>
                                   <td className="px-2 py-3.5 text-center">
                                     <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-lg bg-blue-50 text-blue-600 border border-blue-100/50">
@@ -1230,8 +1259,12 @@ export default function GironiPubblici() {
                                             {idx + 1}
                                           </span>
                                         </td>
-                                        <td className="px-2 py-3.5 text-[#0a1628] font-black uppercase tracking-tight truncate max-w-[140px]">
-                                          {team.nome}
+                                        <td className="px-2 py-3.5 text-[#0a1628] font-black uppercase tracking-tight leading-tight">
+                                          {splitNames(team.nome).map(formatPlayerName).map((player, pIdx) => (
+                                            <span key={pIdx} className="block truncate max-w-[140px]">
+                                              {player}
+                                            </span>
+                                          ))}
                                         </td>
                                         <td className="px-2 py-3.5 text-center text-green-600 font-bold">
                                           {team.vinte}
