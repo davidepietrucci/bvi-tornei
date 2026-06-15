@@ -784,8 +784,8 @@ export default function GironiPubblici() {
       }
     }
 
-    const namesL = splitNames(teamL).map(formatPlayerName);
-    const namesR = splitNames(teamR).map(formatPlayerName);
+    const namesL = splitNames(teamL);
+    const namesR = splitNames(teamR);
 
     const getFontSizeClass = (namesArray) => {
       const maxL = Math.max(...namesArray.map((n) => n.length));
