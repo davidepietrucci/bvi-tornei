@@ -801,10 +801,10 @@ export default function GironiPubblici() {
 
     const getFontSizeClass = (namesArray) => {
       const maxL = Math.max(...namesArray.map((n) => n.length));
-      if (maxL > 20) return "text-[11px] sm:text-[13px]";
-      if (maxL > 15) return "text-[12px] sm:text-[14px]";
-      if (maxL > 10) return "text-[13px] sm:text-[15px]";
-      return "text-[14px] sm:text-[16px]";
+      if (maxL > 20) return "text-[13px] sm:text-[15px]";
+      if (maxL > 15) return "text-[14px] sm:text-[16px]";
+      if (maxL > 10) return "text-[15px] sm:text-[17px]";
+      return "text-[16px] sm:text-[18px]";
     };
 
     const fontSizeL = getFontSizeClass(namesL);
@@ -1000,7 +1000,7 @@ export default function GironiPubblici() {
                                         {idx + 1}
                                       </span>
                                     </td>
-                                    <td className="px-2 py-3.5 text-[#0a1628] font-black tracking-tight leading-tight">
+                                    <td className="px-2 py-3.5 text-[#0a1628] font-black tracking-tight leading-tight text-[13px] sm:text-[14px]">
                                       {splitNames(team.nome).map(formatPlayerName).map((player, pIdx) => (
                                         <span key={pIdx} className="block truncate max-w-[140px]">
                                           {player}
@@ -1184,7 +1184,7 @@ export default function GironiPubblici() {
                                       {idx + 1}
                                     </span>
                                   </td>
-                                  <td className="px-2 py-3.5 text-[#0a1628] font-black tracking-tight leading-tight">
+                                  <td className="px-2 py-3.5 text-[#0a1628] font-black tracking-tight leading-tight text-[13px] sm:text-[14px]">
                                     {splitNames(team.nome).map(formatPlayerName).map((player, pIdx) => (
                                       <span key={pIdx} className="block truncate max-w-[200px]">
                                         {player}
@@ -1276,7 +1276,7 @@ export default function GironiPubblici() {
                                             {idx + 1}
                                           </span>
                                         </td>
-                                        <td className="px-2 py-3.5 text-[#0a1628] font-black tracking-tight leading-tight">
+                                        <td className="px-2 py-3.5 text-[#0a1628] font-black tracking-tight leading-tight text-[13px] sm:text-[14px]">
                                           {splitNames(team.nome).map(formatPlayerName).map((player, pIdx) => (
                                             <span key={pIdx} className="block truncate max-w-[140px]">
                                               {player}

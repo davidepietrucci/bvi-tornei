@@ -450,7 +450,7 @@ export default function AtletaClassifica() {
                                 {idx + 1}
                               </span>
                               <div className="min-w-0">
-                                <p className="font-black text-[#0a1628] text-sm tracking-tight truncate flex items-center gap-1.5 flex-wrap">
+                                <p className="font-black text-[#0a1628] text-[15px] sm:text-[16px] tracking-tight truncate flex items-center gap-1.5 flex-wrap">
                                   <span className="leading-tight block">
                                     {splitNames(team.nome).map(formatPlayerName).map((player, pIdx) => (
                                       <span key={pIdx} className="block truncate max-w-[140px]">
@@ -561,7 +561,7 @@ export default function AtletaClassifica() {
                                 {idx + 1}
                               </span>
                               <div className="min-w-0">
-                                <p className="font-black text-[#0a1628] text-sm tracking-tight truncate flex items-center gap-1.5 flex-wrap">
+                                <p className="font-black text-[#0a1628] text-[15px] sm:text-[16px] tracking-tight truncate flex items-center gap-1.5 flex-wrap">
                                   <span className="leading-tight block">
                                     {splitNames(team.nome).map(formatPlayerName).map((player, pIdx) => (
                                       <span key={pIdx} className="block truncate max-w-[140px]">
