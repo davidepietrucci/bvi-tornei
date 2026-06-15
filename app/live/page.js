@@ -694,8 +694,12 @@ export default function PortaleLiveMobile() {
           {/* Team Left */}
           <div className="flex-1 text-right min-w-0 pr-1">
             <span
-              className={`text-xs sm:text-sm font-bold uppercase truncate block ${
-                isWinnerL ? "text-[#0a1628] font-black" : "text-gray-400 font-semibold"
+              className={`text-[11px] sm:text-xs font-bold uppercase break-words leading-tight block ${
+                hasScore && (scoreL > 0 || scoreR > 0)
+                  ? isWinnerL
+                    ? "text-green-700 font-black"
+                    : "text-red-600 font-bold"
+                  : "text-gray-400 font-semibold"
               }`}
             >
               {teamL}
@@ -725,8 +729,12 @@ export default function PortaleLiveMobile() {
           {/* Team Right */}
           <div className="flex-1 text-left min-w-0 pl-1">
             <span
-              className={`text-xs sm:text-sm font-bold uppercase truncate block ${
-                isWinnerR ? "text-[#0a1628] font-black" : "text-gray-400 font-semibold"
+              className={`text-[11px] sm:text-xs font-bold uppercase break-words leading-tight block ${
+                hasScore && (scoreL > 0 || scoreR > 0)
+                  ? isWinnerR
+                    ? "text-green-700 font-black"
+                    : "text-red-600 font-bold"
+                  : "text-gray-400 font-semibold"
               }`}
             >
               {teamR}
