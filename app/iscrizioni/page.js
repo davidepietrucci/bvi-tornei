@@ -86,6 +86,11 @@ export default function Iscrizioni() {
     if (name === "torneo") {
       const selectedTorneo = torneiAperti.find(t => t.nome === value);
       updateActiveModulo(selectedTorneo, moduli);
+      // Aggiorna l'URL nel browser senza ricaricare la pagina
+      const newUrl = value
+        ? `/iscrizioni?tour=${encodeURIComponent(value)}`
+        : `/iscrizioni`;
+      window.history.replaceState(null, "", newUrl);
     }
   };
 
@@ -234,7 +239,12 @@ export default function Iscrizioni() {
         </div>
         <nav className="flex gap-4 items-center">
           <a href="/" className="hover:underline font-medium text-white">Home</a>
-          <a href="/gironi" className="hover:underline font-medium text-white">Gironi</a>
+          <a
+            href={formData.torneo ? `/gironi?tour=${encodeURIComponent(formData.torneo)}` : "/gironi"}
+            className="hover:underline font-medium text-white"
+          >
+            Gironi{formData.torneo ? ` — ${formData.torneo}` : ""}
+          </a>
           <a href="/classifica" className="hover:underline font-medium text-white">Classifica</a>
         </nav>
       </header>
