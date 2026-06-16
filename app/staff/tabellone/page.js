@@ -132,6 +132,8 @@ function TabelloneContent() {
   const [numSilverGironiOpt, setNumSilverGironiOpt] = useState(0); // 0 = Auto
   const [teamsPerSilverGirone, setTeamsPerSilverGirone] = useState(4);
   const [groupCompositionMethod, setGroupCompositionMethod] = useState("girone"); // "girone" or "classifica"
+  const [teamsToGold, setTeamsToGold] = useState(8);
+  const [teamsToSilver, setTeamsToSilver] = useState(8);
 
   let goldSlots = 0;
   let silverSlots = 0;
@@ -184,10 +186,14 @@ function TabelloneContent() {
         setNumSilverGironiOpt(config.numSilverGironi || 0);
         setTeamsPerSilverGirone(config.teamsPerSilverGirone || 4);
         setGroupCompositionMethod(config.groupCompositionMethod || "girone");
+        setTeamsToGold(config.teamsToGold || 8);
+        setTeamsToSilver(config.teamsToSilver || 8);
       } else {
         setPhaseType("gold_silver"); setSubPhaseType("direct"); setBracketSize(8); setBracketAssignments({}); setBracketMetadata({});
         setNumGoldGironiOpt(0); setTeamsPerGoldGirone(4); setNumSilverGironiOpt(0); setTeamsPerSilverGirone(4);
         setGroupCompositionMethod("girone");
+        setTeamsToGold(8);
+        setTeamsToSilver(8);
       }
       setIsLoaded(true);
     });
@@ -207,7 +213,9 @@ function TabelloneContent() {
       teamsPerGoldGirone,
       numSilverGironi: numSilverGironiOpt,
       teamsPerSilverGirone,
-      groupCompositionMethod
+      groupCompositionMethod,
+      teamsToGold,
+      teamsToSilver
     };
     
     // Save to localStorage immediately
@@ -219,7 +227,7 @@ function TabelloneContent() {
     }, 1000);
 
     return () => clearTimeout(handler);
-  }, [phaseType, subPhaseType, bracketSize, bracketAssignments, bracketMetadata, selectedTorneo, isLoaded, numGoldGironiOpt, teamsPerGoldGirone, numSilverGironiOpt, teamsPerSilverGirone, groupCompositionMethod]);
+  }, [phaseType, subPhaseType, bracketSize, bracketAssignments, bracketMetadata, selectedTorneo, isLoaded, numGoldGironiOpt, teamsPerGoldGirone, numSilverGironiOpt, teamsPerSilverGirone, groupCompositionMethod, teamsToGold, teamsToSilver]);
 
 
   const getTeamsCountForGroup = (groupKey) => {
@@ -388,11 +396,23 @@ function TabelloneContent() {
     if (phaseType === "gold_silver" && subPhaseType === "direct") {
       ["gold", "silver"].forEach(p => {
           const hasOttavi = bracketAssignments[`${p}-o1-L`] !== undefined;
+          const is16Teams = bracketAssignments[`${p}-o5-L`] !== undefined;
           if (hasOttavi) {
-              update(`${p}-q1-R`, resolveWinner(`${p}-o4`));
-              update(`${p}-q2-R`, resolveWinner(`${p}-o3`));
-              update(`${p}-q3-R`, resolveWinner(`${p}-o2`));
-              update(`${p}-q4-R`, resolveWinner(`${p}-o1`));
+              if (is16Teams) {
+                  update(`${p}-q1-L`, resolveWinner(`${p}-o1`));
+                  update(`${p}-q1-R`, resolveWinner(`${p}-o2`));
+                  update(`${p}-q2-L`, resolveWinner(`${p}-o3`));
+                  update(`${p}-q2-R`, resolveWinner(`${p}-o4`));
+                  update(`${p}-q3-L`, resolveWinner(`${p}-o5`));
+                  update(`${p}-q3-R`, resolveWinner(`${p}-o6`));
+                  update(`${p}-q4-L`, resolveWinner(`${p}-o7`));
+                  update(`${p}-q4-R`, resolveWinner(`${p}-o8`));
+              } else {
+                  update(`${p}-q1-R`, resolveWinner(`${p}-o4`));
+                  update(`${p}-q2-R`, resolveWinner(`${p}-o3`));
+                  update(`${p}-q3-R`, resolveWinner(`${p}-o2`));
+                  update(`${p}-q4-R`, resolveWinner(`${p}-o1`));
+              }
           }
           update(`${p}-s1-L`, resolveWinner(`${p}-q1`));
           update(`${p}-s1-R`, resolveWinner(`${p}-q2`));
@@ -706,80 +726,110 @@ function TabelloneContent() {
         };
 
         if (phaseType === "gold_silver" && subPhaseType === "direct") {
-          if (numGironi === 5 || numGironi === 6 || totalSlots === 20 || totalSlots === 24) {
-            setBracketSize(8);
+          const buildGoldDirect = (count) => {
+            if (count === 4) {
+              setBracketSize(4);
+              newAssignments['gold-s1-L'] = getTeamByRank(0);
+              newAssignments['gold-s1-R'] = getTeamByRank(3);
+              newAssignments['gold-s2-L'] = getTeamByRank(1);
+              newAssignments['gold-s2-R'] = getTeamByRank(2);
+            } else if (count === 8) {
+              setBracketSize(8);
+              newAssignments['gold-q1-L'] = getTeamByRank(0);
+              newAssignments['gold-q1-R'] = getTeamByRank(7);
+              newAssignments['gold-q2-L'] = getTeamByRank(3);
+              newAssignments['gold-q2-R'] = getTeamByRank(4);
+              newAssignments['gold-q3-L'] = getTeamByRank(1);
+              newAssignments['gold-q3-R'] = getTeamByRank(6);
+              newAssignments['gold-q4-L'] = getTeamByRank(2);
+              newAssignments['gold-q4-R'] = getTeamByRank(5);
+            } else if (count === 12) {
+              setBracketSize(8);
+              newAssignments['gold-q1-L'] = getTeamByRank(0);
+              newAssignments['gold-q2-L'] = getTeamByRank(1);
+              newAssignments['gold-q3-L'] = getTeamByRank(2);
+              newAssignments['gold-q4-L'] = getTeamByRank(3);
 
-            // Gold Assignments (top 12 teams)
-            newAssignments['gold-q1-L'] = getTeamByRank(0); // 1°
-            newAssignments['gold-q2-L'] = getTeamByRank(1); // 2°
-            newAssignments['gold-q3-L'] = getTeamByRank(2); // 3°
-            newAssignments['gold-q4-L'] = getTeamByRank(3); // 4°
-
-            newAssignments['gold-o1-L'] = getTeamByRank(4);  // 5°
-            newAssignments['gold-o1-R'] = getTeamByRank(11); // 12°
-            newAssignments['gold-o2-L'] = getTeamByRank(5);  // 6°
-            newAssignments['gold-o2-R'] = getTeamByRank(10); // 11°
-            newAssignments['gold-o3-L'] = getTeamByRank(6);  // 7°
-            newAssignments['gold-o3-R'] = getTeamByRank(9);  // 10°
-            newAssignments['gold-o4-L'] = getTeamByRank(7);  // 8°
-            newAssignments['gold-o4-R'] = getTeamByRank(8);  // 9°
-
-            if (numGironi === 5 || totalSlots === 20) {
-              // Silver has 8 teams (direct Quarti)
-              newAssignments['silver-q1-L'] = getTeamByRank(12); // 13°
-              newAssignments['silver-q1-R'] = getTeamByRank(19); // 20°
-              newAssignments['silver-q2-L'] = getTeamByRank(13); // 14°
-              newAssignments['silver-q2-R'] = getTeamByRank(18); // 19°
-              newAssignments['silver-q3-L'] = getTeamByRank(14); // 15°
-              newAssignments['silver-q3-R'] = getTeamByRank(17); // 18°
-              newAssignments['silver-q4-L'] = getTeamByRank(15); // 16°
-              newAssignments['silver-q4-R'] = getTeamByRank(16); // 17°
-            } else {
-              // Silver has 12 teams (Ottavi + Quarti)
-              newAssignments['silver-q1-L'] = getTeamByRank(12); // 13°
-              newAssignments['silver-q2-L'] = getTeamByRank(13); // 14°
-              newAssignments['silver-q3-L'] = getTeamByRank(14); // 15°
-              newAssignments['silver-q4-L'] = getTeamByRank(15); // 16°
-
-              newAssignments['silver-o1-L'] = getTeamByRank(16); // 17°
-              newAssignments['silver-o1-R'] = getTeamByRank(23); // 24°
-              newAssignments['silver-o2-L'] = getTeamByRank(17); // 18°
-              newAssignments['silver-o2-R'] = getTeamByRank(22); // 23°
-              newAssignments['silver-o3-L'] = getTeamByRank(18); // 19°
-              newAssignments['silver-o3-R'] = getTeamByRank(21); // 22°
-              newAssignments['silver-o4-L'] = getTeamByRank(19); // 20°
-              newAssignments['silver-o4-R'] = getTeamByRank(20); // 21°
+              newAssignments['gold-o1-L'] = getTeamByRank(4);
+              newAssignments['gold-o1-R'] = getTeamByRank(11);
+              newAssignments['gold-o2-L'] = getTeamByRank(5);
+              newAssignments['gold-o2-R'] = getTeamByRank(10);
+              newAssignments['gold-o3-L'] = getTeamByRank(6);
+              newAssignments['gold-o3-R'] = getTeamByRank(9);
+              newAssignments['gold-o4-L'] = getTeamByRank(7);
+              newAssignments['gold-o4-R'] = getTeamByRank(8);
+            } else if (count === 16) {
+              setBracketSize(16);
+              newAssignments['gold-o1-L'] = getTeamByRank(0);
+              newAssignments['gold-o1-R'] = getTeamByRank(15);
+              newAssignments['gold-o2-L'] = getTeamByRank(7);
+              newAssignments['gold-o2-R'] = getTeamByRank(8);
+              newAssignments['gold-o3-L'] = getTeamByRank(3);
+              newAssignments['gold-o3-R'] = getTeamByRank(12);
+              newAssignments['gold-o4-L'] = getTeamByRank(4);
+              newAssignments['gold-o4-R'] = getTeamByRank(11);
+              newAssignments['gold-o5-L'] = getTeamByRank(1);
+              newAssignments['gold-o5-R'] = getTeamByRank(14);
+              newAssignments['gold-o6-L'] = getTeamByRank(6);
+              newAssignments['gold-o6-R'] = getTeamByRank(9);
+              newAssignments['gold-o7-L'] = getTeamByRank(2);
+              newAssignments['gold-o7-R'] = getTeamByRank(13);
+              newAssignments['gold-o8-L'] = getTeamByRank(5);
+              newAssignments['gold-o8-R'] = getTeamByRank(10);
             }
-          } else if (numGironi === 2) {
-            setBracketSize(4);
-            newAssignments['gold-s1-L'] = getTeamByRank(0);
-            newAssignments['gold-s1-R'] = getTeamByRank(3);
-            newAssignments['gold-s2-L'] = getTeamByRank(1);
-            newAssignments['gold-s2-R'] = getTeamByRank(2);
-            newAssignments['silver-s1-L'] = getTeamByRank(4);
-            newAssignments['silver-s1-R'] = getTeamByRank(7);
-            newAssignments['silver-s2-L'] = getTeamByRank(5);
-            newAssignments['silver-s2-R'] = getTeamByRank(6);
-          } else if (numGironi === 4) {
-            setBracketSize(8);
-            newAssignments['gold-q1-L'] = getTeamByRank(0);
-            newAssignments['gold-q1-R'] = getTeamByRank(7);
-            newAssignments['gold-q2-L'] = getTeamByRank(3);
-            newAssignments['gold-q2-R'] = getTeamByRank(4);
-            newAssignments['gold-q3-L'] = getTeamByRank(1);
-            newAssignments['gold-q3-R'] = getTeamByRank(6);
-            newAssignments['gold-q4-L'] = getTeamByRank(2);
-            newAssignments['gold-q4-R'] = getTeamByRank(5);
+          };
 
-            newAssignments['silver-q1-L'] = getTeamByRank(8);
-            newAssignments['silver-q1-R'] = getTeamByRank(15);
-            newAssignments['silver-q2-L'] = getTeamByRank(11);
-            newAssignments['silver-q2-R'] = getTeamByRank(12);
-            newAssignments['silver-q3-L'] = getTeamByRank(9);
-            newAssignments['silver-q3-R'] = getTeamByRank(14);
-            newAssignments['silver-q4-L'] = getTeamByRank(10);
-            newAssignments['silver-q4-R'] = getTeamByRank(13);
-          }
+          const buildSilverDirect = (count, goldOffset) => {
+            if (count === 4) {
+              newAssignments['silver-s1-L'] = getTeamByRank(goldOffset + 0);
+              newAssignments['silver-s1-R'] = getTeamByRank(goldOffset + 3);
+              newAssignments['silver-s2-L'] = getTeamByRank(goldOffset + 1);
+              newAssignments['silver-s2-R'] = getTeamByRank(goldOffset + 2);
+            } else if (count === 8) {
+              newAssignments['silver-q1-L'] = getTeamByRank(goldOffset + 0);
+              newAssignments['silver-q1-R'] = getTeamByRank(goldOffset + 7);
+              newAssignments['silver-q2-L'] = getTeamByRank(goldOffset + 3);
+              newAssignments['silver-q2-R'] = getTeamByRank(goldOffset + 4);
+              newAssignments['silver-q3-L'] = getTeamByRank(goldOffset + 1);
+              newAssignments['silver-q3-R'] = getTeamByRank(goldOffset + 6);
+              newAssignments['silver-q4-L'] = getTeamByRank(goldOffset + 2);
+              newAssignments['silver-q4-R'] = getTeamByRank(goldOffset + 5);
+            } else if (count === 12) {
+              newAssignments['silver-q1-L'] = getTeamByRank(goldOffset + 0);
+              newAssignments['silver-q2-L'] = getTeamByRank(goldOffset + 1);
+              newAssignments['silver-q3-L'] = getTeamByRank(goldOffset + 2);
+              newAssignments['silver-q4-L'] = getTeamByRank(goldOffset + 3);
+
+              newAssignments['silver-o1-L'] = getTeamByRank(goldOffset + 4);
+              newAssignments['silver-o1-R'] = getTeamByRank(goldOffset + 11);
+              newAssignments['silver-o2-L'] = getTeamByRank(goldOffset + 5);
+              newAssignments['silver-o2-R'] = getTeamByRank(goldOffset + 10);
+              newAssignments['silver-o3-L'] = getTeamByRank(goldOffset + 6);
+              newAssignments['silver-o3-R'] = getTeamByRank(goldOffset + 9);
+              newAssignments['silver-o4-L'] = getTeamByRank(goldOffset + 7);
+              newAssignments['silver-o4-R'] = getTeamByRank(goldOffset + 8);
+            } else if (count === 16) {
+              newAssignments['silver-o1-L'] = getTeamByRank(goldOffset + 0);
+              newAssignments['silver-o1-R'] = getTeamByRank(goldOffset + 15);
+              newAssignments['silver-o2-L'] = getTeamByRank(goldOffset + 7);
+              newAssignments['silver-o2-R'] = getTeamByRank(goldOffset + 8);
+              newAssignments['silver-o3-L'] = getTeamByRank(goldOffset + 3);
+              newAssignments['silver-o3-R'] = getTeamByRank(goldOffset + 12);
+              newAssignments['silver-o4-L'] = getTeamByRank(goldOffset + 4);
+              newAssignments['silver-o4-R'] = getTeamByRank(goldOffset + 11);
+              newAssignments['silver-o5-L'] = getTeamByRank(goldOffset + 1);
+              newAssignments['silver-o5-R'] = getTeamByRank(goldOffset + 14);
+              newAssignments['silver-o6-L'] = getTeamByRank(goldOffset + 6);
+              newAssignments['silver-o6-R'] = getTeamByRank(goldOffset + 9);
+              newAssignments['silver-o7-L'] = getTeamByRank(goldOffset + 2);
+              newAssignments['silver-o7-R'] = getTeamByRank(goldOffset + 13);
+              newAssignments['silver-o8-L'] = getTeamByRank(goldOffset + 5);
+              newAssignments['silver-o8-R'] = getTeamByRank(goldOffset + 10);
+            }
+          };
+
+          buildGoldDirect(teamsToGold);
+          buildSilverDirect(teamsToSilver, teamsToGold);
         } else if (phaseType === "double") {
           if (numGironi === 2) {
             setBracketSize(4);
@@ -843,7 +893,9 @@ function TabelloneContent() {
       teamsPerGoldGirone,
       numSilverGironi: numSilverGironiOpt,
       teamsPerSilverGirone,
-      groupCompositionMethod
+      groupCompositionMethod,
+      teamsToGold,
+      teamsToSilver
     };
     localStorage.setItem(`bvi_bracket_v1_${slug}`, JSON.stringify(config));
     await saveBracket(slug, config);
@@ -868,12 +920,51 @@ function TabelloneContent() {
   };
 
   const handleMetadataChange = (matchId, field, value) => {
-    setBracketMetadata(prev => ({ ...prev, [matchId]: { ...(prev[matchId] || {}), [field]: value } }));
+    setBracketMetadata(prev => {
+      const currentMeta = { ...(prev[matchId] || {}), [field]: value };
+      const isMultiSet = (matchId.startsWith("gold-") || matchId.startsWith("silver-")) && (
+        matchId.endsWith("-q1") || matchId.endsWith("-q2") || matchId.endsWith("-q3") || matchId.endsWith("-q4") ||
+        matchId.endsWith("-s1") || matchId.endsWith("-s2") ||
+        matchId.endsWith("-f1") || matchId.endsWith("-f3")
+      );
+      if (isMultiSet && ['s1L', 's1R', 's2L', 's2R', 's3L', 's3R'].includes(field)) {
+        const getSetWinner = (sL, sR) => {
+          if (sL === undefined || sL === "" || sR === undefined || sR === "") return null;
+          const pL = parseInt(sL);
+          const pR = parseInt(sR);
+          if (isNaN(pL) || isNaN(pR)) return null;
+          return pL > pR ? 'L' : pL < pR ? 'R' : null;
+        };
+
+        let winL = 0;
+        let winR = 0;
+        
+        const w1 = getSetWinner(currentMeta.s1L, currentMeta.s1R);
+        if (w1 === 'L') winL++; else if (w1 === 'R') winR++;
+        
+        const w2 = getSetWinner(currentMeta.s2L, currentMeta.s2R);
+        if (w2 === 'L') winL++; else if (w2 === 'R') winR++;
+        
+        const w3 = getSetWinner(currentMeta.s3L, currentMeta.s3R);
+        if (w3 === 'L') winL++; else if (w3 === 'R') winR++;
+        
+        currentMeta.scoreL = (winL > 0 || winR > 0) ? winL.toString() : "";
+        currentMeta.scoreR = (winL > 0 || winR > 0) ? winR.toString() : "";
+      }
+      return { ...prev, [matchId]: currentMeta };
+    });
   };
 
   const renderMatch = (matchId, label, color = "blue") => {
     const meta = bracketMetadata[matchId] || {};
     const borderClass = color === "gold" ? "hover:border-yellow-500" : color === "silver" ? "hover:border-gray-400" : "hover:border-blue-600";
+    
+    const isMultiSetMatch = (matchId.startsWith("gold-") || matchId.startsWith("silver-")) && (
+      matchId.endsWith("-q1") || matchId.endsWith("-q2") || matchId.endsWith("-q3") || matchId.endsWith("-q4") ||
+      matchId.endsWith("-s1") || matchId.endsWith("-s2") ||
+      matchId.endsWith("-f1") || matchId.endsWith("-f3")
+    );
+
     return (
       <div className={`bg-white border-2 border-gray-100 rounded-2xl p-4 shadow-sm group ${borderClass} transition-all min-w-[200px]`}>
         <div className="flex justify-between items-center mb-3">
@@ -899,7 +990,14 @@ function TabelloneContent() {
               }}
               className="flex-1 text-xs font-bold border-b border-gray-100 outline-none py-1 bg-white text-gray-900" 
             />
-            <input type="text" placeholder="-" value={meta.scoreL || ""} onChange={(e) => handleMetadataChange(matchId, 'scoreL', e.target.value)} className="w-8 h-8 bg-gray-50 text-gray-900 rounded text-center text-xs font-black focus:bg-[#0a1628] focus:text-white" />
+            <input 
+              type="text" 
+              placeholder="-" 
+              value={meta.scoreL || ""} 
+              onChange={(e) => !isMultiSetMatch && handleMetadataChange(matchId, 'scoreL', e.target.value)} 
+              readOnly={isMultiSetMatch}
+              className={`w-8 h-8 rounded text-center text-xs font-black focus:outline-none ${isMultiSetMatch ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-50 text-gray-900 focus:bg-[#0a1628] focus:text-white'}`} 
+            />
           </div>
           <div className="flex items-center gap-2">
             <input 
@@ -916,9 +1014,39 @@ function TabelloneContent() {
               }}
               className="flex-1 text-xs font-bold border-b border-gray-100 outline-none py-1 bg-white text-gray-900" 
             />
-            <input type="text" placeholder="-" value={meta.scoreR || ""} onChange={(e) => handleMetadataChange(matchId, 'scoreR', e.target.value)} className="w-8 h-8 bg-gray-50 text-gray-900 rounded text-center text-xs font-black focus:bg-[#0a1628] focus:text-white" />
+            <input 
+              type="text" 
+              placeholder="-" 
+              value={meta.scoreR || ""} 
+              onChange={(e) => !isMultiSetMatch && handleMetadataChange(matchId, 'scoreR', e.target.value)} 
+              readOnly={isMultiSetMatch}
+              className={`w-8 h-8 rounded text-center text-xs font-black focus:outline-none ${isMultiSetMatch ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-50 text-gray-900 focus:bg-[#0a1628] focus:text-white'}`} 
+            />
           </div>
         </div>
+        
+        {isMultiSetMatch && (
+          <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
+            <div className="grid grid-cols-4 gap-1 items-center text-center text-[9px] font-black text-gray-400 uppercase tracking-wider">
+              <div>Set</div>
+              <div>S1</div>
+              <div>S2</div>
+              <div>S3</div>
+            </div>
+            <div className="grid grid-cols-4 gap-1 items-center">
+              <span className="text-[9px] font-bold text-gray-500 truncate text-center">A</span>
+              <input type="text" placeholder="0" value={meta.s1L || ""} onChange={(e) => handleMetadataChange(matchId, 's1L', e.target.value)} className="w-full text-center text-[11px] border border-gray-200 rounded py-0.5 focus:outline-none bg-gray-50 text-gray-900 font-bold" />
+              <input type="text" placeholder="0" value={meta.s2L || ""} onChange={(e) => handleMetadataChange(matchId, 's2L', e.target.value)} className="w-full text-center text-[11px] border border-gray-200 rounded py-0.5 focus:outline-none bg-gray-50 text-gray-900 font-bold" />
+              <input type="text" placeholder="0" value={meta.s3L || ""} onChange={(e) => handleMetadataChange(matchId, 's3L', e.target.value)} className="w-full text-center text-[11px] border border-gray-200 rounded py-0.5 focus:outline-none bg-gray-50 text-gray-900 font-bold" />
+            </div>
+            <div className="grid grid-cols-4 gap-1 items-center">
+              <span className="text-[9px] font-bold text-gray-500 truncate text-center">B</span>
+              <input type="text" placeholder="0" value={meta.s1R || ""} onChange={(e) => handleMetadataChange(matchId, 's1R', e.target.value)} className="w-full text-center text-[11px] border border-gray-200 rounded py-0.5 focus:outline-none bg-gray-50 text-gray-900 font-bold" />
+              <input type="text" placeholder="0" value={meta.s2R || ""} onChange={(e) => handleMetadataChange(matchId, 's2R', e.target.value)} className="w-full text-center text-[11px] border border-gray-200 rounded py-0.5 focus:outline-none bg-gray-50 text-gray-900 font-bold" />
+              <input type="text" placeholder="0" value={meta.s3R || ""} onChange={(e) => handleMetadataChange(matchId, 's3R', e.target.value)} className="w-full text-center text-[11px] border border-gray-200 rounded py-0.5 focus:outline-none bg-gray-50 text-gray-900 font-bold" />
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -1149,7 +1277,7 @@ function TabelloneContent() {
         {isLoaded && torneiAttivi.length > 0 && phaseType === "gold_silver" && (
           <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-xl mb-8 flex flex-col md:flex-row gap-6 items-stretch md:items-center justify-between">
             <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-6">
-              {subPhaseType === "groups" && (
+              {subPhaseType === "groups" ? (
                 <>
                   {/* Gold Config */}
                   <div className="space-y-2">
@@ -1219,12 +1347,50 @@ function TabelloneContent() {
                     </div>
                   </div>
                 </>
+              ) : (
+                <>
+                  {/* Teams to Gold Config */}
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-black text-yellow-600 uppercase tracking-widest block">Squadre al Gold</span>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-gray-400 uppercase">Avanzano al Gold</label>
+                      <select 
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] cursor-pointer"
+                        value={teamsToGold}
+                        onChange={(e) => setTeamsToGold(parseInt(e.target.value))}
+                      >
+                        <option value={4}>4 Squadre (Semifinali)</option>
+                        <option value={8}>8 Squadre (Quarti)</option>
+                        <option value={12}>12 Squadre (4 Ottavi + 4 Bye)</option>
+                        <option value={16}>16 Squadre (8 Ottavi)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Teams to Silver Config */}
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest block">Squadre al Silver</span>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-gray-400 uppercase">Avanzano al Silver</label>
+                      <select 
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] cursor-pointer"
+                        value={teamsToSilver}
+                        onChange={(e) => setTeamsToSilver(parseInt(e.target.value))}
+                      >
+                        <option value={4}>4 Squadre (Semifinali)</option>
+                        <option value={8}>8 Squadre (Quarti)</option>
+                        <option value={12}>12 Squadre (4 Ottavi + 4 Bye)</option>
+                        <option value={16}>16 Squadre (8 Ottavi)</option>
+                      </select>
+                    </div>
+                  </div>
+                </>
               )}
 
               {/* Composition Method Config */}
-              <div className={subPhaseType === "groups" ? "space-y-2" : "space-y-2 col-span-1 sm:col-span-3"}>
+              <div className="space-y-2">
                 <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest block">Metodo Composizione</span>
-                <div className="space-y-1 max-w-xs">
+                <div className="space-y-1">
                   <label className="text-[9px] font-bold text-gray-400 uppercase">
                     {subPhaseType === "groups" ? "Composizione Gironi" : "Composizione Tabellone"}
                   </label>

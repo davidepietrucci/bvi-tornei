@@ -294,15 +294,152 @@ export default function AtletaGironi() {
     const metadata = bracketConfig.bracketMetadata || {};
     const isGroups = bracketConfig?.subPhaseType === "groups";
 
-    const matchIds = Object.keys(assignments)
-      .map(k => k.replace(/-L$|-R$/, ''))
-      .filter((v, i, a) => a.indexOf(v) === i)
-      .filter(mid => {
-        if (isGroups) {
-          return mid.endsWith("-s1") || mid.endsWith("-s2") || mid.endsWith("-f1") || mid.endsWith("-f3");
+    const isMatchCompleted = (matchId) => {
+      const left = assignments[`${matchId}-L`];
+      const right = assignments[`${matchId}-R`];
+      if (!left && !right) return false;
+      if (left === "—" || right === "—") return true;
+      if (!left || !right || left.startsWith("TBD") || right.startsWith("TBD")) return false;
+      if (left === "Slot Libero" || right === "Slot Libero") return false;
+      const meta = metadata[matchId] || {};
+      return meta.scoreL !== undefined && meta.scoreL !== "" && meta.scoreR !== undefined && meta.scoreR !== "";
+    };
+
+    const isRoundCompleted = (matchIds) => {
+      return matchIds.every(id => isMatchCompleted(id));
+    };
+
+    const getRoundRobinPairs = (numTeams) => {
+      if (!numTeams || numTeams < 2) return [];
+      const pairs = [];
+      for (let i = 0; i < numTeams; i++) {
+        for (let j = i + 1; j < numTeams; j++) {
+          pairs.push({ l: i, r: j });
         }
-        return !mid.includes("-A-") && !mid.includes("-B-") && !mid.match(/-(?:A|B)-\d/) && !mid.match(/-(?:A|B)-m\d/);
-      });
+      }
+      return pairs;
+    };
+
+    const areIntermediateGroupsCompleted = (prefix, numGroups, teamsPerGroup) => {
+      for (let g = 0; g < numGroups; g++) {
+        const letter = String.fromCharCode(65 + g);
+        const groupKey = `${prefix}-${letter}`;
+        const numTeams = teamsPerGroup || 4;
+        const pairs = getRoundRobinPairs(numTeams);
+        for (let m = 0; m < pairs.length; m++) {
+          const pair = pairs[m];
+          const teamL = assignments[`${groupKey}-${pair.l}`];
+          const teamR = assignments[`${groupKey}-${pair.r}`];
+          if (!teamL || teamL === "—" || teamL === "Slot Libero" || !teamR || teamR === "—" || teamR === "Slot Libero") {
+            continue;
+          }
+          const matchId = `${groupKey}-m${m}`;
+          const meta = metadata[matchId] || {};
+          const hasScore = meta.scoreL !== undefined && meta.scoreL !== "" && meta.scoreR !== undefined && meta.scoreR !== "";
+          if (!hasScore) return false;
+        }
+      }
+      return true;
+    };
+
+    // Filtra quali ID partita sono attualmente visibili
+    const visibleMatchIds = [];
+    if (bracketConfig.phaseType === "gold_silver") {
+      if (isGroups) {
+        // --- GROUPS FLOW ---
+        let goldSlots = 0;
+        let silverSlots = 0;
+        if (config && config.numGironi) {
+          for (let i = 0; i < config.numGironi; i++) {
+            const gid = String.fromCharCode(65 + i);
+            const count = config.teamCounts?.[gid] || 0;
+            goldSlots += Math.min(2, count);
+            silverSlots += Math.min(2, Math.max(0, count - 2));
+          }
+        }
+        const autoNumGoldGironi = goldSlots > 4 ? 2 : 1;
+        const autoNumSilverGironi = silverSlots > 4 ? 2 : 1;
+
+        const numGoldGironi = bracketConfig.numGoldGironi !== undefined && bracketConfig.numGoldGironi !== 0 ? bracketConfig.numGoldGironi : autoNumGoldGironi;
+        const numSilverGironi = bracketConfig.numSilverGironi !== undefined && bracketConfig.numSilverGironi !== 0 ? bracketConfig.numSilverGironi : autoNumSilverGironi;
+        const teamsPerGoldGirone = bracketConfig.teamsPerGoldGirone || 4;
+        const teamsPerSilverGirone = bracketConfig.teamsPerSilverGirone || 4;
+
+        const goldGroupsDone = areIntermediateGroupsCompleted("gold", numGoldGironi, teamsPerGoldGirone);
+        const goldSemifinalsDone = isRoundCompleted(["gold-s1", "gold-s2"]);
+
+        const silverGroupsDone = areIntermediateGroupsCompleted("silver", numSilverGironi, teamsPerSilverGirone);
+        const silverSemifinalsDone = isRoundCompleted(["silver-s1", "silver-s2"]);
+
+        if (goldGroupsDone) visibleMatchIds.push("gold-s1", "gold-s2");
+        if (goldGroupsDone && goldSemifinalsDone) visibleMatchIds.push("gold-f3", "gold-f1");
+        if (silverGroupsDone) visibleMatchIds.push("silver-s1", "silver-s2");
+        if (silverGroupsDone && silverSemifinalsDone) visibleMatchIds.push("silver-f3", "silver-f1");
+      } else {
+        const tToGold = bracketConfig.teamsToGold || 8;
+        const tToSilver = bracketConfig.teamsToSilver || 8;
+
+        // Gold
+        const goldOttavi = tToGold === 16 
+          ? ["gold-o1", "gold-o2", "gold-o3", "gold-o4", "gold-o5", "gold-o6", "gold-o7", "gold-o8"]
+          : tToGold === 12 
+          ? ["gold-o1", "gold-o2", "gold-o3", "gold-o4"]
+          : [];
+        const goldQuarti = ["gold-q1", "gold-q2", "gold-q3", "gold-q4"];
+        const goldSemifinali = ["gold-s1", "gold-s2"];
+        const goldFinali = ["gold-f3", "gold-f1"];
+
+        const goldOttaviDone = goldOttavi.length === 0 || isRoundCompleted(goldOttavi);
+        const goldQuartiDone = isRoundCompleted(goldQuarti);
+        const goldSemifinaliDone = isRoundCompleted(goldSemifinali);
+
+        if (tToGold === 12 || tToGold === 16) visibleMatchIds.push(...goldOttavi);
+        if (tToGold >= 8 && goldOttaviDone) visibleMatchIds.push(...goldQuarti);
+        if (tToGold === 4 || (tToGold >= 8 && goldOttaviDone && goldQuartiDone)) visibleMatchIds.push(...goldSemifinali);
+        if ((tToGold === 4 && goldSemifinaliDone) || (tToGold >= 8 && goldOttaviDone && goldQuartiDone && goldSemifinaliDone)) visibleMatchIds.push(...goldFinali);
+
+        // Silver
+        const silverOttavi = tToSilver === 16 
+          ? ["silver-o1", "silver-o2", "silver-o3", "silver-o4", "silver-o5", "silver-o6", "silver-o7", "silver-o8"]
+          : tToSilver === 12 
+          ? ["silver-o1", "silver-o2", "silver-o3", "silver-o4"]
+          : [];
+        const silverQuarti = ["silver-q1", "silver-q2", "silver-q3", "silver-q4"];
+        const silverSemifinali = ["silver-s1", "silver-s2"];
+        const silverFinali = ["silver-f3", "silver-f1"];
+
+        const silverOttaviDone = silverOttavi.length === 0 || isRoundCompleted(silverOttavi);
+        const silverQuartiDone = isRoundCompleted(silverQuarti);
+        const silverSemifinaliDone = isRoundCompleted(silverSemifinali);
+
+        if (tToSilver === 12 || tToSilver === 16) visibleMatchIds.push(...silverOttavi);
+        if (tToSilver >= 8 && silverOttaviDone) visibleMatchIds.push(...silverQuarti);
+        if (tToSilver === 4 || (tToSilver >= 8 && silverOttaviDone && silverQuartiDone)) visibleMatchIds.push(...silverSemifinali);
+        if ((tToSilver === 4 && silverSemifinaliDone) || (tToSilver >= 8 && silverOttaviDone && silverQuartiDone && silverSemifinaliDone)) visibleMatchIds.push(...silverFinali);
+      }
+    } else {
+      // Doppia Eliminazione
+      const wbQuarti = ["wb-q1", "wb-q2", "wb-q3", "wb-q4"];
+      const wbSemifinali = ["wb-s1", "wb-s2"];
+      const wbFinale = ["wb-f"];
+      const lbSemifinali = ["lb-s1", "lb-s2"];
+      const lbFinale = ["lb-f"];
+
+      const wbQuartiDone = bracketConfig.bracketSize !== 8 || isRoundCompleted(wbQuarti);
+      const wbSemifinaliDone = isRoundCompleted(wbSemifinali);
+      const wbFinaleDone = isRoundCompleted(wbFinale);
+      const lbSemifinaliDone = isRoundCompleted(lbSemifinali);
+      const lbFinaleDone = isRoundCompleted(lbFinale);
+
+      if (bracketConfig.bracketSize === 8) visibleMatchIds.push(...wbQuarti);
+      if (wbQuartiDone) visibleMatchIds.push(...wbSemifinali);
+      if (wbQuartiDone && wbSemifinaliDone) {
+        visibleMatchIds.push(...wbFinale);
+        visibleMatchIds.push(...lbSemifinali);
+      }
+      if (wbQuartiDone && wbSemifinaliDone && lbSemifinaliDone) visibleMatchIds.push(...lbFinale);
+      if (wbQuartiDone && wbSemifinaliDone && lbSemifinaliDone && wbFinaleDone && lbFinaleDone) visibleMatchIds.push("grand-final");
+    }
 
     const getSortOrder = (id) => {
       const parts = id.split('-');
@@ -322,11 +459,15 @@ export default function AtletaGironi() {
       return weight;
     };
 
-    return matchIds
+    return visibleMatchIds
+      .filter(mid => assignments[`${mid}-L`] !== undefined || assignments[`${mid}-R`] !== undefined)
       .sort((a, b) => getSortOrder(a) - getSortOrder(b))
       .map(mid => ({
         id: mid, label: mid.toUpperCase(), left: assignments[`${mid}-L`], right: assignments[`${mid}-R`],
-        scoreL: metadata[mid]?.scoreL, scoreR: metadata[mid]?.scoreR, time: metadata[mid]?.time, court: metadata[mid]?.court
+        scoreL: metadata[mid]?.scoreL, scoreR: metadata[mid]?.scoreR, time: metadata[mid]?.time, court: metadata[mid]?.court,
+        s1L: metadata[mid]?.s1L, s1R: metadata[mid]?.s1R,
+        s2L: metadata[mid]?.s2L, s2R: metadata[mid]?.s2R,
+        s3L: metadata[mid]?.s3L, s3R: metadata[mid]?.s3R,
       }));
   };
 
@@ -794,11 +935,17 @@ export default function AtletaGironi() {
                     {bracketMatches.map((m, idx) => {
                       const scoreL = parseInt(m.scoreL || 0);
                       const scoreR = parseInt(m.scoreR || 0);
-                      const hasScore = m.scoreL || m.scoreR;
+                      const hasScore = m.scoreL !== undefined && m.scoreL !== "";
                       const isWinnerL = hasScore && scoreL > scoreR;
                       const isWinnerR = hasScore && scoreR > scoreL;
 
                       const highlightedMatch = isMe(m.left) || isMe(m.right);
+                      
+                      const isMultiSetMatch = bracketConfig?.phaseType === "gold_silver" && (
+                        m.id.endsWith("-q1") || m.id.endsWith("-q2") || m.id.endsWith("-q3") || m.id.endsWith("-q4") ||
+                        m.id.endsWith("-s1") || m.id.endsWith("-s2") ||
+                        m.id.endsWith("-f1") || m.id.endsWith("-f3")
+                      );
 
                       return (
                         <div key={idx} className={`bg-white rounded-2xl p-4 shadow-sm border ${highlightedMatch ? 'border-[#FFD700] ring-4 ring-[#FFD700]/5' : 'border-gray-100'}`}>
@@ -823,6 +970,11 @@ export default function AtletaGironi() {
                               </span>
                               <span className={`text-sm font-black ${isWinnerR ? 'text-green-600' : 'text-gray-400'}`}>{hasScore ? scoreR : "-"}</span>
                             </div>
+                            {isMultiSetMatch && hasScore && (scoreL > 0 || scoreR > 0) && (
+                              <p className="text-[10px] text-gray-400 font-bold text-right mt-1.5 border-t border-gray-50 pt-1.5">
+                                Set: ({m.s1L || 0}-{m.s1R || 0}, {m.s2L || 0}-{m.s2R || 0}{m.s3L || m.s3R ? `, ${m.s3L || 0}-${m.s3R || 0}` : ''})
+                              </p>
+                            )}
                           </div>
                         </div>
                       );
