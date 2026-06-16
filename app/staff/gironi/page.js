@@ -346,7 +346,86 @@ export default function StaffGironi() {
     alert("Gironi eliminati con successo! 🗑️");
   };
 
+  const handleFillTestScores = () => {
+    if (!selectedTorneo) return;
+    if (!window.confirm("Vuoi caricare punteggi di test casuali per tutte le partite di tutti i gironi?")) return;
 
+    const newMetadata = { ...matchMetadata };
+
+    allGironi.slice(0, numGironi).forEach((g) => {
+      const currentAssignments = {};
+      const count = teamCounts[g.id] || 0;
+      for (let i = 0; i < count; i++) {
+        currentAssignments[i] = gironeAssignments[g.id]?.[i] || "—";
+      }
+      const schedule = getSchedule(count, g.id, currentAssignments);
+      const isThreeSets = gironeSets[g.id] === "3 set";
+
+      schedule.forEach((match, idx) => {
+        const matchKey = `${g.id}-${idx}`;
+        if (
+          !match.left || 
+          match.left === "—" || 
+          match.left.startsWith("Slot") || 
+          match.left.startsWith("Vincente") || 
+          match.left.startsWith("Perdente") ||
+          !match.right || 
+          match.right === "—" || 
+          match.right.startsWith("Slot") || 
+          match.right.startsWith("Vincente") || 
+          match.right.startsWith("Perdente")
+        ) {
+          return;
+        }
+
+        // Assicurati che court e time siano impostati se vuoti
+        if (!newMetadata[matchKey]?.court) {
+          newMetadata[matchKey] = {
+            ...(newMetadata[matchKey] || {}),
+            court: (Math.floor(Math.random() * 4) + 1).toString(),
+            time: `1${Math.floor(Math.random() * 3)}:00`
+          };
+        }
+
+        if (isThreeSets) {
+          const s1L = Math.random() > 0.5 ? 21 : Math.floor(Math.random() * 5) + 15;
+          const s1R = s1L === 21 ? Math.floor(Math.random() * 5) + 15 : 21;
+          
+          const s2L = s1L === 21 ? Math.floor(Math.random() * 5) + 15 : 21;
+          const s2R = s2L === 21 ? Math.floor(Math.random() * 5) + 15 : 21;
+          
+          let s3L = "";
+          let s3R = "";
+          if ((s1L > s1R && s2L < s2R) || (s1L < s1R && s2L > s2R)) {
+            s3L = Math.random() > 0.5 ? 15 : Math.floor(Math.random() * 4) + 10;
+            s3R = s3L === 15 ? Math.floor(Math.random() * 4) + 10 : 15;
+          }
+
+          newMetadata[matchKey] = {
+            ...newMetadata[matchKey],
+            s1L: s1L.toString(),
+            s1R: s1R.toString(),
+            s2L: s2L.toString(),
+            s2R: s2R.toString(),
+            s3L: s3L.toString(),
+            s3R: s3R.toString()
+          };
+        } else {
+          const s1L = Math.random() > 0.5 ? 21 : Math.floor(Math.random() * 6) + 12;
+          const s1R = s1L === 21 ? Math.floor(Math.random() * 6) + 12 : 21;
+
+          newMetadata[matchKey] = {
+            ...newMetadata[matchKey],
+            s1L: s1L.toString(),
+            s1R: s1R.toString()
+          };
+        }
+      });
+    });
+
+    setMatchMetadata(newMetadata);
+    alert("Punteggi di test inseriti! Non dimenticare di salvare la configurazione.");
+  };
 
   const allGironi = [
     { id: 'A', colorClass: 'blue' },
@@ -475,6 +554,13 @@ export default function StaffGironi() {
                     className="flex-1 md:flex-none bg-[#FFD700] text-[#0a1628] px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all disabled:opacity-50"
                 >
                     🎲 Sorteggia Coppie
+                </button>
+                <button 
+                    onClick={handleFillTestScores}
+                    disabled={!selectedTorneo}
+                    className="flex-1 md:flex-none bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all disabled:opacity-50"
+                >
+                    ⚡ Punteggi Test
                 </button>
                 <button 
                     onClick={handleSave}
