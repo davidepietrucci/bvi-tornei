@@ -688,7 +688,7 @@ function TabelloneContent() {
         totalSlots += gConfig.teamCounts[gid] || 0;
       }
 
-      if (rType === "avulsa") {
+      if (groupCompositionMethod === "classifica") {
         // Clean previous assignments
         Object.keys(newAssignments).forEach(key => {
           if (key.startsWith("gold-") || key.startsWith("silver-") || key.startsWith("wb-") || key.startsWith("lb-") || key.startsWith("grand-final-")) {
@@ -842,7 +842,8 @@ function TabelloneContent() {
       numGoldGironi: numGoldGironiOpt,
       teamsPerGoldGirone,
       numSilverGironi: numSilverGironiOpt,
-      teamsPerSilverGirone
+      teamsPerSilverGirone,
+      groupCompositionMethod
     };
     localStorage.setItem(`bvi_bracket_v1_${slug}`, JSON.stringify(config));
     await saveBracket(slug, config);
@@ -1145,88 +1146,96 @@ function TabelloneContent() {
             </div>
         </div>
 
-        {isLoaded && torneiAttivi.length > 0 && phaseType === "gold_silver" && subPhaseType === "groups" && (
+        {isLoaded && torneiAttivi.length > 0 && phaseType === "gold_silver" && (
           <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-xl mb-8 flex flex-col md:flex-row gap-6 items-stretch md:items-center justify-between">
             <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-6">
-              {/* Gold Config */}
-              <div className="space-y-2">
-                <span className="text-[10px] font-black text-yellow-600 uppercase tracking-widest block">Configurazione Gironi Gold</span>
-                <div className="flex gap-2">
-                  <div className="flex-1 space-y-1">
-                    <label className="text-[9px] font-bold text-gray-400 uppercase">Numero Gironi</label>
-                    <select 
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] cursor-pointer"
-                      value={numGoldGironiOpt}
-                      onChange={(e) => setNumGoldGironiOpt(parseInt(e.target.value))}
-                    >
-                      <option value={0}>Auto (Calcolato: {autoNumGoldGironi})</option>
-                      <option value={1}>1 Girone</option>
-                      <option value={2}>2 Gironi</option>
-                      <option value={3}>3 Gironi</option>
-                      <option value={4}>4 Gironi</option>
-                    </select>
+              {subPhaseType === "groups" && (
+                <>
+                  {/* Gold Config */}
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-black text-yellow-600 uppercase tracking-widest block">Configurazione Gironi Gold</span>
+                    <div className="flex gap-2">
+                      <div className="flex-1 space-y-1">
+                        <label className="text-[9px] font-bold text-gray-400 uppercase">Numero Gironi</label>
+                        <select 
+                          className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] cursor-pointer"
+                          value={numGoldGironiOpt}
+                          onChange={(e) => setNumGoldGironiOpt(parseInt(e.target.value))}
+                        >
+                          <option value={0}>Auto (Calcolato: {autoNumGoldGironi})</option>
+                          <option value={1}>1 Girone</option>
+                          <option value={2}>2 Gironi</option>
+                          <option value={3}>3 Gironi</option>
+                          <option value={4}>4 Gironi</option>
+                        </select>
+                      </div>
+                      <div className="flex-1 space-y-1">
+                        <label className="text-[9px] font-bold text-gray-400 uppercase">Squadre per Girone</label>
+                        <select 
+                          className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] cursor-pointer"
+                          value={teamsPerGoldGirone}
+                          onChange={(e) => setTeamsPerGoldGirone(parseInt(e.target.value))}
+                        >
+                          <option value={3}>3 Squadre</option>
+                          <option value={4}>4 Squadre</option>
+                          <option value={5}>5 Squadre</option>
+                          <option value={6}>6 Squadre</option>
+                        </select>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex-1 space-y-1">
-                    <label className="text-[9px] font-bold text-gray-400 uppercase">Squadre per Girone</label>
-                    <select 
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] cursor-pointer"
-                      value={teamsPerGoldGirone}
-                      onChange={(e) => setTeamsPerGoldGirone(parseInt(e.target.value))}
-                    >
-                      <option value={3}>3 Squadre</option>
-                      <option value={4}>4 Squadre</option>
-                      <option value={5}>5 Squadre</option>
-                      <option value={6}>6 Squadre</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
 
-              {/* Silver Config */}
-              <div className="space-y-2">
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Configurazione Gironi Silver</span>
-                <div className="flex gap-2">
-                  <div className="flex-1 space-y-1">
-                    <label className="text-[9px] font-bold text-gray-400 uppercase">Numero Gironi</label>
-                    <select 
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] cursor-pointer"
-                      value={numSilverGironiOpt}
-                      onChange={(e) => setNumSilverGironiOpt(parseInt(e.target.value))}
-                    >
-                      <option value={0}>Auto (Calcolato: {autoNumSilverGironi})</option>
-                      <option value={1}>1 Girone</option>
-                      <option value={2}>2 Gironi</option>
-                      <option value={3}>3 Gironi</option>
-                      <option value={4}>4 Gironi</option>
-                    </select>
+                  {/* Silver Config */}
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Configurazione Gironi Silver</span>
+                    <div className="flex gap-2">
+                      <div className="flex-1 space-y-1">
+                        <label className="text-[9px] font-bold text-gray-400 uppercase">Numero Gironi</label>
+                        <select 
+                          className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] cursor-pointer"
+                          value={numSilverGironiOpt}
+                          onChange={(e) => setNumSilverGironiOpt(parseInt(e.target.value))}
+                        >
+                          <option value={0}>Auto (Calcolato: {autoNumSilverGironi})</option>
+                          <option value={1}>1 Girone</option>
+                          <option value={2}>2 Gironi</option>
+                          <option value={3}>3 Gironi</option>
+                          <option value={4}>4 Gironi</option>
+                        </select>
+                      </div>
+                      <div className="flex-1 space-y-1">
+                        <label className="text-[9px] font-bold text-gray-400 uppercase">Squadre per Girone</label>
+                        <select 
+                          className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] cursor-pointer"
+                          value={teamsPerSilverGirone}
+                          onChange={(e) => setTeamsPerSilverGirone(parseInt(e.target.value))}
+                        >
+                          <option value={3}>3 Squadre</option>
+                          <option value={4}>4 Squadre</option>
+                          <option value={5}>5 Squadre</option>
+                          <option value={6}>6 Squadre</option>
+                        </select>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex-1 space-y-1">
-                    <label className="text-[9px] font-bold text-gray-400 uppercase">Squadre per Girone</label>
-                    <select 
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] cursor-pointer"
-                      value={teamsPerSilverGirone}
-                      onChange={(e) => setTeamsPerSilverGirone(parseInt(e.target.value))}
-                    >
-                      <option value={3}>3 Squadre</option>
-                      <option value={4}>4 Squadre</option>
-                      <option value={5}>5 Squadre</option>
-                      <option value={6}>6 Squadre</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
+                </>
+              )}
 
               {/* Composition Method Config */}
-              <div className="space-y-2 col-span-1 sm:col-span-3 lg:col-span-1">
+              <div className={subPhaseType === "groups" ? "space-y-2" : "space-y-2 col-span-1 sm:col-span-3"}>
                 <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest block">Metodo Composizione</span>
-                <div className="space-y-1">
-                  <label className="text-[9px] font-bold text-gray-400 uppercase">Composizione Gironi</label>
+                <div className="space-y-1 max-w-xs">
+                  <label className="text-[9px] font-bold text-gray-400 uppercase">
+                    {subPhaseType === "groups" ? "Composizione Gironi" : "Composizione Tabellone"}
+                  </label>
                   <select 
                     className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] cursor-pointer"
                     value={groupCompositionMethod}
                     onChange={(e) => setGroupCompositionMethod(e.target.value)}
                   >
-                    <option value="girone">Serpente per Gironi (Standard)</option>
+                    <option value="girone">
+                      {subPhaseType === "groups" ? "Serpente per Gironi (Standard)" : "Classifica dei Gironi (Standard)"}
+                    </option>
                     <option value="classifica">Classifica Avulsa (Complessiva)</option>
                   </select>
                 </div>
@@ -1236,7 +1245,7 @@ function TabelloneContent() {
             <div className="bg-[#FFD700]/10 border border-[#FFD700]/30 rounded-2xl p-4 md:max-w-xs flex items-center gap-3">
               <span className="text-xl shrink-0">⚠️</span>
               <p className="text-[9px] font-black text-[#0a1628]/80 uppercase tracking-wide leading-normal">
-                Dopo aver modificato la struttura dei gironi, clicca su <strong>GENERA</strong> per aggiornare i tabelloni e riassegnare le squadre.
+                Dopo aver modificato la configurazione o il metodo, clicca su <strong>GENERA</strong> per aggiornare il tabellone e riassegnare le squadre.
               </p>
             </div>
           </div>
