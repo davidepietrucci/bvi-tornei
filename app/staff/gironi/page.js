@@ -743,14 +743,14 @@ export default function StaffGironi() {
                                                     </div>
                                                     <div className="flex items-center justify-between gap-4">
                                                         <span className="flex-1 text-[11px] font-black text-[#0a1628] text-right truncate">
-                                                            {row.left && row.left !== "—" && row.left !== "Slot Libero" ? splitNames(row.left).map(formatPlayerName).join(" / ") : (row.left || "Slot Libero")}
+                                                            {row.left && row.left !== "—" && row.left !== "Slot Libero" ? splitNames(row.left).map(formatPlayerName).join(" - ") : (row.left || "Slot Libero")}
                                                         </span>
                                                         <div className="flex gap-1">
                                                             <input type="text" value={meta.s1L || ""} onChange={(e) => handleMetadataChange(g.id, idx, 's1L', e.target.value)} className="w-8 h-8 bg-[#0a1628] text-white rounded-lg text-xs text-center font-black" />
                                                             <input type="text" value={meta.s1R || ""} onChange={(e) => handleMetadataChange(g.id, idx, 's1R', e.target.value)} className="w-8 h-8 bg-[#0a1628] text-white rounded-lg text-xs text-center font-black" />
                                                         </div>
                                                         <span className="flex-1 text-[11px] font-black text-[#0a1628] text-left truncate">
-                                                            {row.right && row.right !== "—" && row.right !== "Slot Libero" ? splitNames(row.right).map(formatPlayerName).join(" / ") : (row.right || "Slot Libero")}
+                                                            {row.right && row.right !== "—" && row.right !== "Slot Libero" ? splitNames(row.right).map(formatPlayerName).join(" - ") : (row.right || "Slot Libero")}
                                                         </span>
                                                     </div>
                                                 </div>

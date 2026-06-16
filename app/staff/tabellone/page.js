@@ -564,7 +564,7 @@ function TabelloneContent() {
       const count = gConfig.teamCounts[gid] || 0;
       if (pos >= count) return "—";
       const name = rankings[gid]?.[pos];
-      if (name) return splitNames(name).map(formatPlayerName).join(" / ");
+      if (name) return splitNames(name).map(formatPlayerName).join(" - ");
       return `TBD ${pos+1}° ${gid}`;
     };
 
@@ -608,7 +608,7 @@ function TabelloneContent() {
       if (groupCompositionMethod === "classifica") {
         const rankingsUnified = calculateUnifiedRanking(gConfig).map(s => {
           if (!s.nome) return "";
-          return splitNames(s.nome).map(formatPlayerName).join(" / ");
+          return splitNames(s.nome).map(formatPlayerName).join(" - ");
         });
 
         // 1. Gold Assignments
@@ -720,7 +720,7 @@ function TabelloneContent() {
         const getTeamByRank = (rankIdx) => {
           if (unifiedRanking[rankIdx]) {
             const name = unifiedRanking[rankIdx].nome;
-            return splitNames(name).map(formatPlayerName).join(" / ");
+            return splitNames(name).map(formatPlayerName).join(" - ");
           }
           return `TBD ${rankIdx + 1}° Classificato`;
         };
@@ -984,7 +984,7 @@ function TabelloneContent() {
               onBlur={(e) => {
                 const val = e.target.value;
                 if (val && val !== "—" && !val.includes(".") && val !== "Slot Libero" && !val.startsWith("TBD")) {
-                  const formatted = splitNames(val).map(formatPlayerName).join(" / ");
+                  const formatted = splitNames(val).map(formatPlayerName).join(" - ");
                   setBracketAssignments(p => ({...p, [`${matchId}-L`]: formatted}));
                 }
               }}
@@ -1008,7 +1008,7 @@ function TabelloneContent() {
               onBlur={(e) => {
                 const val = e.target.value;
                 if (val && val !== "—" && !val.includes(".") && val !== "Slot Libero" && !val.startsWith("TBD")) {
-                  const formatted = splitNames(val).map(formatPlayerName).join(" / ");
+                  const formatted = splitNames(val).map(formatPlayerName).join(" - ");
                   setBracketAssignments(p => ({...p, [`${matchId}-R`]: formatted}));
                 }
               }}
@@ -1066,13 +1066,13 @@ function TabelloneContent() {
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <span className="flex-1 text-xs font-bold truncate text-[#0a1628]" title={teamL}>
-              {teamL && teamL !== "—" && teamL !== "Slot Libero" ? splitNames(teamL).map(formatPlayerName).join(" / ") : (teamL || "Slot Libero")}
+              {teamL && teamL !== "—" && teamL !== "Slot Libero" ? splitNames(teamL).map(formatPlayerName).join(" - ") : (teamL || "Slot Libero")}
             </span>
             <input type="text" placeholder="-" value={meta.scoreL || ""} onChange={(e) => handleMetadataChange(matchId, 'scoreL', e.target.value)} className="w-8 h-8 bg-gray-50 text-gray-900 rounded text-center text-xs font-black focus:bg-[#0a1628] focus:text-white" />
           </div>
           <div className="flex items-center gap-2">
             <span className="flex-1 text-xs font-bold truncate text-[#0a1628]" title={teamR}>
-              {teamR && teamR !== "—" && teamR !== "Slot Libero" ? splitNames(teamR).map(formatPlayerName).join(" / ") : (teamR || "Slot Libero")}
+              {teamR && teamR !== "—" && teamR !== "Slot Libero" ? splitNames(teamR).map(formatPlayerName).join(" - ") : (teamR || "Slot Libero")}
             </span>
             <input type="text" placeholder="-" value={meta.scoreR || ""} onChange={(e) => handleMetadataChange(matchId, 'scoreR', e.target.value)} className="w-8 h-8 bg-gray-50 text-gray-900 rounded text-center text-xs font-black focus:bg-[#0a1628] focus:text-white" />
           </div>
@@ -1107,7 +1107,7 @@ function TabelloneContent() {
                   onBlur={(e) => {
                     const val = e.target.value;
                     if (val && val !== "—" && !val.includes(".") && val !== "Slot Libero" && !val.startsWith("TBD")) {
-                      const formatted = splitNames(val).map(formatPlayerName).join(" / ");
+                      const formatted = splitNames(val).map(formatPlayerName).join(" - ");
                       setBracketAssignments(p => ({...p, [`${groupKey}-${idx}`]: formatted}));
                     }
                   }}
@@ -1143,7 +1143,7 @@ function TabelloneContent() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-gray-900">
-                      {team.nome && team.nome !== "—" && team.nome !== "Slot Libero" ? splitNames(team.nome).map(formatPlayerName).join(" / ") : (team.nome || "")}
+                      {team.nome && team.nome !== "—" && team.nome !== "Slot Libero" ? splitNames(team.nome).map(formatPlayerName).join(" - ") : (team.nome || "")}
                     </td>
                     <td className="px-4 py-3 text-center text-green-600">{team.vinte}</td>
                     <td className="px-4 py-3 text-center text-gray-600">{team.pf}</td>
