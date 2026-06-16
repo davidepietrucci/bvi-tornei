@@ -4,6 +4,56 @@ import { useState, useEffect } from "react";
 import StaffHeader from "@/app/components/StaffHeader";
 import { getTornei, getIscrizioni, getGironi, saveGironi } from "@/app/utils/db";
 
+const capitalizeWord = (word) => {
+  if (!word) return "";
+  return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+};
+
+const capitalizeName = (nameStr) => {
+  if (!nameStr) return "";
+  return nameStr.split(/\s+/).map(capitalizeWord).join(" ");
+};
+
+const splitNames = (name) => {
+  if (!name) return [""];
+  let parts = [];
+  if (name.includes(" & ")) {
+    parts = name.split(" & ");
+  } else if (name.includes(" / ")) {
+    parts = name.split(" / ");
+  } else if (name.includes(" - ")) {
+    parts = name.split(" - ");
+  } else if (name.includes("/")) {
+    parts = name.split("/");
+  } else {
+    parts = [name];
+  }
+  return parts.map((p) => p.trim());
+};
+
+const formatPlayerName = (fullName) => {
+  if (!fullName) return "";
+  const cleanName = fullName.trim();
+  if (!cleanName) return "";
+  if (
+    cleanName.toLowerCase().startsWith("slot") ||
+    cleanName === "—" ||
+    cleanName.toLowerCase().startsWith("vincente") ||
+    cleanName.toLowerCase().startsWith("perdente") ||
+    cleanName === "TBD"
+  ) {
+    return cleanName;
+  }
+  const parts = cleanName.split(/\s+/);
+  if (parts.length < 2) return capitalizeName(cleanName);
+  const firstName = parts[0];
+  const surname = parts.slice(1).join(" ");
+  const firstNameCap = capitalizeName(firstName);
+  const surnameCap = capitalizeName(surname);
+  const initial = firstNameCap.charAt(0).toUpperCase();
+  return `${surnameCap} ${initial}.`;
+};
+
 function shuffle(array) {
   const arr = [...array];
   for (let i = arr.length - 1; i > 0; i--) {
@@ -606,12 +656,16 @@ export default function StaffGironi() {
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center justify-between gap-4">
-                                                        <span className="flex-1 text-[11px] font-black text-[#0a1628] text-right truncate">{row.left}</span>
+                                                        <span className="flex-1 text-[11px] font-black text-[#0a1628] text-right truncate">
+                                                            {row.left && row.left !== "—" && row.left !== "Slot Libero" ? splitNames(row.left).map(formatPlayerName).join(" / ") : (row.left || "Slot Libero")}
+                                                        </span>
                                                         <div className="flex gap-1">
                                                             <input type="text" value={meta.s1L || ""} onChange={(e) => handleMetadataChange(g.id, idx, 's1L', e.target.value)} className="w-8 h-8 bg-[#0a1628] text-white rounded-lg text-xs text-center font-black" />
                                                             <input type="text" value={meta.s1R || ""} onChange={(e) => handleMetadataChange(g.id, idx, 's1R', e.target.value)} className="w-8 h-8 bg-[#0a1628] text-white rounded-lg text-xs text-center font-black" />
                                                         </div>
-                                                        <span className="flex-1 text-[11px] font-black text-[#0a1628] text-left truncate">{row.right}</span>
+                                                        <span className="flex-1 text-[11px] font-black text-[#0a1628] text-left truncate">
+                                                            {row.right && row.right !== "—" && row.right !== "Slot Libero" ? splitNames(row.right).map(formatPlayerName).join(" / ") : (row.right || "Slot Libero")}
+                                                        </span>
                                                     </div>
                                                 </div>
                                             );

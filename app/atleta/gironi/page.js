@@ -7,6 +7,56 @@ import AthleteHeader from "@/app/components/AthleteHeader";
 import AthleteBottomNav from "@/app/components/AthleteBottomNav";
 import { getTornei, getGironi, getBracket } from "@/app/utils/db";
 
+const capitalizeWord = (word) => {
+  if (!word) return "";
+  return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+};
+
+const capitalizeName = (nameStr) => {
+  if (!nameStr) return "";
+  return nameStr.split(/\s+/).map(capitalizeWord).join(" ");
+};
+
+const splitNames = (name) => {
+  if (!name) return [""];
+  let parts = [];
+  if (name.includes(" & ")) {
+    parts = name.split(" & ");
+  } else if (name.includes(" / ")) {
+    parts = name.split(" / ");
+  } else if (name.includes(" - ")) {
+    parts = name.split(" - ");
+  } else if (name.includes("/")) {
+    parts = name.split("/");
+  } else {
+    parts = [name];
+  }
+  return parts.map((p) => p.trim());
+};
+
+const formatPlayerName = (fullName) => {
+  if (!fullName) return "";
+  const cleanName = fullName.trim();
+  if (!cleanName) return "";
+  if (
+    cleanName.toLowerCase().startsWith("slot") ||
+    cleanName === "—" ||
+    cleanName.toLowerCase().startsWith("vincente") ||
+    cleanName.toLowerCase().startsWith("perdente") ||
+    cleanName === "TBD"
+  ) {
+    return cleanName;
+  }
+  const parts = cleanName.split(/\s+/);
+  if (parts.length < 2) return capitalizeName(cleanName);
+  const firstName = parts[0];
+  const surname = parts.slice(1).join(" ");
+  const firstNameCap = capitalizeName(firstName);
+  const surnameCap = capitalizeName(surname);
+  const initial = firstNameCap.charAt(0).toUpperCase();
+  return `${surnameCap} ${initial}.`;
+};
+
 export default function AtletaGironi() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -473,13 +523,17 @@ export default function AtletaGironi() {
               <div className="flex justify-between items-center gap-4">
                 <div className="space-y-3 flex-1 min-w-0">
                   <div className={`flex items-center gap-2 ${isMe(m.left) ? 'text-[#0a1628]' : 'text-gray-500'}`}>
-                    <p className="font-black text-sm truncate uppercase tracking-tighter">{m.left || "Slot Libero"}</p>
+                    <p className="font-black text-sm truncate uppercase tracking-tighter">
+                      {m.left && m.left !== "—" && m.left !== "Slot Libero" ? splitNames(m.left).map(formatPlayerName).join(" / ") : (m.left || "Slot Libero")}
+                    </p>
                   </div>
                   <div className="h-px bg-gray-50 w-full relative">
                     <span className="absolute left-0 top-1/2 -translate-y-1/2 bg-white px-1.5 text-[8px] font-black text-gray-200 uppercase tracking-widest">Contro</span>
                   </div>
                   <div className={`flex items-center gap-2 ${isMe(m.right) ? 'text-[#0a1628]' : 'text-gray-500'}`}>
-                    <p className="font-black text-sm truncate uppercase tracking-tighter">{m.right || "Slot Libero"}</p>
+                    <p className="font-black text-sm truncate uppercase tracking-tighter">
+                      {m.right && m.right !== "—" && m.right !== "Slot Libero" ? splitNames(m.right).map(formatPlayerName).join(" / ") : (m.right || "Slot Libero")}
+                    </p>
                   </div>
                 </div>
                 <div className="shrink-0 flex flex-col items-center justify-center w-14 h-14 bg-gray-50 rounded-2xl border border-gray-100 shadow-inner">
@@ -649,7 +703,9 @@ export default function AtletaGironi() {
                           <div className="space-y-3">
                             {/* Team Left */}
                             <div className="flex justify-between items-center">
-                              <span className={`text-xs uppercase font-bold truncate pr-4 ${isWinnerL ? 'text-[#0a1628] font-black' : 'text-gray-500'} ${isMe(match.left) ? 'text-[#0a1628] underline decoration-[#FFD700] decoration-2' : ''}`}>{match.left}</span>
+                              <span className={`text-xs uppercase font-bold truncate pr-4 ${isWinnerL ? 'text-[#0a1628] font-black' : 'text-gray-500'} ${isMe(match.left) ? 'text-[#0a1628] underline decoration-[#FFD700] decoration-2' : ''}`}>
+                                {match.left && match.left !== "—" && match.left !== "Slot Libero" ? splitNames(match.left).map(formatPlayerName).join(" / ") : (match.left || "Slot Libero")}
+                              </span>
                               <div className="flex items-center gap-1.5">
                                 <span className={`text-sm font-black ${isWinnerL ? 'text-green-600' : 'text-gray-400'}`}>{hasScore ? s1L : "-"}</span>
                                 {config.gironeSets?.[activeGirone] === "3 set" && hasScore && (
@@ -660,7 +716,9 @@ export default function AtletaGironi() {
                             
                             {/* Team Right */}
                             <div className="flex justify-between items-center">
-                              <span className={`text-xs uppercase font-bold truncate pr-4 ${isWinnerR ? 'text-[#0a1628] font-black' : 'text-gray-500'} ${isMe(match.right) ? 'text-[#0a1628] underline decoration-[#FFD700] decoration-2' : ''}`}>{match.right}</span>
+                              <span className={`text-xs uppercase font-bold truncate pr-4 ${isWinnerR ? 'text-[#0a1628] font-black' : 'text-gray-500'} ${isMe(match.right) ? 'text-[#0a1628] underline decoration-[#FFD700] decoration-2' : ''}`}>
+                                {match.right && match.right !== "—" && match.right !== "Slot Libero" ? splitNames(match.right).map(formatPlayerName).join(" / ") : (match.right || "Slot Libero")}
+                              </span>
                               <div className="flex items-center gap-1.5">
                                 <span className={`text-sm font-black ${isWinnerR ? 'text-green-600' : 'text-gray-400'}`}>{hasScore ? s1R : "-"}</span>
                                 {config.gironeSets?.[activeGirone] === "3 set" && hasScore && (
@@ -754,11 +812,15 @@ export default function AtletaGironi() {
                           
                           <div className="space-y-2">
                             <div className="flex justify-between items-center">
-                              <span className={`text-xs uppercase font-bold truncate pr-4 ${isWinnerL ? 'text-[#0a1628] font-black' : 'text-gray-500'} ${isMe(m.left) ? 'text-[#0a1628] underline decoration-[#FFD700] decoration-2' : ''}`}>{m.left || "TBD"}</span>
+                              <span className={`text-xs uppercase font-bold truncate pr-4 ${isWinnerL ? 'text-[#0a1628] font-black' : 'text-gray-500'} ${isMe(m.left) ? 'text-[#0a1628] underline decoration-[#FFD700] decoration-2' : ''}`}>
+                                {m.left && m.left !== "—" && m.left !== "Slot Libero" ? splitNames(m.left).map(formatPlayerName).join(" / ") : (m.left || "TBD")}
+                              </span>
                               <span className={`text-sm font-black ${isWinnerL ? 'text-green-600' : 'text-gray-400'}`}>{hasScore ? scoreL : "-"}</span>
                             </div>
                             <div className="flex justify-between items-center">
-                              <span className={`text-xs uppercase font-bold truncate pr-4 ${isWinnerR ? 'text-[#0a1628] font-black' : 'text-gray-500'} ${isMe(m.right) ? 'text-[#0a1628] underline decoration-[#FFD700] decoration-2' : ''}`}>{m.right || "TBD"}</span>
+                              <span className={`text-xs uppercase font-bold truncate pr-4 ${isWinnerR ? 'text-[#0a1628] font-black' : 'text-gray-500'} ${isMe(m.right) ? 'text-[#0a1628] underline decoration-[#FFD700] decoration-2' : ''}`}>
+                                {m.right && m.right !== "—" && m.right !== "Slot Libero" ? splitNames(m.right).map(formatPlayerName).join(" / ") : (m.right || "TBD")}
+                              </span>
                               <span className={`text-sm font-black ${isWinnerR ? 'text-green-600' : 'text-gray-400'}`}>{hasScore ? scoreR : "-"}</span>
                             </div>
                           </div>
