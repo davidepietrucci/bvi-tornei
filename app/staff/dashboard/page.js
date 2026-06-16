@@ -156,6 +156,82 @@ export default function StaffDashboard() {
     }
   };
 
+  const handleLoad24TeamsDemo = async () => {
+    if (typeof window !== "undefined" && window.confirm("Vuoi caricare il torneo di test da 24 squadre con iscrizioni già approvate?")) {
+      const currentTornei = await getTornei();
+      const currentIscrizioni = await getIscrizioni();
+      
+      const newTorneo = {
+        id: 4,
+        nome: "Torneo Test 24",
+        data: "20 Luglio 2026",
+        location: "BVI Arena (Roma)",
+        categoria: "Maschile 2x2",
+        stato: "Iscrizioni Aperte",
+        iscritti: 24,
+        maxSquadre: 24,
+        quota: 40,
+        tipoIscrizione: "interno"
+      };
+      
+      // Rimuoviamo eventuale torneo esistente con lo stesso ID o nome
+      const filteredTornei = currentTornei.filter(t => t.id !== 4 && t.nome !== "Torneo Test 24");
+      const updatedTornei = [...filteredTornei, newTorneo];
+      
+      // Rimuoviamo iscrizioni esistenti per questo torneo
+      const filteredIscrizioni = currentIscrizioni.filter(i => i.torneo !== "Torneo Test 24");
+      
+      const mockPlayers = [
+        "Mario Rossi & Luigi Bianchi",
+        "Giuseppe Verdi & Antonio Vivaldi",
+        "Alessandro Volta & Galileo Galilei",
+        "Dante Alighieri & Francesco Petrarca",
+        "Giovanni Boccaccio & Niccolo Machiavelli",
+        "Leonardo Vinci & Michelangelo Buonarroti",
+        "Raffaello Sanzio & Donato Bramante",
+        "Caravaggio Merisi & Sandro Botticelli",
+        "Filippo Brunelleschi & Donatello Bardi",
+        "Giacomo Leopardi & Alessandro Manzoni",
+        "Ugo Foscolo & Giovanni Pascoli",
+        "Gabriele Dannunzio & Giosue Carducci",
+        "Italo Calvino & Cesare Pavese",
+        "Luigi Pirandello & Primo Levi",
+        "Umberto Eco & Pier Pasolini",
+        "Alberto Moravia & Eugenio Montale",
+        "Salvatore Quasimodo & Dino Campana",
+        "Giuseppe Ungaretti & Umberto Saba",
+        "Vittorio Alfieri & Carlo Goldoni",
+        "Ludovico Ariosto & Torquato Tasso",
+        "Marco Polo & Cristoforo Colombo",
+        "Amerigo Vespucci & Giovanni Caboto",
+        "Enrico Fermi & Guglielmo Marconi",
+        "Giulio Natta & Rita Levi"
+      ];
+      
+      const newIscrizioni = mockPlayers.map((giocatori, index) => ({
+        id: `400_${index + 1}`,
+        data: "Oggi, 10:00",
+        torneo: "Torneo Test 24",
+        giocatori: giocatori,
+        tel: "333 1234567",
+        stato: "Approvata",
+        quotaPagata: 40
+      }));
+      
+      const updatedIscrizioni = [...filteredIscrizioni, ...newIscrizioni];
+      
+      await saveTornei(updatedTornei);
+      await saveIscrizioni(updatedIscrizioni);
+      
+      // Salva in localStorage per sicurezza
+      localStorage.setItem("bvi_tornei", JSON.stringify(updatedTornei));
+      localStorage.setItem("bvi_iscrizioni", JSON.stringify(updatedIscrizioni));
+      
+      alert("Torneo 'Torneo Test 24' con 24 iscrizioni approvate caricato con successo!");
+      window.location.reload();
+    }
+  };
+
   return (
     <main className="min-h-screen pb-12 bg-[#f8faff]">
       <StaffHeader />
@@ -215,7 +291,7 @@ export default function StaffDashboard() {
           <div className="mt-8 bg-white p-6 md:p-10 rounded-[2.5rem] shadow-2xl border border-white relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50 rounded-full -mr-16 -mt-16"></div>
             <h3 className="text-xl md:text-2xl font-black mb-6 uppercase tracking-tight text-[#0a1628] relative z-10">Gestione Database ⚙️</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 relative z-10">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 relative z-10">
               <button 
                 onClick={handleResetData}
                 className="flex items-center justify-between p-5 bg-red-50 hover:bg-red-600 hover:text-white rounded-2xl font-black text-sm uppercase tracking-widest transition-all group shadow-sm border border-red-100 text-red-700"
@@ -227,6 +303,12 @@ export default function StaffDashboard() {
                 className="flex items-center justify-between p-5 bg-blue-50 hover:bg-blue-600 hover:text-white rounded-2xl font-black text-sm uppercase tracking-widest transition-all group shadow-sm border border-blue-100 text-blue-700"
               >
                 Carica Dati Demo <span className="text-xl group-hover:scale-110 transition-transform">💾</span>
+              </button>
+              <button 
+                onClick={handleLoad24TeamsDemo}
+                className="flex items-center justify-between p-5 bg-green-50 hover:bg-green-600 hover:text-white rounded-2xl font-black text-sm uppercase tracking-widest transition-all group shadow-sm border border-green-100 text-green-700"
+              >
+                Carica Torneo 24 Squadre <span className="text-xl group-hover:scale-110 transition-transform">🏆</span>
               </button>
             </div>
           </div>
