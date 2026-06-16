@@ -77,6 +77,11 @@ function TabelloneContent() {
   const [numGironi, setNumGironi] = useState(4);
   const [teamCounts, setTeamCounts] = useState({ A: 4, B: 4, C: 4, D: 4, E: 4, F: 4, G: 4, H: 4 });
 
+  const [numGoldGironiOpt, setNumGoldGironiOpt] = useState(0); // 0 = Auto
+  const [teamsPerGoldGirone, setTeamsPerGoldGirone] = useState(4);
+  const [numSilverGironiOpt, setNumSilverGironiOpt] = useState(0); // 0 = Auto
+  const [teamsPerSilverGirone, setTeamsPerSilverGirone] = useState(4);
+
   let goldSlots = 0;
   let silverSlots = 0;
   for (let i = 0; i < numGironi; i++) {
@@ -85,8 +90,11 @@ function TabelloneContent() {
     goldSlots += Math.min(2, count);
     silverSlots += Math.max(0, count - 2);
   }
-  const numGoldGironi = goldSlots > 4 ? 2 : 1;
-  const numSilverGironi = silverSlots > 4 ? 2 : 1;
+  const autoNumGoldGironi = goldSlots > 4 ? 2 : 1;
+  const autoNumSilverGironi = silverSlots > 4 ? 2 : 1;
+
+  const numGoldGironi = numGoldGironiOpt > 0 ? numGoldGironiOpt : autoNumGoldGironi;
+  const numSilverGironi = numSilverGironiOpt > 0 ? numSilverGironiOpt : autoNumSilverGironi;
 
   useEffect(() => {
     getTornei().then(parsed => {
@@ -120,8 +128,13 @@ function TabelloneContent() {
         setBracketSize(config.bracketSize || 8);
         setBracketAssignments(config.bracketAssignments || {});
         setBracketMetadata(config.bracketMetadata || {});
+        setNumGoldGironiOpt(config.numGoldGironi || 0);
+        setTeamsPerGoldGirone(config.teamsPerGoldGirone || 4);
+        setNumSilverGironiOpt(config.numSilverGironi || 0);
+        setTeamsPerSilverGirone(config.teamsPerSilverGirone || 4);
       } else {
         setPhaseType("gold_silver"); setSubPhaseType("direct"); setBracketSize(8); setBracketAssignments({}); setBracketMetadata({});
+        setNumGoldGironiOpt(0); setTeamsPerGoldGirone(4); setNumSilverGironiOpt(0); setTeamsPerSilverGirone(4);
       }
       setIsLoaded(true);
     });
@@ -131,7 +144,17 @@ function TabelloneContent() {
   useEffect(() => {
     if (!selectedTorneo || !isLoaded) return;
     const slug = selectedTorneo.toLowerCase().trim().replace(/\s+/g, '_');
-    const config = { phaseType, subPhaseType, bracketSize, bracketAssignments, bracketMetadata };
+    const config = { 
+      phaseType, 
+      subPhaseType, 
+      bracketSize, 
+      bracketAssignments, 
+      bracketMetadata,
+      numGoldGironi: numGoldGironiOpt,
+      teamsPerGoldGirone,
+      numSilverGironi: numSilverGironiOpt,
+      teamsPerSilverGirone
+    };
     
     // Save to localStorage immediately
     localStorage.setItem(`bvi_bracket_v1_${slug}`, JSON.stringify(config));
@@ -142,34 +165,52 @@ function TabelloneContent() {
     }, 1000);
 
     return () => clearTimeout(handler);
-  }, [phaseType, subPhaseType, bracketSize, bracketAssignments, bracketMetadata, selectedTorneo, isLoaded]);
+  }, [phaseType, subPhaseType, bracketSize, bracketAssignments, bracketMetadata, selectedTorneo, isLoaded, numGoldGironiOpt, teamsPerGoldGirone, numSilverGironiOpt, teamsPerSilverGirone]);
 
+
+  const getTeamsCountForGroup = (groupKey) => {
+    if (groupKey.startsWith("gold-")) {
+      return teamsPerGoldGirone || 4;
+    } else {
+      return teamsPerSilverGirone || 4;
+    }
+  };
+
+  const getIntermediateGroupTeamsList = (groupKey) => {
+    const limit = getTeamsCountForGroup(groupKey);
+    const list = [];
+    for (let i = 0; i < limit; i++) {
+      list.push(bracketAssignments[`${groupKey}-${i}`]);
+    }
+    return list;
+  };
+
+  const getRoundRobinPairs = (numTeams) => {
+    if (!numTeams || numTeams < 2) return [];
+    const pairs = [];
+    let count = 1;
+    for (let i = 0; i < numTeams; i++) {
+      for (let j = i + 1; j < numTeams; j++) {
+        pairs.push({ l: i, r: j, label: `Gara ${count++}` });
+      }
+    }
+    return pairs;
+  };
 
   const getIntermediateGroupStats = (groupKey) => {
     const stats = {};
-    const teams = [
-      bracketAssignments[`${groupKey}-0`],
-      bracketAssignments[`${groupKey}-1`],
-      bracketAssignments[`${groupKey}-2`],
-      bracketAssignments[`${groupKey}-3`]
-    ].filter(t => t && t !== "—" && t !== "Slot Libero");
+    const numTeams = getTeamsCountForGroup(groupKey);
+    const teams = getIntermediateGroupTeamsList(groupKey).filter(t => t && t !== "—" && t !== "Slot Libero");
 
     teams.forEach(t => {
       stats[t] = { nome: t, giocate: 0, vinte: 0, perse: 0, pf: 0, ps: 0, punti: 0 };
     });
 
-    const pairMaps = [
-      [0, 3],
-      [1, 2],
-      [0, 2],
-      [1, 3],
-      [0, 1],
-      [2, 3]
-    ];
+    const pairMaps = getRoundRobinPairs(numTeams);
 
     pairMaps.forEach((pair, idx) => {
-      const teamL = bracketAssignments[`${groupKey}-${pair[0]}`];
-      const teamR = bracketAssignments[`${groupKey}-${pair[1]}`];
+      const teamL = bracketAssignments[`${groupKey}-${pair.l}`];
+      const teamR = bracketAssignments[`${groupKey}-${pair.r}`];
       if (!teamL || !teamR || !stats[teamL] || !stats[teamR]) return;
 
       const mKey = `${groupKey}-m${idx}`;
@@ -211,12 +252,8 @@ function TabelloneContent() {
 
     const getIntermediateRanking = (groupKey) => {
       const stats = {};
-      const teams = [
-        bracketAssignments[`${groupKey}-0`],
-        bracketAssignments[`${groupKey}-1`],
-        bracketAssignments[`${groupKey}-2`],
-        bracketAssignments[`${groupKey}-3`]
-      ];
+      const numTeams = getTeamsCountForGroup(groupKey);
+      const teams = getIntermediateGroupTeamsList(groupKey);
 
       teams.forEach(t => {
         if (t && t !== "—" && t !== "Slot Libero") {
@@ -224,18 +261,11 @@ function TabelloneContent() {
         }
       });
 
-      const pairMaps = [
-        [0, 3],
-        [1, 2],
-        [0, 2],
-        [1, 3],
-        [0, 1],
-        [2, 3]
-      ];
+      const pairMaps = getRoundRobinPairs(numTeams);
 
       pairMaps.forEach((pair, idx) => {
-        const teamL = teams[pair[0]];
-        const teamR = teams[pair[1]];
+        const teamL = teams[pair.l];
+        const teamR = teams[pair.r];
         if (!teamL || !teamR || !stats[teamL] || !stats[teamR]) return;
 
         const mKey = `${groupKey}-m${idx}`;
@@ -330,22 +360,32 @@ function TabelloneContent() {
         currentGoldSlots += Math.min(2, count);
         currentSilverSlots += Math.max(0, count - 2);
       }
-      const currentNumGoldGironi = currentGoldSlots > 4 ? 2 : 1;
-      const currentNumSilverGironi = currentSilverSlots > 4 ? 2 : 1;
+      const currentNumGoldGironi = numGoldGironiOpt > 0 ? numGoldGironiOpt : (currentGoldSlots > 4 ? 2 : 1);
+      const currentNumSilverGironi = numSilverGironiOpt > 0 ? numSilverGironiOpt : (currentSilverSlots > 4 ? 2 : 1);
 
       const gA_rank = getIntermediateRanking("gold-A");
-      const gB_rank = currentNumGoldGironi === 2 ? getIntermediateRanking("gold-B") : [];
+      const gB_rank = currentNumGoldGironi >= 2 ? getIntermediateRanking("gold-B") : [];
+      const gC_rank = currentNumGoldGironi >= 3 ? getIntermediateRanking("gold-C") : [];
+      const gD_rank = currentNumGoldGironi >= 4 ? getIntermediateRanking("gold-D") : [];
+
       const sA_rank = getIntermediateRanking("silver-A");
-      const sB_rank = currentNumSilverGironi === 2 ? getIntermediateRanking("silver-B") : [];
+      const sB_rank = currentNumSilverGironi >= 2 ? getIntermediateRanking("silver-B") : [];
+      const sC_rank = currentNumSilverGironi >= 3 ? getIntermediateRanking("silver-C") : [];
+      const sD_rank = currentNumSilverGironi >= 4 ? getIntermediateRanking("silver-D") : [];
 
       const getRankedInt = (rankArr, pos, fallback) => rankArr?.[pos] || fallback;
 
-      if (currentNumGoldGironi === 2) {
+      if (currentNumGoldGironi === 4) {
+        update("gold-s1-L", getRankedInt(gA_rank, 0, "1° Gold A"));
+        update("gold-s1-R", getRankedInt(gB_rank, 0, "1° Gold B"));
+        update("gold-s2-L", getRankedInt(gC_rank, 0, "1° Gold C"));
+        update("gold-s2-R", getRankedInt(gD_rank, 0, "1° Gold D"));
+      } else if (currentNumGoldGironi === 2) {
         update("gold-s1-L", getRankedInt(gA_rank, 0, "1° Gold A"));
         update("gold-s1-R", getRankedInt(gB_rank, 1, "2° Gold B"));
         update("gold-s2-L", getRankedInt(gB_rank, 0, "1° Gold B"));
         update("gold-s2-R", getRankedInt(gA_rank, 1, "2° Gold A"));
-      } else {
+      } else if (currentNumGoldGironi === 1) {
         update("gold-s1-L", getRankedInt(gA_rank, 0, "1° Gold"));
         update("gold-s1-R", getRankedInt(gA_rank, 3, "4° Gold"));
         update("gold-s2-L", getRankedInt(gA_rank, 1, "2° Gold"));
@@ -356,12 +396,17 @@ function TabelloneContent() {
       update("gold-f3-L", resolveLoser("gold-s1"));
       update("gold-f3-R", resolveLoser("gold-s2"));
 
-      if (currentNumSilverGironi === 2) {
+      if (currentNumSilverGironi === 4) {
+        update("silver-s1-L", getRankedInt(sA_rank, 0, "1° Silver A"));
+        update("silver-s1-R", getRankedInt(sB_rank, 0, "1° Silver B"));
+        update("silver-s2-L", getRankedInt(sC_rank, 0, "1° Silver C"));
+        update("silver-s2-R", getRankedInt(sD_rank, 0, "1° Silver D"));
+      } else if (currentNumSilverGironi === 2) {
         update("silver-s1-L", getRankedInt(sA_rank, 0, "1° Silver A"));
         update("silver-s1-R", getRankedInt(sB_rank, 1, "2° Silver B"));
         update("silver-s2-L", getRankedInt(sB_rank, 0, "1° Silver B"));
         update("silver-s2-R", getRankedInt(sA_rank, 1, "2° Silver A"));
-      } else {
+      } else if (currentNumSilverGironi === 1) {
         update("silver-s1-L", getRankedInt(sA_rank, 0, "1° Silver"));
         update("silver-s1-R", getRankedInt(sA_rank, 3, "4° Silver"));
         update("silver-s2-L", getRankedInt(sA_rank, 1, "2° Silver"));
@@ -439,7 +484,7 @@ function TabelloneContent() {
         }).map(s=>s.nome);
     };
 
-    const rankings = {};
+        const rankings = {};
     for(let i=0; i<numGironi; i++) { const gid = String.fromCharCode(65+i); rankings[gid] = getRanking(gid); }
     const getRanked = (gid, pos) => {
       const count = gConfig.teamCounts[gid] || 0;
@@ -458,13 +503,14 @@ function TabelloneContent() {
       setBracketMetadata(cleanedMetadata);
 
       // Clean existing assignments for all gold & silver group slots first
-      for (const p of ["gold", "silver"]) {
-        for (const g of ["A", "B"]) {
-          for (let i = 0; i < 4; i++) {
-            delete newAssignments[`${p}-${g}-${i}`];
-          }
+      Object.keys(newAssignments).forEach(key => {
+        if (
+          key.startsWith("gold-A-") || key.startsWith("gold-B-") || key.startsWith("gold-C-") || key.startsWith("gold-D-") ||
+          key.startsWith("silver-A-") || key.startsWith("silver-B-") || key.startsWith("silver-C-") || key.startsWith("silver-D-")
+        ) {
+          delete newAssignments[key];
         }
-      }
+      });
 
       // Calculate dynamically the target groups count
       let currentGoldSlots = 0;
@@ -475,8 +521,13 @@ function TabelloneContent() {
         currentGoldSlots += Math.min(2, count);
         currentSilverSlots += Math.max(0, count - 2);
       }
-      const currentNumGoldGironi = currentGoldSlots > 4 ? 2 : 1;
-      const currentNumSilverGironi = currentSilverSlots > 4 ? 2 : 1;
+      const autoNumGoldGironi = currentGoldSlots > 4 ? 2 : 1;
+      const autoNumSilverGironi = currentSilverSlots > 4 ? 2 : 1;
+
+      const currentNumGoldGironi = numGoldGironiOpt > 0 ? numGoldGironiOpt : autoNumGoldGironi;
+      const currentNumSilverGironi = numSilverGironiOpt > 0 ? numSilverGironiOpt : autoNumSilverGironi;
+      const currentTeamsPerGoldGirone = teamsPerGoldGirone || 4;
+      const currentTeamsPerSilverGirone = teamsPerSilverGirone || 4;
 
       // 1. Gold Assignments
       const goldFilled = Array(currentNumGoldGironi).fill(0);
@@ -489,7 +540,7 @@ function TabelloneContent() {
             const targetGroupIdx = (gIdx + rank) % currentNumGoldGironi;
             const targetLetter = String.fromCharCode(65 + targetGroupIdx);
             const slotIdx = goldFilled[targetGroupIdx];
-            if (slotIdx < 4) {
+            if (slotIdx < currentTeamsPerGoldGirone) {
               newAssignments[`gold-${targetLetter}-${slotIdx}`] = team;
               goldFilled[targetGroupIdx]++;
             }
@@ -513,7 +564,7 @@ function TabelloneContent() {
             const targetGroupIdx = (gIdx + rank) % currentNumSilverGironi;
             const targetLetter = String.fromCharCode(65 + targetGroupIdx);
             const slotIdx = silverFilled[targetGroupIdx];
-            if (slotIdx < 4) {
+            if (slotIdx < currentTeamsPerSilverGirone) {
               newAssignments[`silver-${targetLetter}-${slotIdx}`] = team;
               silverFilled[targetGroupIdx]++;
             }
@@ -521,16 +572,16 @@ function TabelloneContent() {
         }
       }
 
-      // Pad remainder with "—" up to 4 teams
+      // Pad remainder with "—" up to limit
       for (let targetGroupIdx = 0; targetGroupIdx < currentNumGoldGironi; targetGroupIdx++) {
         const targetLetter = String.fromCharCode(65 + targetGroupIdx);
-        for (let slotIdx = goldFilled[targetGroupIdx]; slotIdx < 4; slotIdx++) {
+        for (let slotIdx = goldFilled[targetGroupIdx]; slotIdx < currentTeamsPerGoldGirone; slotIdx++) {
           newAssignments[`gold-${targetLetter}-${slotIdx}`] = "—";
         }
       }
       for (let targetGroupIdx = 0; targetGroupIdx < currentNumSilverGironi; targetGroupIdx++) {
         const targetLetter = String.fromCharCode(65 + targetGroupIdx);
-        for (let slotIdx = silverFilled[targetGroupIdx]; slotIdx < 4; slotIdx++) {
+        for (let slotIdx = silverFilled[targetGroupIdx]; slotIdx < currentTeamsPerSilverGirone; slotIdx++) {
           newAssignments[`silver-${targetLetter}-${slotIdx}`] = "—";
         }
       }
@@ -685,7 +736,17 @@ function TabelloneContent() {
 
   const handleSave = async () => {
     const slug = selectedTorneo.toLowerCase().trim().replace(/\s+/g, '_');
-    const config = { phaseType, subPhaseType, bracketSize, bracketAssignments, bracketMetadata };
+    const config = { 
+      phaseType, 
+      subPhaseType, 
+      bracketSize, 
+      bracketAssignments, 
+      bracketMetadata,
+      numGoldGironi: numGoldGironiOpt,
+      teamsPerGoldGirone,
+      numSilverGironi: numSilverGironiOpt,
+      teamsPerSilverGirone
+    };
     localStorage.setItem(`bvi_bracket_v1_${slug}`, JSON.stringify(config));
     await saveBracket(slug, config);
     alert(`Salvataggio completato! 🏆`);
@@ -699,6 +760,10 @@ function TabelloneContent() {
     setPhaseType("gold_silver");
     setSubPhaseType("direct");
     setBracketSize(8);
+    setNumGoldGironiOpt(0);
+    setTeamsPerGoldGirone(4);
+    setNumSilverGironiOpt(0);
+    setTeamsPerSilverGirone(4);
     localStorage.removeItem(`bvi_bracket_v1_${slug}`);
     await saveBracket(slug, null);
     alert("Tabellone eliminato con successo! 🗑️");
@@ -762,27 +827,34 @@ function TabelloneContent() {
 
   const renderIntermediateGroup = (groupKey, title, color) => {
     const stats = getIntermediateGroupStats(groupKey);
-    const teams = [
-      bracketAssignments[`${groupKey}-0`],
-      bracketAssignments[`${groupKey}-1`],
-      bracketAssignments[`${groupKey}-2`],
-      bracketAssignments[`${groupKey}-3`]
-    ];
-
-    const matchPairs = [
-      { l: 0, r: 3, label: "Gara 1" },
-      { l: 1, r: 2, label: "Gara 2" },
-      { l: 0, r: 2, label: "Gara 3" },
-      { l: 1, r: 3, label: "Gara 4" },
-      { l: 0, r: 1, label: "Gara 5" },
-      { l: 2, r: 3, label: "Gara 6" }
-    ];
+    const numTeams = getTeamsCountForGroup(groupKey);
+    const teams = getIntermediateGroupTeamsList(groupKey);
+    const matchPairs = getRoundRobinPairs(numTeams);
 
     const titleColor = color === "gold" ? "text-yellow-600" : "text-gray-500";
     
     return (
       <div className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-sm border border-gray-100 mb-12">
         <h3 className={`text-xl font-black uppercase mb-6 ${titleColor}`}>{title}</h3>
+
+        {/* Composizione Girone (Modifica manuale) */}
+        <div className="mb-6 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Composizione Girone (Modifica manuale)</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {Array.from({ length: numTeams }, (_, idx) => (
+              <div key={idx} className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-gray-200 font-sans">
+                <span className="text-[10px] font-black text-gray-400">#{idx + 1}</span>
+                <input
+                  type="text"
+                  value={bracketAssignments[`${groupKey}-${idx}`] || ""}
+                  onChange={(e) => setBracketAssignments(p => ({ ...p, [`${groupKey}-${idx}`]: e.target.value }))}
+                  className="flex-1 bg-transparent border-none text-xs font-bold focus:outline-none text-[#0a1628] w-full"
+                  placeholder="Slot Libero"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
         
         {/* Standings Table */}
         <div className="overflow-x-auto mb-8 border border-gray-100 rounded-2xl">
@@ -817,7 +889,7 @@ function TabelloneContent() {
               })}
               {stats.length === 0 && (
                 <tr>
-                  <td colSpan="6" className="py-8 text-center text-gray-400 italic">Nessuna squadra assegnata. Clicca su GENERA.</td>
+                  <td colSpan="6" className="py-8 text-center text-gray-400 italic">Nessuna squadra assegnata. Clicca su GENERA o scrivi nei campi sopra.</td>
                 </tr>
               )}
             </tbody>
@@ -936,6 +1008,87 @@ function TabelloneContent() {
                 <button onClick={handleDeleteBracket} disabled={!selectedTorneo} className="flex-1 md:flex-none bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all disabled:opacity-50">🗑️ ELIMINA</button>
             </div>
         </div>
+
+        {isLoaded && torneiAttivi.length > 0 && phaseType === "gold_silver" && subPhaseType === "groups" && (
+          <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-xl mb-8 flex flex-col md:flex-row gap-6 items-stretch md:items-center justify-between">
+            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {/* Gold Config */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-black text-yellow-600 uppercase tracking-widest block">Configurazione Gironi Gold</span>
+                <div className="flex gap-2">
+                  <div className="flex-1 space-y-1">
+                    <label className="text-[9px] font-bold text-gray-400 uppercase">Numero Gironi</label>
+                    <select 
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] cursor-pointer"
+                      value={numGoldGironiOpt}
+                      onChange={(e) => setNumGoldGironiOpt(parseInt(e.target.value))}
+                    >
+                      <option value={0}>Auto (Calcolato: {autoNumGoldGironi})</option>
+                      <option value={1}>1 Girone</option>
+                      <option value={2}>2 Gironi</option>
+                      <option value={3}>3 Gironi</option>
+                      <option value={4}>4 Gironi</option>
+                    </select>
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <label className="text-[9px] font-bold text-gray-400 uppercase">Squadre per Girone</label>
+                    <select 
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] cursor-pointer"
+                      value={teamsPerGoldGirone}
+                      onChange={(e) => setTeamsPerGoldGirone(parseInt(e.target.value))}
+                    >
+                      <option value={3}>3 Squadre</option>
+                      <option value={4}>4 Squadre</option>
+                      <option value={5}>5 Squadre</option>
+                      <option value={6}>6 Squadre</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Silver Config */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Configurazione Gironi Silver</span>
+                <div className="flex gap-2">
+                  <div className="flex-1 space-y-1">
+                    <label className="text-[9px] font-bold text-gray-400 uppercase">Numero Gironi</label>
+                    <select 
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] cursor-pointer"
+                      value={numSilverGironiOpt}
+                      onChange={(e) => setNumSilverGironiOpt(parseInt(e.target.value))}
+                    >
+                      <option value={0}>Auto (Calcolato: {autoNumSilverGironi})</option>
+                      <option value={1}>1 Girone</option>
+                      <option value={2}>2 Gironi</option>
+                      <option value={3}>3 Gironi</option>
+                      <option value={4}>4 Gironi</option>
+                    </select>
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <label className="text-[9px] font-bold text-gray-400 uppercase">Squadre per Girone</label>
+                    <select 
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] cursor-pointer"
+                      value={teamsPerSilverGirone}
+                      onChange={(e) => setTeamsPerSilverGirone(parseInt(e.target.value))}
+                    >
+                      <option value={3}>3 Squadre</option>
+                      <option value={4}>4 Squadre</option>
+                      <option value={5}>5 Squadre</option>
+                      <option value={6}>6 Squadre</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-[#FFD700]/10 border border-[#FFD700]/30 rounded-2xl p-4 md:max-w-xs flex items-center gap-3">
+              <span className="text-xl shrink-0">⚠️</span>
+              <p className="text-[9px] font-black text-[#0a1628]/80 uppercase tracking-wide leading-normal">
+                Dopo aver modificato la struttura dei gironi, clicca su <strong>GENERA</strong> per aggiornare i tabelloni e riassegnare le squadre.
+              </p>
+            </div>
+          </div>
+        )}
 
         {!isLoaded ? (
             <div className="min-h-[400px] flex items-center justify-center">

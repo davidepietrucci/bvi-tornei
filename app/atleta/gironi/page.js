@@ -285,29 +285,39 @@ export default function AtletaGironi() {
     const assignments = bracketConfig.bracketAssignments;
     const metadata = bracketConfig.bracketMetadata || {};
     const stats = {};
-    const teams = [
-      assignments[`${groupKey}-0`],
-      assignments[`${groupKey}-1`],
-      assignments[`${groupKey}-2`],
-      assignments[`${groupKey}-3`]
-    ].filter(t => t && t !== "—" && t !== "Slot Libero");
+
+    const isGold = groupKey.startsWith("gold");
+    const numTeams = isGold 
+      ? (bracketConfig.teamsPerGoldGirone || 4) 
+      : (bracketConfig.teamsPerSilverGirone || 4);
+
+    const teams = [];
+    for (let i = 0; i < numTeams; i++) {
+      const t = assignments[`${groupKey}-${i}`];
+      if (t && t !== "—" && t !== "Slot Libero") {
+        teams.push(t);
+      }
+    }
 
     teams.forEach(t => {
       stats[t] = { nome: t, giocate: 0, vinte: 0, perse: 0, pf: 0, ps: 0, punti: 0 };
     });
 
-    const pairMaps = [
-      [0, 3],
-      [1, 2],
-      [0, 2],
-      [1, 3],
-      [0, 1],
-      [2, 3]
-    ];
+    const getRoundRobinPairs = (n) => {
+      const pairs = [];
+      for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+          pairs.push({ l: i, r: j });
+        }
+      }
+      return pairs;
+    };
 
-    pairMaps.forEach((pair, idx) => {
-      const teamL = assignments[`${groupKey}-${pair[0]}`];
-      const teamR = assignments[`${groupKey}-${pair[1]}`];
+    const matchPairs = getRoundRobinPairs(numTeams);
+
+    matchPairs.forEach((pair, idx) => {
+      const teamL = assignments[`${groupKey}-${pair.l}`];
+      const teamR = assignments[`${groupKey}-${pair.r}`];
       if (!teamL || !teamR || !stats[teamL] || !stats[teamR]) return;
 
       const mKey = `${groupKey}-m${idx}`;
@@ -346,21 +356,29 @@ export default function AtletaGironi() {
     if (!bracketConfig || !bracketConfig.bracketAssignments) return [];
     const assignments = bracketConfig.bracketAssignments;
     const metadata = bracketConfig.bracketMetadata || {};
-    const teams = [
-      assignments[`${groupKey}-0`],
-      assignments[`${groupKey}-1`],
-      assignments[`${groupKey}-2`],
-      assignments[`${groupKey}-3`]
-    ];
+    
+    const isGold = groupKey.startsWith("gold");
+    const numTeams = isGold 
+      ? (bracketConfig.teamsPerGoldGirone || 4) 
+      : (bracketConfig.teamsPerSilverGirone || 4);
 
-    const matchPairs = [
-      { l: 0, r: 3, label: "Gara 1" },
-      { l: 1, r: 2, label: "Gara 2" },
-      { l: 0, r: 2, label: "Gara 3" },
-      { l: 1, r: 3, label: "Gara 4" },
-      { l: 0, r: 1, label: "Gara 5" },
-      { l: 2, r: 3, label: "Gara 6" }
-    ];
+    const teams = [];
+    for (let i = 0; i < numTeams; i++) {
+      teams.push(assignments[`${groupKey}-${i}`]);
+    }
+
+    const getRoundRobinPairs = (n) => {
+      const pairs = [];
+      let count = 1;
+      for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+          pairs.push({ l: i, r: j, label: `Gara ${count++}` });
+        }
+      }
+      return pairs;
+    };
+
+    const matchPairs = getRoundRobinPairs(numTeams);
 
     return matchPairs
       .map((pair, idx) => {
@@ -675,23 +693,36 @@ export default function AtletaGironi() {
                   silverSlots += Math.max(0, count - 2);
                 }
               }
-              const numGoldGironi = goldSlots > 4 ? 2 : 1;
-              const numSilverGironi = silverSlots > 4 ? 2 : 1;
+              const autoNumGoldGironi = goldSlots > 4 ? 2 : 1;
+              const autoNumSilverGironi = silverSlots > 4 ? 2 : 1;
+
+              const numGoldGironi = bracketConfig.numGoldGironi !== undefined ? bracketConfig.numGoldGironi : autoNumGoldGironi;
+              const numSilverGironi = bracketConfig.numSilverGironi !== undefined ? bracketConfig.numSilverGironi : autoNumSilverGironi;
+
+              const goldGroups = [];
+              for (let i = 0; i < numGoldGironi; i++) {
+                const letter = String.fromCharCode(65 + i);
+                goldGroups.push({ id: `gold-${letter}`, label: `Girone Gold ${letter}` });
+              }
+
+              const silverGroups = [];
+              for (let i = 0; i < numSilverGironi; i++) {
+                const letter = String.fromCharCode(65 + i);
+                silverGroups.push({ id: `silver-${letter}`, label: `Girone Silver ${letter}` });
+              }
 
               return (
                 <div className="space-y-12 text-left">
                   <div>
                     <h2 className="text-xl font-black text-yellow-600 uppercase tracking-tighter mb-6 text-center">🏆 Gironi Intermedi GOLD</h2>
-                    {renderIntermediateGroupForAthlete("gold-A", "Girone Gold A", "gold")}
-                    {numGoldGironi === 2 && renderIntermediateGroupForAthlete("gold-B", "Girone Gold B", "gold")}
+                    {goldGroups.map(g => renderIntermediateGroupForAthlete(g.id, g.label, "gold"))}
                   </div>
                   
                   <div className="border-t border-dashed border-gray-200 my-10"></div>
                   
                   <div>
                     <h2 className="text-xl font-black text-gray-500 uppercase tracking-tighter mb-6 text-center">🥈 Gironi Intermedi SILVER</h2>
-                    {renderIntermediateGroupForAthlete("silver-A", "Girone Silver A", "silver")}
-                    {numSilverGironi === 2 && renderIntermediateGroupForAthlete("silver-B", "Girone Silver B", "silver")}
+                    {silverGroups.map(g => renderIntermediateGroupForAthlete(g.id, g.label, "silver"))}
                   </div>
                 </div>
               );

@@ -187,16 +187,19 @@ export default function PortaleLiveMobile() {
           silverSlots += Math.max(0, count - 2);
         }
       }
-      const numGoldGironi = goldSlots > 4 ? 2 : 1;
-      const numSilverGironi = silverSlots > 4 ? 2 : 1;
+      const autoNumGoldGironi = goldSlots > 4 ? 2 : 1;
+      const autoNumSilverGironi = silverSlots > 4 ? 2 : 1;
 
-      list.push({ id: "gold-A", label: "Gold A 🏆", type: "intermedio", category: "gold" });
-      if (numGoldGironi === 2) {
-        list.push({ id: "gold-B", label: "Gold B 🏆", type: "intermedio", category: "gold" });
+      const numGoldGironi = bracketConfig.numGoldGironi !== undefined ? bracketConfig.numGoldGironi : autoNumGoldGironi;
+      const numSilverGironi = bracketConfig.numSilverGironi !== undefined ? bracketConfig.numSilverGironi : autoNumSilverGironi;
+
+      for (let i = 0; i < numGoldGironi; i++) {
+        const letter = String.fromCharCode(65 + i);
+        list.push({ id: `gold-${letter}`, label: `Gold ${letter} 🏆`, type: "intermedio", category: "gold" });
       }
-      list.push({ id: "silver-A", label: "Silver A 🥈", type: "intermedio", category: "silver" });
-      if (numSilverGironi === 2) {
-        list.push({ id: "silver-B", label: "Silver B 🥈", type: "intermedio", category: "silver" });
+      for (let i = 0; i < numSilverGironi; i++) {
+        const letter = String.fromCharCode(65 + i);
+        list.push({ id: `silver-${letter}`, label: `Silver ${letter} 🥈`, type: "intermedio", category: "silver" });
       }
     }
     return list;
@@ -485,21 +488,29 @@ export default function PortaleLiveMobile() {
     if (!bracketConfig || !bracketConfig.bracketAssignments) return [];
     const assignments = bracketConfig.bracketAssignments;
     const metadata = bracketConfig.bracketMetadata || {};
-    const teams = [
-      assignments[`${groupKey}-0`],
-      assignments[`${groupKey}-1`],
-      assignments[`${groupKey}-2`],
-      assignments[`${groupKey}-3`],
-    ];
 
-    const matchPairs = [
-      { l: 0, r: 3, label: "Gara 1" },
-      { l: 1, r: 2, label: "Gara 2" },
-      { l: 0, r: 2, label: "Gara 3" },
-      { l: 1, r: 3, label: "Gara 4" },
-      { l: 0, r: 1, label: "Gara 5" },
-      { l: 2, r: 3, label: "Gara 6" },
-    ];
+    const isGold = groupKey.startsWith("gold");
+    const numTeams = isGold 
+      ? (bracketConfig.teamsPerGoldGirone || 4) 
+      : (bracketConfig.teamsPerSilverGirone || 4);
+
+    const teams = [];
+    for (let i = 0; i < numTeams; i++) {
+      teams.push(assignments[`${groupKey}-${i}`]);
+    }
+
+    const getRoundRobinPairs = (n) => {
+      const pairs = [];
+      let count = 1;
+      for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+          pairs.push({ l: i, r: j, label: `Gara ${count++}` });
+        }
+      }
+      return pairs;
+    };
+
+    const matchPairs = getRoundRobinPairs(numTeams);
 
     return matchPairs
       .map((pair, idx) => {
