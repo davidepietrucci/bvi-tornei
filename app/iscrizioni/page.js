@@ -243,9 +243,8 @@ export default function Iscrizioni() {
             href={formData.torneo ? `/gironi?tour=${encodeURIComponent(formData.torneo)}` : "/gironi"}
             className="hover:underline font-medium text-white"
           >
-            Gironi{formData.torneo ? ` — ${formData.torneo}` : ""}
+            Gironi
           </a>
-          <a href="/classifica" className="hover:underline font-medium text-white">Classifica</a>
         </nav>
       </header>
 
