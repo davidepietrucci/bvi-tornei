@@ -122,6 +122,7 @@ export default function GironiPubblici() {
   const selectedTorneoObj = tornei.find((t) => t.nome === selectedTorneo);
   const isConcluso = selectedTorneoObj?.stato === "Concluso";
   const isPublished = config && config.pubblicato;
+  const isBracketPublished = bracketConfig && bracketConfig.tabellonePubblicato;
   const rankingType = config?.rankingType || "avulsa";
 
   // 3. Calcola la lista dei gironi iniziali
@@ -1514,7 +1515,7 @@ export default function GironiPubblici() {
             )}
 
             {/* 4. SEZIONE FASI FINALI */}
-            {activeTab === "finali" && (
+            {activeTab === "finali" && isBracketPublished && (
               <div className="space-y-5">
                 {/* Switch Gold / Silver in alto (se Gold/Silver) */}
                 {bracketConfig?.phaseType === "gold_silver" && (
@@ -1739,7 +1740,8 @@ export default function GironiPubblici() {
               )}
             </button>
 
-            {/* Pulsante Fasi Finali */}
+            {/* Pulsante Fasi Finali - visibile solo se tabellone pubblicato */}
+            {isBracketPublished && (
             <button
               onClick={() => setActiveTab("finali")}
               className={`relative flex flex-col items-center gap-1.5 py-5.5 px-3 flex-1 active:scale-95 transition-transform ${
@@ -1767,6 +1769,7 @@ export default function GironiPubblici() {
                 <span className="absolute top-3 w-1.5 h-1.5 rounded-full bg-[#FFD700]" />
               )}
             </button>
+            )}
           </div>
           {/* iOS spacer */}
           <div className="h-safe-area-inset-bottom bg-[#0a1628]" />

@@ -134,6 +134,7 @@ function TabelloneContent() {
   const [bracketAssignments, setBracketAssignments] = useState({});
   const [bracketMetadata, setBracketMetadata] = useState({});
   const [isLoaded, setIsLoaded] = useState(false);
+  const [tabellonePubblicato, setTabellonePubblicato] = useState(false);
   const [numGironi, setNumGironi] = useState(4);
   const [teamCounts, setTeamCounts] = useState({ A: 4, B: 4, C: 4, D: 4, E: 4, F: 4, G: 4, H: 4 });
 
@@ -198,12 +199,14 @@ function TabelloneContent() {
         setGroupCompositionMethod(config.groupCompositionMethod || "girone");
         setTeamsToGold(config.teamsToGold || 8);
         setTeamsToSilver(config.teamsToSilver || 8);
+        setTabellonePubblicato(config.tabellonePubblicato || false);
       } else {
         setPhaseType("gold_silver"); setSubPhaseType("direct"); setBracketSize(8); setBracketAssignments({}); setBracketMetadata({});
         setNumGoldGironiOpt(0); setTeamsPerGoldGirone(4); setNumSilverGironiOpt(0); setTeamsPerSilverGirone(4);
         setGroupCompositionMethod("girone");
         setTeamsToGold(8);
         setTeamsToSilver(8);
+        setTabellonePubblicato(false);
       }
       setIsLoaded(true);
     });
@@ -225,7 +228,8 @@ function TabelloneContent() {
       teamsPerSilverGirone,
       groupCompositionMethod,
       teamsToGold,
-      teamsToSilver
+      teamsToSilver,
+      tabellonePubblicato
     };
     
     // Save to localStorage immediately
@@ -237,7 +241,7 @@ function TabelloneContent() {
     }, 1000);
 
     return () => clearTimeout(handler);
-  }, [phaseType, subPhaseType, bracketSize, bracketAssignments, bracketMetadata, selectedTorneo, isLoaded, numGoldGironiOpt, teamsPerGoldGirone, numSilverGironiOpt, teamsPerSilverGirone, groupCompositionMethod, teamsToGold, teamsToSilver]);
+  }, [phaseType, subPhaseType, bracketSize, bracketAssignments, bracketMetadata, selectedTorneo, isLoaded, numGoldGironiOpt, teamsPerGoldGirone, numSilverGironiOpt, teamsPerSilverGirone, groupCompositionMethod, teamsToGold, teamsToSilver, tabellonePubblicato]);
 
 
   const getTeamsCountForGroup = (groupKey) => {
@@ -909,7 +913,8 @@ function TabelloneContent() {
       teamsPerSilverGirone,
       groupCompositionMethod,
       teamsToGold,
-      teamsToSilver
+      teamsToSilver,
+      tabellonePubblicato
     };
     localStorage.setItem(`bvi_bracket_v1_${slug}`, JSON.stringify(config));
     await saveBracket(slug, config);
@@ -1298,6 +1303,17 @@ function TabelloneContent() {
                 )}
                 <button onClick={handleAutoFill} disabled={!selectedTorneo} className="flex-1 md:flex-none bg-[#FFD700] text-[#0a1628] px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all disabled:opacity-50">🔄 GENERA</button>
                 <button onClick={handleSave} disabled={!selectedTorneo} className="flex-1 md:flex-none bg-[#10B981] hover:bg-[#059669] text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all disabled:opacity-50">💾 SALVA</button>
+                <button
+                  onClick={() => setTabellonePubblicato(v => !v)}
+                  disabled={!selectedTorneo}
+                  className={`flex-1 md:flex-none px-5 py-3 rounded-xl font-black text-xs uppercase tracking-wider shadow-lg active:scale-95 transition-all disabled:opacity-50 ${
+                    tabellonePubblicato
+                      ? 'bg-green-100 text-green-700 border-2 border-green-300'
+                      : 'bg-amber-100 text-amber-700 border-2 border-amber-300'
+                  }`}
+                >
+                  {tabellonePubblicato ? '🟢 Tabellone: Visibile' : '🟡 Tabellone: Nascosto'}
+                </button>
                 <button onClick={handleDeleteBracket} disabled={!selectedTorneo} className="flex-1 md:flex-none bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all disabled:opacity-50">🗑️ ELIMINA</button>
             </div>
         </div>

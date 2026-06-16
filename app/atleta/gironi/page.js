@@ -760,12 +760,14 @@ export default function AtletaGironi() {
                     Gironi Intermedi 🏆
                   </button>
                 )}
+                {bracketConfig?.tabellonePubblicato && (
                 <button
                   onClick={() => setActiveTab("finali")}
                   className={`flex-1 py-3 text-center rounded-xl font-black text-[10px] sm:text-xs uppercase tracking-wider transition-all ${activeTab === "finali" ? 'bg-[#0a1628] text-white shadow-md' : 'text-gray-500 hover:text-[#0a1628]'}`}
                 >
                   Fasi Finali ⚔️
                 </button>
+                )}
               </div>
             )}
 
@@ -938,7 +940,7 @@ export default function AtletaGironi() {
             })()}
 
             {/* Fasi Finali */}
-            {activeTab === "finali" && bracketConfig && (
+            {activeTab === "finali" && bracketConfig && bracketConfig.tabellonePubblicato && (
               <div className="space-y-6 text-left">
                 {bracketMatches.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
