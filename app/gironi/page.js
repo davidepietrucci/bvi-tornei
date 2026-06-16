@@ -184,7 +184,7 @@ export default function GironiPubblici() {
           const gid = String.fromCharCode(65 + i);
           const count = config.teamCounts?.[gid] || 0;
           goldSlots += Math.min(2, count);
-          silverSlots += Math.max(0, count - 2);
+          silverSlots += Math.min(2, Math.max(0, count - 2));
         }
       }
       const autoNumGoldGironi = goldSlots > 4 ? 2 : 1;

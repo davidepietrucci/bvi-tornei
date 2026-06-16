@@ -88,7 +88,7 @@ function TabelloneContent() {
     const gid = String.fromCharCode(65 + i);
     const count = teamCounts[gid] || 0;
     goldSlots += Math.min(2, count);
-    silverSlots += Math.max(0, count - 2);
+    silverSlots += Math.min(2, Math.max(0, count - 2));
   }
   const autoNumGoldGironi = goldSlots > 4 ? 2 : 1;
   const autoNumSilverGironi = silverSlots > 4 ? 2 : 1;
@@ -519,7 +519,7 @@ function TabelloneContent() {
         const gid = String.fromCharCode(65 + i);
         const count = gConfig.teamCounts[gid] || 0;
         currentGoldSlots += Math.min(2, count);
-        currentSilverSlots += Math.max(0, count - 2);
+        currentSilverSlots += Math.min(2, Math.max(0, count - 2));
       }
       const autoNumGoldGironi = currentGoldSlots > 4 ? 2 : 1;
       const autoNumSilverGironi = currentSilverSlots > 4 ? 2 : 1;
@@ -555,7 +555,7 @@ function TabelloneContent() {
         const gid = String.fromCharCode(65 + i);
         maxTeams = Math.max(maxTeams, gConfig.teamCounts[gid] || 0);
       }
-      for (let rank = 2; rank < maxTeams; rank++) {
+      for (let rank = 2; rank < Math.min(4, maxTeams); rank++) {
         for (let gIdx = 0; gIdx < numGironi; gIdx++) {
           const gid = String.fromCharCode(65 + gIdx);
           const count = gConfig.teamCounts[gid] || 0;
