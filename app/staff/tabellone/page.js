@@ -883,10 +883,14 @@ function TabelloneContent() {
 
   const handleSave = async () => {
     const slug = selectedTorneo.toLowerCase().trim().replace(/\s+/g, '_');
+    const calculatedBracketSize = (phaseType === "gold_silver" && subPhaseType === "direct")
+      ? Math.max(teamsToGold, teamsToSilver)
+      : bracketSize;
+
     const config = { 
       phaseType, 
       subPhaseType, 
-      bracketSize, 
+      bracketSize: calculatedBracketSize, 
       bracketAssignments, 
       bracketMetadata,
       numGoldGironi: numGoldGironiOpt,
@@ -1194,8 +1198,18 @@ function TabelloneContent() {
     );
   };
 
+  const getSectionBracketSize = (p) => {
+    if (phaseType === "gold_silver" && subPhaseType === "direct") {
+      return p === "gold" ? teamsToGold : teamsToSilver;
+    }
+    return bracketSize;
+  };
+
   const renderSection = (p, title, color) => {
-    const hasOttavi = bracketAssignments[`${p}-o1-L`] !== undefined;
+    const size = getSectionBracketSize(p);
+    const hasOttavi = size === 12 || size === 16;
+    const hasQuarti = size === 8 || size === 12 || size === 16;
+
     return (
       <div className="mb-16">
         <h3 className={`text-2xl font-black uppercase mb-8 ${color==='gold'?'text-yellow-600':color==='silver'?'text-gray-500':'text-blue-600'}`}>{title}</h3>
@@ -1204,12 +1218,16 @@ function TabelloneContent() {
           <div className="mb-10">
             <h4 className="text-[11px] font-black text-gray-400 mb-4 uppercase tracking-widest">Ottavi di finale</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 overflow-x-auto no-scrollbar">
-              {renderMatch(`${p}-o1`,'Ottavi 1',color)} {renderMatch(`${p}-o2`,'Ottavi 2',color)} {renderMatch(`${p}-o3`,'Ottavi 3',color)} {renderMatch(`${p}-o4`,'Ottavi 4',color)}
+              {Array.from({ length: size === 12 ? 4 : 8 }, (_, i) => (
+                <div key={i}>
+                  {renderMatch(`${p}-o${i + 1}`, `Ottavi ${i + 1}`, color)}
+                </div>
+              ))}
             </div>
           </div>
         )}
 
-        {(bracketSize===8 || hasOttavi) && (
+        {hasQuarti && (
           <div className="mb-10">
             {hasOttavi && <h4 className="text-[11px] font-black text-gray-400 mb-4 uppercase tracking-widest">Quarti di finale</h4>}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 overflow-x-auto no-scrollbar">
