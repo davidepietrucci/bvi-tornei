@@ -3,13 +3,14 @@
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getTornei, getIscrizioni, saveIscrizioni, saveTornei, getModuli } from "@/app/utils/db";
+import { getTornei, getModuli } from "@/app/utils/db";
 
 export default function Iscrizioni() {
   const router = useRouter();
   const [torneiAperti, setTorneiAperti] = useState([]);
   const [moduli, setModuli] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   
   // Modulo custom attivo (se presente)
   const [activeModulo, setActiveModulo] = useState(null);
@@ -112,15 +113,8 @@ export default function Iscrizioni() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    const iscrizioni = await getIscrizioni();
-    
-    // Generiamo ID numerico
-    const numericIds = iscrizioni.map(i => parseInt(i.id)).filter(id => !isNaN(id));
-    const newId = numericIds.length > 0 ? Math.max(...numericIds) + 1 : 100;
-    
-    const oggi = new Date();
-    const dataFormatted = `${oggi.getDate().toString().padStart(2, '0')}/${(oggi.getMonth() + 1).toString().padStart(2, '0')}/${oggi.getFullYear()}`;
+    if (submitting) return;
+    setSubmitting(true);
 
     let giocatoriVal = "";
     let telVal = "";
@@ -148,6 +142,7 @@ export default function Iscrizioni() {
 
       if (missingFields.length > 0) {
         alert("Si prega di completare i seguenti campi obbligatori:\n" + missingFields.map(f => `- ${f}`).join("\n"));
+        setSubmitting(false);
         return;
       }
 
@@ -196,37 +191,32 @@ export default function Iscrizioni() {
       noteVal = formData.note;
     }
 
-    const nuovaIscrizione = {
-      id: newId.toString(),
-      data: dataFormatted,
-      torneo: formData.torneo,
-      giocatori: giocatoriVal,
-      tel: telVal,
-      email: emailVal,
-      note: noteVal,
-      stato: "In Attesa",
-      quotaPagata: 0,
-      ...(activeModulo ? { 
-        moduloIscrizioneId: activeModulo.id,
-        risposte: risposteSalvate
-      } : {})
-    };
+    try {
+      const res = await fetch("/api/iscrizioni/registra", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          torneo: formData.torneo,
+          giocatori: giocatoriVal,
+          tel: telVal,
+          email: emailVal,
+          note: noteVal,
+          moduloIscrizioneId: activeModulo ? activeModulo.id : null,
+          risposte: risposteSalvate
+        })
+      });
 
-    // Salvataggio
-    const updatedIscrizioni = [...iscrizioni, nuovaIscrizione];
-    await saveIscrizioni(updatedIscrizioni);
-
-    // Aumentiamo il contatore di iscritti del torneo selezionato
-    const tornei = await getTornei();
-    const updatedTornei = tornei.map(t => {
-      if (t.nome === formData.torneo) {
-        return { ...t, iscritti: (t.iscritti || 0) + 1 };
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || "Errore durante il salvataggio.");
       }
-      return t;
-    });
-    await saveTornei(updatedTornei);
 
-    setShowModal(true);
+      setShowModal(true);
+    } catch (err) {
+      alert("Errore durante l'invio della richiesta: " + err.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -485,10 +475,18 @@ export default function Iscrizioni() {
                 <div className="pt-6">
                   <button 
                     type="submit" 
-                    className="w-full py-4 rounded-full font-bold text-white text-lg transition-all shadow-md hover:opacity-90 hover:shadow-lg" 
+                    disabled={submitting}
+                    className="w-full py-4 rounded-full font-bold text-white text-lg transition-all shadow-md hover:opacity-90 hover:shadow-lg disabled:opacity-55 flex items-center justify-center gap-2" 
                     style={{ backgroundColor: activeModulo ? (activeModulo.coloreTema || "#673ab7") : "#0a1628" }}
                   >
-                    Invia Richiesta di Iscrizione
+                    {submitting ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Invio in corso...
+                      </>
+                    ) : (
+                      "Invia Richiesta di Iscrizione"
+                    )}
                   </button>
                 </div>
               </>

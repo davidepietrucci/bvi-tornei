@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import AthleteHeader from "@/app/components/AthleteHeader";
 import AthleteBottomNav from "@/app/components/AthleteBottomNav";
-import { getTornei, getIscrizioni, saveIscrizioni, saveTornei } from "@/app/utils/db";
+import { getTornei } from "@/app/utils/db";
 
 export default function AtletaIscriviti() {
   const router = useRouter();
@@ -55,51 +55,27 @@ export default function AtletaIscriviti() {
     setSubmitting(true);
     setErrore("");
     try {
-      const iscrizioni = await getIscrizioni();
+      const res = await fetch("/api/iscrizioni/registra", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          torneo: formData.torneo,
+          giocatori: `${formData.giocatore1} & ${formData.giocatore2}`,
+          tel: formData.telefono,
+          email: formData.email,
+          note: "Iscrizione effettuata dal portale atleti.",
+          checkDuplicateName: formData.giocatore1
+        })
+      });
 
-      // Controllo duplicati: l'atleta è già iscritto a questo torneo?
-      const giaNome = formData.giocatore1.toLowerCase();
-      const giaTorneo = formData.torneo.toLowerCase();
-      const duplicato = iscrizioni.some(
-        (isc) =>
-          isc.torneo?.toLowerCase() === giaTorneo &&
-          isc.giocatori?.toLowerCase().includes(giaNome)
-      );
-
-      if (duplicato) {
-        setErrore(`Sei già iscritto al torneo "${formData.torneo}".")`);
-        setSubmitting(false);
-        return;
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || "Errore durante il salvataggio.");
       }
-
-      const numericIds = iscrizioni.map((i) => parseInt(i.id)).filter((id) => !isNaN(id));
-      const newId = numericIds.length > 0 ? Math.max(...numericIds) + 1 : 100;
-      const oggi = new Date();
-      const dataFormatted = `${oggi.getDate().toString().padStart(2, "0")}/${(oggi.getMonth() + 1).toString().padStart(2, "0")}/${oggi.getFullYear()}`;
-
-      const nuova = {
-        id: newId.toString(),
-        data: dataFormatted,
-        torneo: formData.torneo,
-        giocatori: `${formData.giocatore1} & ${formData.giocatore2}`,
-        tel: formData.telefono,
-        email: formData.email,
-        stato: "In Attesa",
-        quotaPagata: 0,
-      };
-
-      await saveIscrizioni([...iscrizioni, nuova]);
-
-      const tornei = await getTornei();
-      await saveTornei(
-        tornei.map((t) =>
-          t.nome === formData.torneo ? { ...t, iscritti: (t.iscritti || 0) + 1 } : t
-        )
-      );
 
       setShowModal(true);
     } catch (e) {
-      setErrore("Errore durante l'invio. Riprova.");
+      setErrore(e.message || "Errore durante l'invio. Riprova.");
     } finally {
       setSubmitting(false);
     }
