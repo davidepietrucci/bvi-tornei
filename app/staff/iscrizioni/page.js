@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import StaffHeader from "@/app/components/StaffHeader";
-import { getTornei, getIscrizioni, saveIscrizioni } from "@/app/utils/db";
+import { getTornei, getIscrizioni, saveIscrizioni, saveTornei } from "@/app/utils/db";
 
 export default function StaffIscrizioni() {
   const [iscrizioni, setIscrizioni] = useState([]);
@@ -89,9 +89,21 @@ export default function StaffIscrizioni() {
 
   const handleDelete = async (id) => {
     if (typeof window !== "undefined" && window.confirm("Sei sicuro di voler eliminare definitivamente questa iscrizione?")) {
+      const deletedIsc = iscrizioni.find((isc) => isc.id === id);
       const updated = iscrizioni.filter((isc) => isc.id !== id);
       setIscrizioni(updated);
       await saveIscrizioni(updated);
+
+      if (deletedIsc) {
+        const allTornei = await getTornei();
+        const updatedTornei = allTornei.map(t => {
+          if (t.nome.toLowerCase().trim() === (deletedIsc.torneo || "").toLowerCase().trim()) {
+            return { ...t, iscritti: Math.max(0, (t.iscritti || 0) - 1) };
+          }
+          return t;
+        });
+        await saveTornei(updatedTornei);
+      }
     }
   };
 
