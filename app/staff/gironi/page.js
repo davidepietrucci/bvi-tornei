@@ -212,9 +212,9 @@ export default function StaffGironi() {
   }, [numGironi, teamCounts, gironeTypes, gironeSets, gironeAssignments, matchMetadata, pubblicato, rankingType, selectedTorneo, isLoaded]);
 
   const giocatoriFiltrati = tutteLeIscrizioni.filter(isc => {
-    const tName = (isc.torneo || "").toLowerCase();
+    const tName = (isc.torneo || "").toLowerCase().trim();
     const sName = (selectedTorneo || "").toLowerCase().trim();
-    return tName.includes(sName) && isc.stato === "Approvata";
+    return tName === sName && isc.stato === "Approvata";
   });
 
   const handleAssignmentChange = (gironeId, slotIdx, playerName) => {

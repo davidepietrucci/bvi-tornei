@@ -12,7 +12,7 @@ export default function StaffTornei() {
   useEffect(() => {
     Promise.all([getTornei(), getIscrizioni()]).then(([savedTornei, savedIscrizioni]) => {
       const updatedWithActualCounts = savedTornei.map(torneo => {
-        const count = savedIscrizioni.filter(isc => isc.torneo === torneo.nome).length;
+        const count = savedIscrizioni.filter(isc => (isc.torneo || "").toLowerCase().trim() === torneo.nome.toLowerCase().trim()).length;
         return { ...torneo, iscritti: count > 0 ? count : torneo.iscritti };
       });
 

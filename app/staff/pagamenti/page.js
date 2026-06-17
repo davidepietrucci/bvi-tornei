@@ -13,7 +13,7 @@ export default function StaffPagamenti() {
   useEffect(() => {
     Promise.all([getIscrizioni(), getTornei()]).then(([iscrizioniList, torneiList]) => {
       const data = iscrizioniList.map(isc => {
-        const torneoInfo = torneiList.find(t => isc.torneo.includes(t.nome));
+        const torneoInfo = torneiList.find(t => (isc.torneo || "").toLowerCase().trim() === t.nome.toLowerCase().trim()) || torneiList.find(t => isc.torneo && t.nome && isc.torneo.toLowerCase().includes(t.nome.toLowerCase()));
         const quotaTorneo = torneoInfo?.quota !== undefined ? torneoInfo.quota : 40;
 
         return {
@@ -60,7 +60,7 @@ export default function StaffPagamenti() {
 
   const iscrizioniFiltrate = filtroTorneo === "Tutti" 
     ? iscrizioni 
-    : iscrizioni.filter(i => i.torneo === filtroTorneo);
+    : iscrizioni.filter(i => (i.torneo || "").toLowerCase().trim() === filtroTorneo.toLowerCase().trim());
 
   const totaleAtteso = iscrizioniFiltrate.reduce((acc, curr) => acc + curr.quotaTotale, 0);
   const totaleIncassato = iscrizioniFiltrate.reduce((acc, curr) => acc + curr.quotaPagata, 0);

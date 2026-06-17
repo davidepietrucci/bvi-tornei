@@ -33,6 +33,7 @@ export default function NuovoTorneo() {
     const nuovoTorneo = {
       id: newId,
       ...formData,
+      nome: (formData.nome || "").trim(),
       iscritti: 0 
     };
     

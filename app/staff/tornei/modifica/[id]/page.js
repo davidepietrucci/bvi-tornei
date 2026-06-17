@@ -35,7 +35,7 @@ export default function ModificaTorneo() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const tornei = await getTornei();
-    const updated = tornei.map(t => String(t.id) === String(torneoId) ? { ...t, ...formData } : t);
+    const updated = tornei.map(t => String(t.id) === String(torneoId) ? { ...t, ...formData, nome: (formData.nome || "").trim() } : t);
     await saveTornei(updated);
     router.push("/staff/tornei");
   };

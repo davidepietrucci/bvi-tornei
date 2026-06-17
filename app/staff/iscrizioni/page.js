@@ -252,7 +252,7 @@ export default function StaffIscrizioni() {
   const exportToExcel = () => {
     const targetIscrizioni = selectedTorneoFilter === "Tutti" 
       ? iscrizioni 
-      : iscrizioni.filter(isc => isc.torneo === selectedTorneoFilter);
+      : iscrizioni.filter(isc => (isc.torneo || "").toLowerCase().trim() === selectedTorneoFilter.toLowerCase().trim());
 
     const escapeCSV = (val) => {
       if (val === undefined || val === null) return '""';
@@ -327,7 +327,7 @@ export default function StaffIscrizioni() {
 
   const filteredIscrizioni = selectedTorneoFilter === "Tutti" 
     ? iscrizioni 
-    : iscrizioni.filter(isc => isc.torneo === selectedTorneoFilter);
+    : iscrizioni.filter(isc => (isc.torneo || "").toLowerCase().trim() === selectedTorneoFilter.toLowerCase().trim());
 
   return (
     <main className="min-h-screen pb-20 bg-[#f8faff]">
@@ -368,7 +368,7 @@ export default function StaffIscrizioni() {
               Tutti i Tornei ({iscrizioni.length})
             </button>
             {tornei.map(t => {
-              const count = iscrizioni.filter(isc => isc.torneo === t.nome).length;
+              const count = iscrizioni.filter(isc => (isc.torneo || "").toLowerCase().trim() === t.nome.toLowerCase().trim()).length;
               return (
                 <button
                   key={t.id}
