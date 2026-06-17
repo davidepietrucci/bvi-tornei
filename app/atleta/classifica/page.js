@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import AthleteHeader from "@/app/components/AthleteHeader";
 import AthleteBottomNav from "@/app/components/AthleteBottomNav";
 import { getTornei, getIscrizioni, getGironi, getBracket } from "@/app/utils/db";
-import { calculateUnifiedRanking } from "@/app/utils/ranking";
+import { calculateUnifiedRanking, getSchedule as getScheduleShared } from "@/app/utils/ranking";
 
 const capitalizeWord = (word) => {
   if (!word) return "";
@@ -161,88 +161,7 @@ export default function AtletaClassifica() {
 
   // Logica per calcolare la classifica
   const getSchedule = (numTeams, gironeId, assignments = {}) => {
-    const getName = (idx) =>
-      assignments[idx] && assignments[idx] !== "—" && assignments[idx] !== "Slot Libero"
-        ? assignments[idx]
-        : `Slot ${idx + 1}`;
-    const type = config?.gironeTypes?.[gironeId] || "Pool";
-    if (!numTeams || numTeams < 2) return [];
-
-    if (type === "Girone all'italiana") {
-      const rrMatches = [];
-      for (let i = 0; i < numTeams; i++) {
-        for (let j = i + 1; j < numTeams; j++) {
-          rrMatches.push({ left: getName(i), right: getName(j) });
-        }
-      }
-      return rrMatches;
-    }
-
-    if (numTeams === 2) return [{ left: getName(0), right: getName(1) }];
-    if (numTeams === 3)
-      return [
-        { left: getName(0), right: getName(2) },
-        { left: getName(1), right: getName(2) },
-        { left: getName(0), right: getName(1) },
-      ];
-    if (numTeams === 4) {
-      const getResult = (idx) => {
-        const meta = config?.matchMetadata?.[`${gironeId}-${idx}`] || {};
-        const s1L = parseInt(meta.s1L || 0);
-        const s1R = parseInt(meta.s1R || 0);
-        if (s1L === 0 && s1R === 0)
-          return { winner: `Vincente G${idx + 1}`, loser: `Perdente G${idx + 1}` };
-
-        if (config?.gironeSets?.[gironeId] === "3 set") {
-          let winL = 0, winR = 0;
-          if (s1L > s1R) winL++;
-          else if (s1R > s1L) winR++;
-          if (parseInt(meta.s2L || 0) > parseInt(meta.s2R || 0)) winL++;
-          else if (parseInt(meta.s2R || 0) > parseInt(meta.s2L || 0)) winR++;
-          if (parseInt(meta.s3L || 0) > parseInt(meta.s3R || 0)) winL++;
-          else if (parseInt(meta.s3R || 0) > parseInt(meta.s3L || 0)) winR++;
-
-          if (winL > winR)
-            return {
-              winner: idx === 0 ? getName(0) : getName(1),
-              loser: idx === 0 ? getName(3) : getName(2),
-            };
-          return {
-            winner: idx === 0 ? getName(3) : getName(2),
-            loser: idx === 0 ? getName(0) : getName(1),
-          };
-        }
-
-        if (s1L > s1R)
-          return {
-            winner: idx === 0 ? getName(0) : getName(1),
-            loser: idx === 0 ? getName(3) : getName(2),
-          };
-        return {
-          winner: idx === 0 ? getName(3) : getName(2),
-          loser: idx === 0 ? getName(0) : getName(1),
-        };
-      };
-
-      const g1 = getResult(0);
-      const g2 = getResult(1);
-
-      return [
-        { left: getName(0), right: getName(3) },
-        { left: getName(1), right: getName(2) },
-        { left: g1.winner, right: g2.winner },
-        { left: g1.loser, right: g2.loser },
-      ];
-    }
-    if (numTeams === 5)
-      return [
-        { left: getName(0), right: getName(4) },
-        { left: getName(1), right: getName(3) },
-        { left: getName(2), right: getName(4) },
-        { left: getName(0), right: getName(1) },
-        { left: getName(2), right: getName(3) },
-      ];
-    return [];
+    return getScheduleShared(numTeams, gironeId, assignments, config?.gironeTypes, config?.gironeSets, config?.matchMetadata);
   };
 
   const calculateRanking = () => {

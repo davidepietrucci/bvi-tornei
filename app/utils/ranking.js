@@ -1,3 +1,12 @@
+function mulberry32(a) {
+  return function() {
+    let t = a += 0x6D2B79F5;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+}
+
 export const getSchedule = (numTeams, gironeId, assignments = {}, gironeTypes = {}, gironeSets = {}, matchMetadata = {}) => {
   const getName = (idx) =>
     assignments[idx] && assignments[idx] !== "—" && assignments[idx] !== "Slot Libero"
@@ -13,7 +22,100 @@ export const getSchedule = (numTeams, gironeId, assignments = {}, gironeTypes = 
         rrMatches.push({ left: getName(i), right: getName(j) });
       }
     }
-    return rrMatches;
+
+    if (numTeams <= 3) {
+      return rrMatches;
+    }
+
+    // Hash parameters to get a deterministic seed
+    let baseSeed = 12345;
+    const seedStr = `${numTeams}-${gironeId}-${Object.values(assignments).join(",")}`;
+    for (let i = 0; i < seedStr.length; i++) {
+      baseSeed = (baseSeed * 31 + seedStr.charCodeAt(i)) | 0;
+    }
+
+    let bestSchedule = null;
+    let bestBackToBacks = Infinity;
+
+    // Run the deterministic search with different seeds (based on baseSeed)
+    for (let attempt = 0; attempt < 50; attempt++) {
+      const remaining = [...rrMatches];
+      const scheduled = [];
+      let currentBackToBacks = 0;
+      let failed = false;
+      const nextRand = mulberry32(baseSeed + attempt);
+
+      while (remaining.length > 0) {
+        // Calculate costs for all remaining matches
+        const candidates = remaining.map((m, idx) => {
+          let cost = 0;
+          const A = m.left;
+          const B = m.right;
+
+          // Check last match
+          if (scheduled.length >= 1) {
+            const last = scheduled[scheduled.length - 1];
+            const lastTeams = [last.left, last.right];
+            if (lastTeams.includes(A)) cost += 1000;
+            if (lastTeams.includes(B)) cost += 1000;
+          }
+
+          // Check second to last match
+          if (scheduled.length >= 2) {
+            const last = scheduled[scheduled.length - 1];
+            const prev = scheduled[scheduled.length - 2];
+            const lastTeams = [last.left, last.right];
+            const prevTeams = [prev.left, prev.right];
+
+            // 3-in-a-row checks: if team played in both the last and 2nd last match,
+            // playing them again makes it 3 in a row.
+            if (lastTeams.includes(A) && prevTeams.includes(A)) {
+              cost += 1000000;
+            }
+            if (lastTeams.includes(B) && prevTeams.includes(B)) {
+              cost += 1000000;
+            }
+
+            if (prevTeams.includes(A)) cost += 100;
+            if (prevTeams.includes(B)) cost += 100;
+          }
+
+          // Small random noise to break ties differently per attempt
+          cost += nextRand() * 50;
+
+          return { match: m, cost, index: idx };
+        });
+
+        candidates.sort((a, b) => a.cost - b.cost);
+
+        const bestCandidate = candidates[0];
+        if (bestCandidate.cost >= 1000000) {
+          failed = true;
+          break;
+        }
+
+        if (scheduled.length >= 1) {
+          const last = scheduled[scheduled.length - 1];
+          const lastTeams = [last.left, last.right];
+          if (lastTeams.includes(bestCandidate.match.left) || lastTeams.includes(bestCandidate.match.right)) {
+            currentBackToBacks++;
+          }
+        }
+
+        scheduled.push(bestCandidate.match);
+        remaining.splice(bestCandidate.index, 1);
+      }
+
+      if (!failed) {
+        if (currentBackToBacks < bestBackToBacks) {
+          bestBackToBacks = currentBackToBacks;
+          bestSchedule = scheduled;
+        }
+        if (currentBackToBacks === 0) break;
+      }
+    }
+
+    return bestSchedule || rrMatches;
   }
 
   if (numTeams === 2) return [{ left: getName(0), right: getName(1) }];
