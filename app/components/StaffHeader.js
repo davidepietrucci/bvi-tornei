@@ -90,6 +90,12 @@ export default function StaffHeader() {
       </nav>
 
       <div className="flex items-center gap-4">
+        <a 
+          href="/atleta/dashboard" 
+          className="hidden sm:inline-block px-4 py-2 bg-[#FFD700] text-[#0a1628] text-xs font-black uppercase tracking-widest rounded-xl hover:bg-[#e6c300] transition-all active:scale-95 shadow-sm"
+        >
+          Area Atleta 🏃
+        </a>
         {username && <span className="text-gray-500 hidden sm:inline text-xs font-bold uppercase tracking-widest">Ciao, {username}</span>}
         <button onClick={handleLogout} className="hidden sm:block hover:underline font-bold text-red-500 text-xs uppercase tracking-widest cursor-pointer bg-transparent border-none">Esci</button>
         
@@ -127,7 +133,14 @@ export default function StaffHeader() {
               ))}
             </nav>
             <div className="mt-auto pt-6 border-t flex flex-col gap-2">
-                {username && <span className="text-xs font-bold text-gray-500 text-center uppercase tracking-widest">Ciao, {username}</span>}
+                <a 
+                  href="/atleta/dashboard" 
+                  className="w-full flex items-center justify-center p-4 bg-[#FFD700] text-[#0a1628] rounded-2xl font-black text-xs uppercase tracking-widest shadow-sm hover:bg-[#e6c300] transition-colors"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Area Atleta 🏃
+                </a>
+                {username && <span className="text-xs font-bold text-gray-500 text-center uppercase tracking-widest mt-2">Ciao, {username}</span>}
                 <button onClick={handleLogout} className="w-full flex items-center justify-center p-4 bg-red-50 text-red-600 rounded-2xl font-black text-xs uppercase tracking-widest cursor-pointer border-none">
                     Esci dal Portale
                 </button>

@@ -6,6 +6,7 @@ import { useUser } from "@clerk/nextjs";
 import AthleteHeader from "@/app/components/AthleteHeader";
 import AthleteBottomNav from "@/app/components/AthleteBottomNav";
 import { getIscrizioni, getTornei, getNotifiche } from "@/app/utils/db";
+import { Card, Button, Chip } from "@heroui/react";
 
 export default function AtletaDashboard() {
   const { user, isLoaded } = useUser();
@@ -69,10 +70,10 @@ export default function AtletaDashboard() {
       <div className="max-w-2xl mx-auto px-4 pt-6 space-y-5">
 
         {/* Hero Card */}
-        <div className="relative bg-[#0a1628] rounded-[2rem] p-6 overflow-hidden shadow-xl">
-          <div className="absolute top-0 right-0 w-40 h-40 bg-[#FFD700]/5 rounded-full -mr-20 -mt-20" />
-          <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/3 rounded-full -ml-16 -mb-16" />
-          <div className="relative z-10 flex items-center justify-between">
+        <Card className="border-none bg-[#0a1628] text-white rounded-[2rem] shadow-xl overflow-hidden">
+          <Card.Content className="p-6 relative z-10 flex flex-row items-center justify-between">
+            <div className="absolute top-0 right-0 w-40 h-40 bg-[#FFD700]/5 rounded-full -mr-20 -mt-20 pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/3 rounded-full -ml-16 -mb-16 pointer-events-none" />
             <div>
               <p className="text-[10px] font-black text-[#FFD700]/70 uppercase tracking-[0.3em] mb-1">{saluto} 👋</p>
               <h1 className="text-3xl font-black text-white uppercase tracking-tighter leading-none">{nome}</h1>
@@ -81,99 +82,112 @@ export default function AtletaDashboard() {
             <div className="w-16 h-16 rounded-[1.4rem] bg-[#FFD700] flex items-center justify-center text-[#0a1628] font-black text-2xl shadow-lg shrink-0">
               {initials}
             </div>
-          </div>
-        </div>
+          </Card.Content>
+        </Card>
 
         {/* Notifiche Staff */}
         {notifiche.length > 0 && (
-          <div
-            className="bg-white rounded-[1.8rem] p-5 shadow-sm border border-amber-100 cursor-pointer hover:shadow-md transition-shadow active:scale-[0.99]"
+          <Card 
+            className="border-none bg-white rounded-[1.8rem] shadow-sm border border-amber-100 transition-all hover:-translate-y-0.5 cursor-pointer"
             onClick={() => router.push("/atleta/notifiche")}
           >
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Avvisi Staff</p>
-              </div>
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 text-gray-300">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-              </svg>
-            </div>
-            <div className="space-y-2">
-              {notifiche.map((n, idx) => (
-                <div key={idx} className="flex items-start gap-3">
-                  <span className="text-base mt-0.5 shrink-0">
-                    {n.tipo === "urgente" ? "🚨" : n.tipo === "avviso" ? "⚠️" : "ℹ️"}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-xs font-black text-[#0a1628] truncate">{n.titolo}</p>
-                    <p className="text-[10px] text-gray-400 font-medium truncate">{n.messaggio}</p>
-                  </div>
+            <Card.Content className="p-5">
+              <div className="flex items-center justify-between mb-3 w-full">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                  <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Avvisi Staff</p>
                 </div>
-              ))}
-            </div>
-          </div>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 text-gray-300">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
+              </div>
+              <div className="space-y-2 w-full text-left">
+                {notifiche.map((n, idx) => (
+                  <div key={idx} className="flex items-start gap-3">
+                    <span className="text-base mt-0.5 shrink-0">
+                      {n.tipo === "urgente" ? "🚨" : n.tipo === "avviso" ? "⚠️" : "ℹ️"}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-xs font-black text-[#0a1628] truncate">{n.titolo}</p>
+                      <p className="text-[10px] text-gray-400 font-medium truncate">{n.messaggio}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card.Content>
+          </Card>
         )}
 
         {/* Stats row */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white rounded-[1.8rem] p-5 shadow-sm border border-gray-100">
-            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">Confermate</p>
-            <div className="flex items-baseline gap-1">
-              <span className="text-4xl font-black text-green-600">{iscrConfirmate}</span>
-              <span className="text-[9px] font-bold text-green-400 uppercase">tornei</span>
-            </div>
-          </div>
-          <div className="bg-white rounded-[1.8rem] p-5 shadow-sm border border-gray-100">
-            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">In Attesa</p>
-            <div className="flex items-baseline gap-1">
-              <span className="text-4xl font-black text-amber-500">{iscrAttesa}</span>
-              <span className="text-[9px] font-bold text-amber-400 uppercase">richieste</span>
-            </div>
-          </div>
+          <Card className="border-none bg-white rounded-[1.8rem] shadow-sm">
+            <Card.Content className="p-5">
+              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">Confermate</p>
+              <div className="flex items-baseline gap-1">
+                <span className="text-4xl font-black text-green-600">{iscrConfirmate}</span>
+                <span className="text-[9px] font-bold text-green-400 uppercase">tornei</span>
+              </div>
+            </Card.Content>
+          </Card>
+          <Card className="border-none bg-white rounded-[1.8rem] shadow-sm">
+            <Card.Content className="p-5">
+              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">In Attesa</p>
+              <div className="flex items-baseline gap-1">
+                <span className="text-4xl font-black text-amber-500">{iscrAttesa}</span>
+                <span className="text-[9px] font-bold text-amber-400 uppercase">richieste</span>
+              </div>
+            </Card.Content>
+          </Card>
         </div>
 
         {/* Prossima iscrizione */}
         <div>
           <div className="flex items-center justify-between mb-3 px-1">
             <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">La tua prossima sfida</h2>
-            <button
-              onClick={() => router.push("/atleta/iscrizioni")}
-              className="text-[10px] font-black text-blue-500 uppercase tracking-widest"
+            <Button
+              size="sm"
+              variant="ghost"
+              onPress={() => router.push("/atleta/iscrizioni")}
+              className="text-[10px] font-black text-blue-500 uppercase tracking-widest min-w-0 p-0 h-auto border-none bg-transparent hover:bg-transparent"
             >
               Vedi tutte →
-            </button>
+            </Button>
           </div>
 
           {prossimaIscr ? (
-            <div className="bg-white rounded-[1.8rem] p-5 shadow-sm border border-gray-100">
-              <div className="flex items-center gap-4">
+            <Card className="border-none bg-white rounded-[1.8rem] shadow-sm">
+              <Card.Content className="p-5 flex flex-row items-center gap-4">
                 <div className="w-14 h-14 rounded-2xl bg-[#0a1628] flex items-center justify-center text-2xl shrink-0">🏐</div>
                 <div className="min-w-0 flex-1">
                   <p className="font-black text-[#0a1628] text-sm uppercase tracking-tight truncate">{prossimaIscr.torneo}</p>
                   <p className="text-[10px] text-gray-400 font-semibold mt-1 truncate">{prossimaIscr.giocatori}</p>
                   <p className="text-[10px] text-gray-300 font-bold mt-0.5">{prossimaIscr.data}</p>
                 </div>
-                <span className={`shrink-0 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                  prossimaIscr.stato === "Approvata"
-                    ? "bg-green-100 text-green-700"
-                    : "bg-amber-100 text-amber-700"
-                }`}>
-                  {prossimaIscr.stato === "Approvata" ? "Confermato" : "In Attesa"}
-                </span>
-              </div>
-            </div>
+                <Chip
+                  variant="soft"
+                  color={prossimaIscr.stato === "Approvata" ? "success" : "warning"}
+                  className="shrink-0 text-[9px] font-black uppercase tracking-wider"
+                >
+                  <Chip.Label>{prossimaIscr.stato === "Approvata" ? "Confermato" : "In Attesa"}</Chip.Label>
+                </Chip>
+              </Card.Content>
+            </Card>
           ) : (
-            <div
-              className="bg-white rounded-[1.8rem] p-8 shadow-sm border border-dashed border-gray-200 flex flex-col items-center gap-3 cursor-pointer hover:border-[#0a1628] transition-colors active:scale-[0.99]"
+            <Card 
+              className="border-none bg-white rounded-[1.8rem] shadow-sm border border-dashed border-gray-200 cursor-pointer"
               onClick={() => router.push("/atleta/iscriviti")}
             >
-              <span className="text-4xl">🏜️</span>
-              <p className="text-xs font-black text-gray-400 uppercase tracking-widest text-center">Nessuna iscrizione attiva</p>
-              <span className="text-[10px] font-black text-[#0a1628] bg-[#0a1628]/5 px-4 py-1.5 rounded-full uppercase tracking-widest">
-                Iscriviti ora →
-              </span>
-            </div>
+              <Card.Content className="flex flex-col items-center gap-3 py-6">
+                <span className="text-4xl">🏜️</span>
+                <p className="text-xs font-black text-gray-400 uppercase tracking-widest text-center">Nessuna iscrizione attiva</p>
+                <Button
+                  onPress={() => router.push("/atleta/iscriviti")}
+                  className="text-[10px] font-black text-white bg-[#0a1628] rounded-full uppercase tracking-widest px-6 py-2 shadow-sm"
+                >
+                  Iscriviti ora →
+                </Button>
+              </Card.Content>
+            </Card>
           )}
         </div>
 
@@ -183,24 +197,30 @@ export default function AtletaDashboard() {
             <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Tornei con iscrizioni aperte</h2>
             <div className="space-y-3">
               {torneiAperti.map((t) => (
-                <div
+                <Card
                   key={t.id}
-                  className="bg-white rounded-[1.8rem] p-5 shadow-sm border border-gray-100 flex items-center justify-between cursor-pointer hover:shadow-md transition-shadow active:scale-[0.99]"
+                  className="border-none bg-white rounded-[1.8rem] shadow-sm hover:-translate-y-0.5 transition-all cursor-pointer"
                   onClick={() => router.push("/atleta/iscriviti")}
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-[#FFD700]/20 flex items-center justify-center shrink-0">
-                      <span className="text-lg">🏆</span>
+                  <Card.Content className="p-5 flex flex-row items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-xl bg-[#FFD700]/20 flex items-center justify-center shrink-0">
+                        <span className="text-lg">🏆</span>
+                      </div>
+                      <div className="min-w-0 text-left">
+                        <p className="font-black text-[#0a1628] text-xs uppercase tracking-tight truncate">{t.nome}</p>
+                        <p className="text-[10px] text-gray-400 font-semibold mt-0.5">{t.data} · {t.categoria}</p>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <p className="font-black text-[#0a1628] text-xs uppercase tracking-tight truncate">{t.nome}</p>
-                      <p className="text-[10px] text-gray-400 font-semibold mt-0.5">{t.data} · {t.categoria}</p>
-                    </div>
-                  </div>
-                  <span className="shrink-0 text-[9px] font-black text-green-600 bg-green-50 px-3 py-1.5 rounded-full uppercase tracking-wider border border-green-100">
-                    Aperto
-                  </span>
-                </div>
+                    <Chip
+                      variant="soft"
+                      color="success"
+                      className="shrink-0 text-[9px] font-black uppercase tracking-wider"
+                    >
+                      <Chip.Label>Aperto</Chip.Label>
+                    </Chip>
+                  </Card.Content>
+                </Card>
               ))}
             </div>
           </div>
@@ -210,39 +230,38 @@ export default function AtletaDashboard() {
         <div>
           <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Azioni rapide</h2>
           <div className="grid grid-cols-2 gap-3">
-            <button
+            <Card
+              className="col-span-2 border-none bg-white rounded-[1.8rem] shadow-sm hover:-translate-y-0.5 transition-all cursor-pointer"
               onClick={() => router.push("/atleta/gironi")}
-              className="bg-white rounded-[1.8rem] p-5 shadow-sm border border-gray-100 flex flex-col items-center gap-3 hover:shadow-md transition-all active:scale-[0.98] group"
             >
-              <span className="text-3xl group-hover:scale-110 transition-transform">📊</span>
-              <span className="text-[10px] font-black text-[#0a1628] uppercase tracking-widest text-center">Gironi Live</span>
-            </button>
-            <button
+              <Card.Content className="p-5 flex flex-row items-center justify-center gap-3">
+                <span className="text-2xl">📊</span>
+                <span className="text-[10px] font-black text-[#0a1628] uppercase tracking-widest text-center">Gironi Live</span>
+              </Card.Content>
+            </Card>
+            <Card
+              className="border-none bg-white rounded-[1.8rem] shadow-sm hover:-translate-y-0.5 transition-all cursor-pointer"
               onClick={() => router.push("/atleta/notifiche")}
-              className="bg-white rounded-[1.8rem] p-5 shadow-sm border border-gray-100 flex flex-col items-center gap-3 hover:shadow-md transition-all active:scale-[0.98] group relative"
             >
-              {notificheNonLette > 0 && (
-                <span className="absolute top-4 right-4 w-5 h-5 bg-red-500 rounded-full text-[9px] font-black text-white flex items-center justify-center">
-                  {notificheNonLette}
-                </span>
-              )}
-              <span className="text-3xl group-hover:scale-110 transition-transform">🔔</span>
-              <span className="text-[10px] font-black text-[#0a1628] uppercase tracking-widest text-center">Notifiche</span>
-            </button>
-            <button
-              onClick={() => router.push("/atleta/classifica")}
-              className="bg-white rounded-[1.8rem] p-5 shadow-sm border border-gray-100 flex flex-col items-center gap-3 hover:shadow-md transition-all active:scale-[0.98] group"
-            >
-              <span className="text-3xl group-hover:scale-110 transition-transform">🏅</span>
-              <span className="text-[10px] font-black text-[#0a1628] uppercase tracking-widest text-center">Classifica</span>
-            </button>
-            <button
+              <Card.Content className="p-5 flex flex-col items-center gap-3 relative">
+                {notificheNonLette > 0 && (
+                  <span className="absolute top-4 right-4 w-5 h-5 bg-red-500 rounded-full text-[9px] font-black text-white flex items-center justify-center z-20 animate-pulse">
+                    {notificheNonLette}
+                  </span>
+                )}
+                <span className="text-3xl">🔔</span>
+                <span className="text-[10px] font-black text-[#0a1628] uppercase tracking-widest text-center">Notifiche</span>
+              </Card.Content>
+            </Card>
+            <Card
+              className="border-none bg-white rounded-[1.8rem] shadow-sm hover:-translate-y-0.5 transition-all cursor-pointer"
               onClick={() => router.push("/atleta/profilo")}
-              className="bg-white rounded-[1.8rem] p-5 shadow-sm border border-gray-100 flex flex-col items-center gap-3 hover:shadow-md transition-all active:scale-[0.98] group"
             >
-              <span className="text-3xl group-hover:scale-110 transition-transform">👤</span>
-              <span className="text-[10px] font-black text-[#0a1628] uppercase tracking-widest text-center">Profilo</span>
-            </button>
+              <Card.Content className="p-5 flex flex-col items-center gap-3">
+                <span className="text-3xl">👤</span>
+                <span className="text-[10px] font-black text-[#0a1628] uppercase tracking-widest text-center">Profilo</span>
+              </Card.Content>
+            </Card>
           </div>
         </div>
 

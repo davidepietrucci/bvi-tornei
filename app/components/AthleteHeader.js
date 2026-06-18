@@ -9,7 +9,7 @@ export default function AthleteHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
   const { signOut } = useClerk();
 
   const menuItems = [
@@ -18,8 +18,7 @@ export default function AthleteHeader() {
     { name: "Gironi & Calendario", path: "/atleta/gironi", emoji: "🏐" },
     { name: "Iscriviti", path: "/atleta/iscriviti", emoji: "➕" },
     { name: "Notifiche", path: "/atleta/notifiche", emoji: "🔔" },
-    { name: "Profilo & Documenti", path: "/atleta/profilo", emoji: "👤" },
-    { name: "Classifica", path: "/atleta/classifica", emoji: "🏆" },
+    { name: "Profilo", path: "/atleta/profilo", emoji: "👤" },
   ];
 
   const handleLogout = () => {
@@ -62,6 +61,16 @@ export default function AthleteHeader() {
 
       {/* Right side */}
       <div className="flex items-center gap-3">
+        {/* Area Staff (solo se admin o staff) */}
+        {isLoaded && user && (user.publicMetadata?.role === "admin" || user.publicMetadata?.role === "staff") && (
+          <a
+            href="/staff/dashboard"
+            className="hidden sm:inline-block px-4 py-2 bg-[#0a1628] text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-slate-800 transition-all active:scale-95 border border-[#0a1628] shadow-sm animate-pulse-once"
+          >
+            Area Staff 🛠️
+          </a>
+        )}
+
         {/* Avatar + nome — visible su sm+ */}
         <div
           className="hidden sm:flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
@@ -150,6 +159,19 @@ export default function AthleteHeader() {
                 </a>
               ))}
             </nav>
+
+            {/* Area Staff mobile (solo se admin/staff) */}
+            {isLoaded && user && (user.publicMetadata?.role === "admin" || user.publicMetadata?.role === "staff") && (
+              <div className="p-4 border-t border-gray-100">
+                <a
+                  href="/staff/dashboard"
+                  className="w-full flex items-center justify-center p-4 bg-[#0a1628] text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-colors shadow-sm"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Area Staff 🛠️
+                </a>
+              </div>
+            )}
 
             {/* Logout */}
             <div className="p-4 border-t border-gray-100">

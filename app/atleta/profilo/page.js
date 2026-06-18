@@ -6,7 +6,7 @@ import { useUser, useClerk } from "@clerk/nextjs";
 import AthleteHeader from "@/app/components/AthleteHeader";
 import AthleteBottomNav from "@/app/components/AthleteBottomNav";
 
-const TABS = ["Info", "Documenti", "Impostazioni"];
+const TABS = ["Info", "Impostazioni"];
 
 export default function AtletaProfilo() {
   const { user, isLoaded } = useUser();
@@ -103,57 +103,7 @@ export default function AtletaProfilo() {
           </div>
         )}
 
-        {/* Tab: Documenti */}
-        {tab === "Documenti" && (
-          <div className="space-y-3">
-            <div className="bg-white rounded-[1.8rem] p-5 shadow-sm border border-gray-100">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-2xl">🏥</div>
-                  <div>
-                    <p className="font-black text-[#0a1628] text-xs uppercase tracking-tight">Certificato Agonistico</p>
-                    <p className="text-[10px] text-gray-400 font-semibold mt-0.5">Necessario per partecipare ai tornei</p>
-                  </div>
-                </div>
-                <span className="shrink-0 text-[9px] font-black bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full uppercase tracking-wider">
-                  Da caricare
-                </span>
-              </div>
-              <div className="mt-4 pt-4 border-t border-gray-50">
-                <label className="block w-full">
-                  <div className="border-2 border-dashed border-gray-200 rounded-2xl p-6 flex flex-col items-center gap-2 cursor-pointer hover:border-[#0a1628] transition-colors group">
-                    <span className="text-2xl group-hover:scale-110 transition-transform">📁</span>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">
-                      Tocca per caricare il PDF
-                    </p>
-                    <p className="text-[9px] text-gray-300 font-semibold">PDF, JPG, PNG · max 5MB</p>
-                  </div>
-                  <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png" onChange={() => {}} />
-                </label>
-              </div>
-            </div>
 
-            <div className="bg-white rounded-[1.8rem] p-5 shadow-sm border border-gray-100">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-green-50 flex items-center justify-center text-2xl">📋</div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-black text-[#0a1628] text-xs uppercase tracking-tight">Modulo BVI</p>
-                  <p className="text-[10px] text-gray-400 font-semibold mt-0.5">Modulo iscrizione associazione</p>
-                </div>
-                <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white text-sm shadow-md shrink-0">✓</div>
-              </div>
-              <button className="mt-4 w-full py-3 border-2 border-gray-100 text-gray-400 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:border-[#0a1628] hover:text-[#0a1628] transition-all active:scale-95">
-                Download PDF
-              </button>
-            </div>
-
-            <div className="bg-gray-50 rounded-[1.8rem] p-4 border border-gray-100">
-              <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest text-center">
-                🔒 Sicurezza Dati Garantita · GDPR Compliant
-              </p>
-            </div>
-          </div>
-        )}
 
         {/* Tab: Impostazioni */}
         {tab === "Impostazioni" && (
@@ -166,12 +116,6 @@ export default function AtletaProfilo() {
                   desc="Avvisi su tornei e scadenze"
                   value={notifiche}
                   onChange={toggleNotifiche}
-                />
-                <ToggleRow
-                  label="Visibilità Ranking"
-                  desc="Mostra punteggio agli altri atleti"
-                  value={false}
-                  onChange={() => {}}
                 />
               </div>
             </div>
