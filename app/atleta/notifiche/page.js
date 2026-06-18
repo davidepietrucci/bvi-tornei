@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useUser } from "@clerk/nextjs";
 import AthleteHeader from "@/app/components/AthleteHeader";
 import AthleteBottomNav from "@/app/components/AthleteBottomNav";
 import { getNotifiche } from "@/app/utils/db";
@@ -14,18 +14,18 @@ const TIPO_CONFIG = {
 };
 
 export default function AtletaNotifiche() {
-  const { data: session, status } = useSession();
+  const { user, isLoaded } = useUser();
   const router = useRouter();
 
   const [notifiche, setNotifiche] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (status === "unauthenticated") {
+    if (isLoaded && !user) {
       router.push("/atleta");
       return;
     }
-    if (status === "authenticated") {
+    if (user) {
       getNotifiche().then((data) => {
         // Ordina per data decrescente se presente
         const sorted = [...data].sort((a, b) => {
@@ -35,9 +35,9 @@ export default function AtletaNotifiche() {
         setNotifiche(sorted);
       }).finally(() => setLoading(false));
     }
-  }, [router, status]);
+  }, [router, isLoaded, user]);
 
-  if (status === "loading" || loading) {
+  if (!isLoaded || loading) {
     return (
       <div className="min-h-screen bg-[#f0f4ff] flex items-center justify-center">
         <div className="w-12 h-12 border-4 border-[#0a1628] border-t-transparent rounded-full animate-spin" />

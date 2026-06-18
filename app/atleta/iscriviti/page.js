@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useUser } from "@clerk/nextjs";
 import AthleteHeader from "@/app/components/AthleteHeader";
 import AthleteBottomNav from "@/app/components/AthleteBottomNav";
 import { getTornei } from "@/app/utils/db";
 
 export default function AtletaIscriviti() {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { user, isLoaded } = useUser();
 
   const [torneiAperti, setTorneiAperti] = useState([]);
   const [step, setStep] = useState(1); // 1: torneo, 2: dati, 3: conferma
@@ -26,15 +26,15 @@ export default function AtletaIscriviti() {
   });
 
   useEffect(() => {
-    if (status === "unauthenticated") {
+    if (isLoaded && !user) {
       router.push("/atleta");
       return;
     }
-    if (session?.user) {
+    if (user) {
       setFormData((prev) => ({
         ...prev,
-        giocatore1: session.user.name || prev.giocatore1,
-        email: session.user.email || prev.email,
+        giocatore1: user.fullName || prev.giocatore1,
+        email: user.primaryEmailAddress?.emailAddress || prev.email,
       }));
     }
     getTornei().then((all) => {
@@ -44,7 +44,7 @@ export default function AtletaIscriviti() {
         setFormData((prev) => ({ ...prev, torneo: aperti[0].nome }));
       }
     });
-  }, [router, status, session]);
+  }, [router, isLoaded, user]);
 
   const handleChange = (e) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -81,7 +81,7 @@ export default function AtletaIscriviti() {
     }
   };
 
-  if (status === "loading") {
+  if (!isLoaded) {
     return (
       <div className="min-h-screen bg-[#f0f4ff] flex items-center justify-center">
         <div className="w-12 h-12 border-4 border-[#0a1628] border-t-transparent rounded-full animate-spin" />

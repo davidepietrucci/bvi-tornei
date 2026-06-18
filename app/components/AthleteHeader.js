@@ -3,13 +3,14 @@
 import Image from "next/image";
 import { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { signOut, useSession } from "next-auth/react";
+import { useUser, useClerk } from "@clerk/nextjs";
 
 export default function AthleteHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
-  const { data: session } = useSession();
+  const { user } = useUser();
+  const { signOut } = useClerk();
 
   const menuItems = [
     { name: "Dashboard", path: "/atleta/dashboard", emoji: "🏠" },
@@ -22,11 +23,11 @@ export default function AthleteHeader() {
   ];
 
   const handleLogout = () => {
-    signOut({ callbackUrl: "/" });
+    signOut({ redirectUrl: "/" });
   };
 
-  const initials = session?.user?.name
-    ? session.user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
+  const initials = user?.fullName
+    ? user.fullName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
     : "A";
 
   return (
@@ -70,7 +71,7 @@ export default function AthleteHeader() {
             {initials}
           </div>
           <span className="font-black text-[10px] text-[#0a1628] uppercase tracking-widest hidden md:block">
-            {session?.user?.name?.split(" ")[0] || "Atleta"}
+            {user?.firstName || "Atleta"}
           </span>
         </div>
 
@@ -117,10 +118,10 @@ export default function AthleteHeader() {
                 </div>
                 <div>
                   <p className="font-black text-white text-xs uppercase tracking-wider">
-                    {session?.user?.name?.split(" ")[0] || "Atleta"}
+                    {user?.firstName || "Atleta"}
                   </p>
                   <p className="text-[9px] font-bold text-[#FFD700]/70 truncate max-w-[100px]">
-                    {session?.user?.email || ""}
+                    {user?.primaryEmailAddress?.emailAddress || ""}
                   </p>
                 </div>
               </div>

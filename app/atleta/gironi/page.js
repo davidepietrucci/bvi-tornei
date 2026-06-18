@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useUser } from "@clerk/nextjs";
 import AthleteHeader from "@/app/components/AthleteHeader";
 import AthleteBottomNav from "@/app/components/AthleteBottomNav";
 import { getTornei, getGironi, getBracket } from "@/app/utils/db";
@@ -69,7 +69,7 @@ const formatPlayerName = (fullName) => {
 };
 
 export default function AtletaGironi() {
-  const { data: session, status } = useSession();
+  const { user, isLoaded } = useUser();
   const router = useRouter();
   
   const [torneiAttivi, setTorneiAttivi] = useState([]);
@@ -79,14 +79,14 @@ export default function AtletaGironi() {
   const [activeTab, setActiveTab] = useState("iniziali");
   const [activeGirone, setActiveGirone] = useState("A");
 
-  const nomeAtleta = session?.user?.name || "Davide P.";
+  const nomeAtleta = user?.fullName || "Davide P.";
 
   useEffect(() => {
-    if (status === "unauthenticated") {
+    if (isLoaded && !user) {
       router.push("/atleta"); return;
     }
 
-    if (status === "authenticated") {
+    if (user) {
       getTornei().then(parsed => {
         setTorneiAttivi(parsed);
         
@@ -105,7 +105,7 @@ export default function AtletaGironi() {
         }
       });
     }
-  }, [router, status]);
+  }, [router, isLoaded, user]);
 
   useEffect(() => {
     if (!selectedTorneo) return;
@@ -649,7 +649,7 @@ export default function AtletaGironi() {
   const bracketMatches = getAllBracketMatches();
   const isMe = (name) => name?.toLowerCase().includes(nomeAtleta.toLowerCase());
 
-  if (status === "loading") return (
+  if (!isLoaded) return (
     <div className="min-h-screen bg-[#f8faff] flex items-center justify-center">
         <div className="w-16 h-16 border-4 border-[#0a1628] border-t-transparent rounded-full animate-spin"></div>
     </div>

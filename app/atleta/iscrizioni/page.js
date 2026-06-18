@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useUser } from "@clerk/nextjs";
 import AthleteHeader from "@/app/components/AthleteHeader";
 import AthleteBottomNav from "@/app/components/AthleteBottomNav";
 import { getIscrizioni } from "@/app/utils/db";
@@ -10,7 +10,7 @@ import { getIscrizioni } from "@/app/utils/db";
 const FILTRI = ["Tutte", "Approvata", "In Attesa"];
 
 export default function MieIscrizioni() {
-  const { data: session, status } = useSession();
+  const { user, isLoaded } = useUser();
   const router = useRouter();
 
   const [iscrizioni, setIscrizioni] = useState([]);
@@ -19,12 +19,12 @@ export default function MieIscrizioni() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (status === "unauthenticated") {
+    if (isLoaded && !user) {
       router.push("/atleta");
       return;
     }
-    if (status === "authenticated") {
-      const nomeUtente = session?.user?.name || "";
+    if (user) {
+      const nomeUtente = user.fullName || "";
       getIscrizioni().then((all) => {
         const mie = all.filter((isc) =>
           isc.giocatori?.toLowerCase().includes(nomeUtente.toLowerCase())
@@ -32,13 +32,13 @@ export default function MieIscrizioni() {
         setIscrizioni(mie);
       }).finally(() => setLoading(false));
     }
-  }, [router, status, session]);
+  }, [router, isLoaded, user]);
 
   const filtered = filter === "Tutte" ? iscrizioni : iscrizioni.filter((i) => i.stato === filter);
 
   const toggleExpand = (id) => setExpanded(expanded === id ? null : id);
 
-  if (status === "loading" || loading) {
+  if (!isLoaded || loading) {
     return (
       <div className="min-h-screen bg-[#f0f4ff] flex items-center justify-center">
         <div className="w-12 h-12 border-4 border-[#0a1628] border-t-transparent rounded-full animate-spin" />

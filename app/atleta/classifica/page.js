@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useUser } from "@clerk/nextjs";
 import AthleteHeader from "@/app/components/AthleteHeader";
 import AthleteBottomNav from "@/app/components/AthleteBottomNav";
 import { getTornei, getIscrizioni, getGironi, getBracket } from "@/app/utils/db";
@@ -69,7 +69,7 @@ const formatPlayerName = (fullName) => {
 };
 
 export default function AtletaClassifica() {
-  const { data: session, status } = useSession();
+  const { user, isLoaded } = useUser();
   const router = useRouter();
 
   const [torneiAttivi, setTorneiAttivi] = useState([]);
@@ -79,16 +79,16 @@ export default function AtletaClassifica() {
   const [activeGirone, setActiveGirone] = useState("A");
   const [loading, setLoading] = useState(true);
 
-  const nomeUtente = session?.user?.name || "";
+  const nomeUtente = user?.fullName || "";
 
   // 1. Controlla autenticazione e carica tornei dell'atleta
   useEffect(() => {
-    if (status === "unauthenticated") {
+    if (isLoaded && !user) {
       router.push("/atleta");
       return;
     }
 
-    if (status === "authenticated") {
+    if (user) {
       Promise.all([getTornei(), getIscrizioni()]).then(([allTornei, allIscrizioni]) => {
         // Filtra le iscrizioni dell'utente loggato
         const mieIscrizioni = allIscrizioni.filter(
@@ -113,7 +113,7 @@ export default function AtletaClassifica() {
         setLoading(false);
       });
     }
-  }, [status, nomeUtente, router]);
+  }, [isLoaded, user, nomeUtente, router]);
 
   // 2. Carica configurazione gironi per il torneo selezionato
   useEffect(() => {
@@ -253,7 +253,7 @@ export default function AtletaClassifica() {
       : [];
   const rankingType = config?.rankingType || "avulsa";
 
-  if (status === "loading" || loading) {
+  if (!isLoaded || loading) {
     return (
       <div className="min-h-screen bg-[#f0f4ff] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">

@@ -2,29 +2,35 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSession, signOut } from "next-auth/react";
+import { useUser, useClerk } from "@clerk/nextjs";
 import AthleteHeader from "@/app/components/AthleteHeader";
 import AthleteBottomNav from "@/app/components/AthleteBottomNav";
 
 const TABS = ["Info", "Documenti", "Impostazioni"];
 
 export default function AtletaProfilo() {
-  const { data: session, status } = useSession();
+  const { user, isLoaded } = useUser();
+  const { signOut } = useClerk();
   const router = useRouter();
   const [tab, setTab] = useState("Info");
   const [notifiche, setNotifiche] = useState(true);
 
   useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/atleta");
-    }
     // Carica preferenze da localStorage
     const savedNotif = localStorage.getItem("bvi_notif_atleta");
     if (savedNotif !== null) setNotifiche(savedNotif === "true");
-  }, [router, status]);
+  }, []);
 
-  const nome = session?.user?.name || "—";
-  const email = session?.user?.email || "—";
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-[#f0f4ff] flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-[#0a1628] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  const nome = user?.fullName || "—";
+  const email = user?.primaryEmailAddress?.emailAddress || "—";
   const initials = nome !== "—"
     ? nome.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
     : "A";
@@ -35,13 +41,9 @@ export default function AtletaProfilo() {
     localStorage.setItem("bvi_notif_atleta", String(newVal));
   };
 
-  if (status === "loading") {
-    return (
-      <div className="min-h-screen bg-[#f0f4ff] flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-[#0a1628] border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  const handleLogout = () => {
+    signOut({ redirectUrl: "/" });
+  };
 
   return (
     <main className="min-h-screen bg-[#f0f4ff] pb-28 xl:pb-10">
@@ -85,11 +87,11 @@ export default function AtletaProfilo() {
           <div className="space-y-3">
             <InfoRow emoji="👤" label="Nome Completo" value={nome} />
             <InfoRow emoji="📧" label="Email" value={email} />
-            <InfoRow emoji="🆔" label="Provider Login" value={session?.user?.image ? "Google" : "Credenziali"} />
+            <InfoRow emoji="🆔" label="Provider Login" value={user?.externalAccounts?.length > 0 ? "Google" : "Credenziali"} />
 
             <div className="pt-2">
               <button
-                onClick={() => signOut({ callbackUrl: "/" })}
+                onClick={handleLogout}
                 className="w-full py-4 bg-red-50 border border-red-100 text-red-500 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all hover:bg-red-100"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
@@ -187,7 +189,7 @@ export default function AtletaProfilo() {
                   </svg>
                 </button>
                 <button
-                  onClick={() => signOut({ callbackUrl: "/" })}
+                  onClick={handleLogout}
                   className="w-full flex items-center justify-between p-4 bg-red-50 rounded-2xl text-xs font-black text-red-500 hover:bg-red-100 transition-colors active:scale-[0.98]"
                 >
                   <span>Disconnetti</span>

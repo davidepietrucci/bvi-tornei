@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useUser } from "@clerk/nextjs";
 import AthleteHeader from "@/app/components/AthleteHeader";
 import AthleteBottomNav from "@/app/components/AthleteBottomNav";
 import { getIscrizioni, getTornei, getNotifiche } from "@/app/utils/db";
 
 export default function AtletaDashboard() {
-  const { data: session, status } = useSession();
+  const { user, isLoaded } = useUser();
   const router = useRouter();
 
   const [iscrizioni, setIscrizioni] = useState([]);
@@ -16,20 +16,20 @@ export default function AtletaDashboard() {
   const [notifiche, setNotifiche] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const nome = session?.user?.name?.split(" ")[0] || "Atleta";
-  const initials = session?.user?.name
-    ? session.user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
+  const nome = user?.firstName || "Atleta";
+  const initials = user?.fullName
+    ? user.fullName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
     : "A";
   const ora = new Date().getHours();
   const saluto = ora < 12 ? "Buongiorno" : ora < 18 ? "Buon pomeriggio" : "Buonasera";
 
   useEffect(() => {
-    if (status === "unauthenticated") {
+    if (isLoaded && !user) {
       router.push("/atleta");
       return;
     }
-    if (status === "authenticated") {
-      const nomeUtente = session?.user?.name || "";
+    if (user) {
+      const nomeUtente = user.fullName || "";
       Promise.all([
         getIscrizioni(),
         getTornei(),
@@ -43,7 +43,7 @@ export default function AtletaDashboard() {
         setNotifiche(allNotifiche.slice(0, 3)); // ultimi 3 avvisi
       }).finally(() => setLoading(false));
     }
-  }, [router, status, session]);
+  }, [router, isLoaded, user]);
 
   // Calcoli
   const iscrConfirmate = iscrizioni.filter((i) => i.stato === "Approvata").length;
@@ -51,7 +51,7 @@ export default function AtletaDashboard() {
   const prossimaIscr = iscrizioni.find((i) => i.stato === "Approvata") || iscrizioni[0] || null;
   const notificheNonLette = notifiche.length; // semplificato
 
-  if (status === "loading" || loading) {
+  if (!isLoaded || loading) {
     return (
       <div className="min-h-screen bg-[#f0f4ff] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { auth } from "@clerk/nextjs/server";
 import { 
   getTornei, saveTornei, 
   getIscrizioni, saveIscrizioni, 
@@ -20,11 +20,12 @@ export async function GET(req) {
 
     // Controlliamo l'autenticazione per le letture sensibili
     if (type === "users" || type === "iscrizioni" || type === "staff") {
-      const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-      if (!token) {
+      const { userId, sessionClaims } = await auth();
+      if (!userId) {
         return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
       }
-      if ((type === "users" || type === "staff") && token.role !== "admin") {
+      const role = sessionClaims?.metadata?.role || "atleta";
+      if ((type === "users" || type === "staff") && role !== "admin") {
         return NextResponse.json({ error: "Accesso negato: richiesto ruolo Admin" }, { status: 403 });
       }
     }
@@ -52,19 +53,19 @@ export async function GET(req) {
 // 2. POST: Gestisce le scritture sicure sul database verificando l'autenticazione ed il ruolo lato server
 export async function POST(req) {
   try {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    const { userId, sessionClaims } = await auth();
     const body = await req.json();
     const { type, data, slug } = body;
 
     // Se non c'è una sessione, blocca la scrittura.
     // Eccezione: registrazione atleta (type === 'users' e non è presente una sessione)
-    const isRegistration = (type === "users" && !token);
+    const isRegistration = (type === "users" && !userId);
 
-    if (!token && !isRegistration) {
+    if (!userId && !isRegistration) {
       return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
     }
 
-    const role = token?.role;
+    const role = sessionClaims?.metadata?.role || "atleta";
 
     // Controllo dei permessi di scrittura lato server
     if (type === "moduli" || type === "staff") {

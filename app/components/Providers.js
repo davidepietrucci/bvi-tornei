@@ -1,11 +1,24 @@
 "use client";
 
-import { SessionProvider } from "next-auth/react";
+import { ClerkProvider } from "@clerk/nextjs";
+import { usePathname } from "next/navigation";
 
 export function Providers({ children }) {
+  const pathname = usePathname();
+  const isStaff = pathname?.startsWith("/staff");
+
+  const customLocalization = {
+    signIn: {
+      start: {
+        title: isStaff ? "BVI STAFF" : "BVI ATLETA",
+        subtitle: isStaff ? "Accedi al Portale Staff" : "Accedi al Portale Atleta",
+      },
+    },
+  };
+
   return (
-    <SessionProvider>
+    <ClerkProvider localization={customLocalization}>
       {children}
-    </SessionProvider>
+    </ClerkProvider>
   );
 }
