@@ -10,6 +10,9 @@ export async function sendConfirmationEmail({ email, torneo, giocatori, data, qu
   const pass = process.env.SMTP_PASS;
   const from = process.env.SMTP_FROM || "iscrizioni.tornei@beachvolleyinstitute.it";
   const fromName = process.env.SMTP_FROM_NAME || "BVI Tornei";
+  
+  const resendApiKey = process.env.RESEND_API_KEY;
+  const brevoApiKey = process.env.BREVO_API_KEY;
 
   const isSMTPConfigured = !!(host && user && pass);
 
@@ -68,7 +71,73 @@ export async function sendConfirmationEmail({ email, torneo, giocatori, data, qu
     </div>
   `;
 
-  if (isSMTPConfigured) {
+  if (resendApiKey) {
+    try {
+      console.log(`[EMAIL] Tentativo invio tramite Resend API a ${email}...`);
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${resendApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: `${fromName} <${from}>`,
+          to: [email],
+          subject: `Richiesta Iscrizione Ricevuta: ${torneo}`,
+          html: htmlContent,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Resend API error (${response.status}): ${errorText}`);
+      }
+
+      const resData = await response.json();
+      console.log(`[EMAIL] Inviata con successo tramite Resend a ${email}: ${resData.id}`);
+      return { success: true, messageId: resData.id };
+    } catch (error) {
+      console.error(`[EMAIL ERROR] Invio fallito tramite Resend a ${email}:`, error);
+      return { success: false, error: error.message };
+    }
+  } else if (brevoApiKey) {
+    try {
+      console.log(`[EMAIL] Tentativo invio tramite Brevo API a ${email}...`);
+      const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          "accept": "application/json",
+          "api-key": brevoApiKey,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          sender: {
+            name: fromName,
+            email: from,
+          },
+          to: [
+            {
+              email: email,
+            },
+          ],
+          subject: `Richiesta Iscrizione Ricevuta: ${torneo}`,
+          htmlContent: htmlContent,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Brevo API error (${response.status}): ${errorText}`);
+      }
+
+      const resData = await response.json();
+      console.log(`[EMAIL] Inviata con successo tramite Brevo a ${email}: ${resData.messageId}`);
+      return { success: true, messageId: resData.messageId };
+    } catch (error) {
+      console.error(`[EMAIL ERROR] Invio fallito tramite Brevo a ${email}:`, error);
+      return { success: false, error: error.message };
+    }
+  } else if (isSMTPConfigured) {
     try {
       const transporter = nodemailer.createTransport({
         host,
@@ -87,16 +156,16 @@ export async function sendConfirmationEmail({ email, torneo, giocatori, data, qu
         html: htmlContent,
       });
 
-      console.log(`[EMAIL] Inviata con successo a ${email}: ${info.messageId}`);
+      console.log(`[EMAIL] Inviata con successo tramite SMTP a ${email}: ${info.messageId}`);
       return { success: true, messageId: info.messageId };
     } catch (error) {
-      console.error(`[EMAIL ERROR] Invio fallito a ${email}:`, error);
+      console.error(`[EMAIL ERROR] Invio fallito tramite SMTP a ${email}:`, error);
       return { success: false, error: error.message };
     }
   } else {
     // Logger per ambiente di sviluppo locale o se non configurato
     console.log("\n=================================================");
-    console.log("📨 [MOCK EMAIL] SMTP non configurato. Dettagli email:");
+    console.log("📨 [MOCK EMAIL] Servizio non configurato. Dettagli email:");
     console.log(`A: ${email}`);
     console.log(`Oggetto: Richiesta Iscrizione Ricevuta: ${torneo}`);
     console.log(`Torneo: ${torneo}`);
