@@ -187,9 +187,28 @@ export default function ModuliPage() {
       return;
     }
 
-    const updatedModuli = moduli.some(m => m.id === editingForm.id)
-      ? moduli.map(m => m.id === editingForm.id ? editingForm : m)
-      : [...moduli, editingForm];
+    const emailField = editingForm?.campi?.find(c => c.mappaStato === "email");
+    if (!emailField) {
+      alert("Errore: Devi collegare almeno una domanda al campo standard 'Email' (Mappa come: Email Referente). Questo è indispensabile per poter inviare l'email di conferma all'atleta.");
+      return;
+    }
+
+    // Forza a obbligatorio i campi mappati (giocatori ed email)
+    const forcedCampi = (editingForm.campi || []).map(c => {
+      if (c.mappaStato === "giocatori" || c.mappaStato === "email") {
+        return { ...c, obbligatorio: true };
+      }
+      return c;
+    });
+
+    const formToSave = {
+      ...editingForm,
+      campi: forcedCampi
+    };
+
+    const updatedModuli = moduli.some(m => m.id === formToSave.id)
+      ? moduli.map(m => m.id === formToSave.id ? formToSave : m)
+      : [...moduli, formToSave];
 
     setModuli(updatedModuli);
     await saveModuli(updatedModuli);

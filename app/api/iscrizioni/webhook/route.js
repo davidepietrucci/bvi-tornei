@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getTornei, saveTornei, getIscrizioni, saveIscrizioni } from "@/app/utils/db";
+import { sendConfirmationEmail } from "@/app/utils/email";
 
 export async function POST(request) {
   try {
@@ -93,6 +94,23 @@ export async function POST(request) {
       return t;
     });
     await saveTornei(updatedTornei);
+
+    // Invia l'email di conferma all'atleta se disponibile
+    if (email && email.trim() !== "" && email.toLowerCase() !== "non inserita" && email.toLowerCase() !== "non inserito") {
+      try {
+        await sendConfirmationEmail({
+          email: email.trim(),
+          torneo: matchTorneo.nome,
+          giocatori: giocatori ? String(giocatori).trim() : "",
+          data: matchTorneo.data,
+          quota: matchTorneo.quota,
+          note: note ? String(note).trim() : "Importato tramite webhook Google Forms",
+          risposte: []
+        });
+      } catch (emailError) {
+        console.error("Errore nell'invio dell'email di conferma da webhook:", emailError);
+      }
+    }
 
     return NextResponse.json(
       { 

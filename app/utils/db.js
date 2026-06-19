@@ -33,6 +33,48 @@ function safeJsonParse(str, fallback) {
   }
 }
 
+// Helpers per il salvataggio su file JSON locali (solo lato Server)
+async function getLocalFileDb(type, slug = null, fallback = []) {
+  if (typeof window !== "undefined") return fallback;
+  try {
+    const fs = await import("fs");
+    const path = await import("path");
+    const dir = path.join(process.cwd(), "db_local");
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    const filename = slug ? `${type}_${slug}.json` : `${type}.json`;
+    const filePath = path.join(dir, filename);
+    if (!fs.existsSync(filePath)) {
+      return fallback;
+    }
+    const data = fs.readFileSync(filePath, "utf8");
+    return JSON.parse(data);
+  } catch (e) {
+    console.error(`Error reading local db file for ${type}:`, e);
+    return fallback;
+  }
+}
+
+async function saveLocalFileDb(type, data, slug = null) {
+  if (typeof window !== "undefined") return false;
+  try {
+    const fs = await import("fs");
+    const path = await import("path");
+    const dir = path.join(process.cwd(), "db_local");
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    const filename = slug ? `${type}_${slug}.json` : `${type}.json`;
+    const filePath = path.join(dir, filename);
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
+    return true;
+  } catch (e) {
+    console.error(`Error writing local db file for ${type}:`, e);
+    return false;
+  }
+}
+
 // Helper per eseguire chiamate HTTP sicure dal Client verso l'API del Server
 async function fetchFromServerDb(type, slug = null) {
   let url = `/api/db?type=${type}`;
@@ -72,7 +114,6 @@ export function isUsingFirebase() {
 
 // 1. Tornei
 export async function getTornei() {
-  // Se siamo lato server, interroghiamo direttamente Firestore
   if (typeof window === "undefined") {
     if (db) {
       try {
@@ -85,17 +126,13 @@ export async function getTornei() {
         console.error("Firestore read tornei error:", e);
       }
     }
-    return [];
+    return await getLocalFileDb("tornei", null, []);
   }
 
-  // Se siamo lato client, passiamo dall'API se Firebase è configurato, altrimenti usiamo localStorage
-  if (isFirebaseConfigured) {
-    const serverData = await fetchFromServerDb("tornei");
-    return serverData || [];
-  } else {
-    const saved = localStorage.getItem("bvi_tornei");
-    return safeJsonParse(saved, []);
-  }
+  const serverData = await fetchFromServerDb("tornei");
+  if (serverData !== null) return serverData;
+  const saved = localStorage.getItem("bvi_tornei");
+  return safeJsonParse(saved, []);
 }
 
 export async function saveTornei(list) {
@@ -108,12 +145,12 @@ export async function saveTornei(list) {
         console.error("Firestore write tornei error:", e);
       }
     }
+    await saveLocalFileDb("tornei", list);
     return;
   }
 
-  if (isFirebaseConfigured) {
-    await saveToServerDb("tornei", list);
-  } else {
+  const success = await saveToServerDb("tornei", list);
+  if (!success) {
     localStorage.setItem("bvi_tornei", JSON.stringify(list));
   }
 }
@@ -132,16 +169,13 @@ export async function getIscrizioni() {
         console.error("Firestore read iscrizioni error:", e);
       }
     }
-    return [];
+    return await getLocalFileDb("iscrizioni", null, []);
   }
 
-  if (isFirebaseConfigured) {
-    const serverData = await fetchFromServerDb("iscrizioni");
-    return serverData || [];
-  } else {
-    const saved = localStorage.getItem("bvi_iscrizioni");
-    return safeJsonParse(saved, []);
-  }
+  const serverData = await fetchFromServerDb("iscrizioni");
+  if (serverData !== null) return serverData;
+  const saved = localStorage.getItem("bvi_iscrizioni");
+  return safeJsonParse(saved, []);
 }
 
 export async function saveIscrizioni(list) {
@@ -154,12 +188,12 @@ export async function saveIscrizioni(list) {
         console.error("Firestore write iscrizioni error:", e);
       }
     }
+    await saveLocalFileDb("iscrizioni", list);
     return;
   }
 
-  if (isFirebaseConfigured) {
-    await saveToServerDb("iscrizioni", list);
-  } else {
+  const success = await saveToServerDb("iscrizioni", list);
+  if (!success) {
     localStorage.setItem("bvi_iscrizioni", JSON.stringify(list));
   }
 }
@@ -179,15 +213,13 @@ export async function getGironi(slug) {
         console.error("Firestore read gironi error:", e);
       }
     }
-    return null;
+    return await getLocalFileDb("gironi", slug, null);
   }
 
-  if (isFirebaseConfigured) {
-    return await fetchFromServerDb("gironi", slug);
-  } else {
-    const saved = localStorage.getItem(key);
-    return safeJsonParse(saved, null);
-  }
+  const serverData = await fetchFromServerDb("gironi", slug);
+  if (serverData !== null) return serverData;
+  const saved = localStorage.getItem(key);
+  return safeJsonParse(saved, null);
 }
 
 export async function saveGironi(slug, data) {
@@ -201,12 +233,12 @@ export async function saveGironi(slug, data) {
         console.error("Firestore write gironi error:", e);
       }
     }
+    await saveLocalFileDb("gironi", data, slug);
     return;
   }
 
-  if (isFirebaseConfigured) {
-    await saveToServerDb("gironi", data, slug);
-  } else {
+  const success = await saveToServerDb("gironi", data, slug);
+  if (!success) {
     localStorage.setItem(key, JSON.stringify(data));
   }
 }
@@ -226,15 +258,13 @@ export async function getBracket(slug) {
         console.error("Firestore read bracket error:", e);
       }
     }
-    return null;
+    return await getLocalFileDb("bracket", slug, null);
   }
 
-  if (isFirebaseConfigured) {
-    return await fetchFromServerDb("bracket", slug);
-  } else {
-    const saved = localStorage.getItem(key);
-    return safeJsonParse(saved, null);
-  }
+  const serverData = await fetchFromServerDb("bracket", slug);
+  if (serverData !== null) return serverData;
+  const saved = localStorage.getItem(key);
+  return safeJsonParse(saved, null);
 }
 
 export async function saveBracket(slug, data) {
@@ -248,12 +278,12 @@ export async function saveBracket(slug, data) {
         console.error("Firestore write bracket error:", e);
       }
     }
+    await saveLocalFileDb("bracket", data, slug);
     return;
   }
 
-  if (isFirebaseConfigured) {
-    await saveToServerDb("bracket", data, slug);
-  } else {
+  const success = await saveToServerDb("bracket", data, slug);
+  if (!success) {
     localStorage.setItem(key, JSON.stringify(data));
   }
 }
@@ -272,16 +302,13 @@ export async function getUsers() {
         console.error("Firestore read users error:", e);
       }
     }
-    return [];
+    return await getLocalFileDb("users", null, []);
   }
 
-  if (isFirebaseConfigured) {
-    const serverData = await fetchFromServerDb("users");
-    return serverData || [];
-  } else {
-    const saved = localStorage.getItem("bvi_users");
-    return safeJsonParse(saved, []);
-  }
+  const serverData = await fetchFromServerDb("users");
+  if (serverData !== null) return serverData;
+  const saved = localStorage.getItem("bvi_users");
+  return safeJsonParse(saved, []);
 }
 
 export async function saveUsers(list) {
@@ -294,12 +321,12 @@ export async function saveUsers(list) {
         console.error("Firestore write users error:", e);
       }
     }
+    await saveLocalFileDb("users", list);
     return;
   }
 
-  if (isFirebaseConfigured) {
-    await saveToServerDb("users", list);
-  } else {
+  const success = await saveToServerDb("users", list);
+  if (!success) {
     localStorage.setItem("bvi_users", JSON.stringify(list));
   }
 }
@@ -318,16 +345,13 @@ export async function getModuli() {
         console.error("Firestore read moduli error:", e);
       }
     }
-    return [];
+    return await getLocalFileDb("moduli", null, []);
   }
 
-  if (isFirebaseConfigured) {
-    const serverData = await fetchFromServerDb("moduli");
-    return serverData || [];
-  } else {
-    const saved = localStorage.getItem("bvi_moduli");
-    return safeJsonParse(saved, []);
-  }
+  const serverData = await fetchFromServerDb("moduli");
+  if (serverData !== null) return serverData;
+  const saved = localStorage.getItem("bvi_moduli");
+  return safeJsonParse(saved, []);
 }
 
 export async function saveModuli(list) {
@@ -340,12 +364,12 @@ export async function saveModuli(list) {
         console.error("Firestore write moduli error:", e);
       }
     }
+    await saveLocalFileDb("moduli", list);
     return;
   }
 
-  if (isFirebaseConfigured) {
-    await saveToServerDb("moduli", list);
-  } else {
+  const success = await saveToServerDb("moduli", list);
+  if (!success) {
     localStorage.setItem("bvi_moduli", JSON.stringify(list));
   }
 }
@@ -364,16 +388,13 @@ export async function getNotifiche() {
         console.error("Firestore read notifiche error:", e);
       }
     }
-    return [];
+    return await getLocalFileDb("notifiche", null, []);
   }
 
-  if (isFirebaseConfigured) {
-    const serverData = await fetchFromServerDb("notifiche");
-    return serverData || [];
-  } else {
-    const saved = localStorage.getItem("bvi_notifiche");
-    return safeJsonParse(saved, []);
-  }
+  const serverData = await fetchFromServerDb("notifiche");
+  if (serverData !== null) return serverData;
+  const saved = localStorage.getItem("bvi_notifiche");
+  return safeJsonParse(saved, []);
 }
 
 export async function saveNotifiche(list) {
@@ -386,12 +407,12 @@ export async function saveNotifiche(list) {
         console.error("Firestore write notifiche error:", e);
       }
     }
+    await saveLocalFileDb("notifiche", list);
     return;
   }
 
-  if (isFirebaseConfigured) {
-    await saveToServerDb("notifiche", list);
-  } else {
+  const success = await saveToServerDb("notifiche", list);
+  if (!success) {
     localStorage.setItem("bvi_notifiche", JSON.stringify(list));
   }
 }
@@ -410,16 +431,13 @@ export async function getStaff() {
         console.error("Firestore read staff error:", e);
       }
     }
-    return [];
+    return await getLocalFileDb("staff", null, []);
   }
 
-  if (isFirebaseConfigured) {
-    const serverData = await fetchFromServerDb("staff");
-    return serverData || [];
-  } else {
-    const saved = localStorage.getItem("bvi_staff");
-    return safeJsonParse(saved, []);
-  }
+  const serverData = await fetchFromServerDb("staff");
+  if (serverData !== null) return serverData;
+  const saved = localStorage.getItem("bvi_staff");
+  return safeJsonParse(saved, []);
 }
 
 export async function saveStaff(list) {
@@ -432,12 +450,12 @@ export async function saveStaff(list) {
         console.error("Firestore write staff error:", e);
       }
     }
+    await saveLocalFileDb("staff", list);
     return;
   }
 
-  if (isFirebaseConfigured) {
-    await saveToServerDb("staff", list);
-  } else {
+  const success = await saveToServerDb("staff", list);
+  if (!success) {
     localStorage.setItem("bvi_staff", JSON.stringify(list));
   }
 }
