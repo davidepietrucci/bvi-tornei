@@ -167,10 +167,7 @@ export async function sendConfirmationEmail({ email, torneo, giocatori, data, qu
       
       ${risposteHtml}
       
-      ${note ? `
-        <h3 style="color: #0a1628; margin-top: 25px; font-size: 15px; font-weight: 700;">Note o Richieste allo Staff:</h3>
-        <p style="background-color: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; font-style: italic; margin: 10px 0; font-size: 14px; color: #555;">${note}</p>
-      ` : ''}
+      
 
       <div style="margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 20px; text-align: center; color: #94a3b8; font-size: 11px; line-height: 1.5;">
         <p>Questa è una notifica automatica. Si prega di non rispondere direttamente a questa email.</p>
