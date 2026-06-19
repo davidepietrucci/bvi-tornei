@@ -152,18 +152,17 @@ export async function sendConfirmationEmail({ email, torneo, giocatori, data, qu
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px 20px; border: 1px solid #eef2f6; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); color: #333;">
       <div style="text-align: center; border-bottom: 3px solid #FFD700; padding-bottom: 25px; margin-bottom: 25px;">
         <h2 style="color: #0a1628; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">BVI TORNEI</h2>
-        <p style="color: #888; margin: 5px 0 0 0; font-size: 13px; font-weight: 600; text-transform: uppercase; tracking-wider: 1px;">Conferma Ricezione Iscrizione 📝</p>
+        <p style="color: #888; margin: 5px 0 0 0; font-size: 13px; font-weight: 600; text-transform: uppercase; tracking-wider: 1px;">Conferma Iscrizione Torneo 🏆</p>
       </div>
       
       <p style="font-size: 15px; line-height: 1.6; color: #555;">Ciao,</p>
-      <p style="font-size: 15px; line-height: 1.6; color: #555;">ti confermiamo che abbiamo ricevuto correttamente la richiesta di iscrizione per il seguente torneo:</p>
+      <p style="font-size: 15px; line-height: 1.6; color: #555;">ti confermiamo che la tua iscrizione per il seguente torneo è stata registrata con successo:</p>
       
       <div style="background-color: #f0f4ff; padding: 20px; border-radius: 12px; margin: 25px 0; border-left: 5px solid #0a1628;">
         <h3 style="color: #0a1628; margin: 0 0 10px 0; font-size: 18px; font-weight: 800;">${torneo}</h3>
         <p style="margin: 6px 0; font-size: 14px; color: #444;"><strong>Giocatori/Squadra:</strong> ${giocatori}</p>
         ${data ? `<p style="margin: 6px 0; font-size: 14px; color: #444;"><strong>Data Gara:</strong> ${data}</p>` : ''}
         ${quota !== undefined ? `<p style="margin: 6px 0; font-size: 14px; color: #444;"><strong>Quota:</strong> €${quota}</p>` : ''}
-        <p style="margin: 12px 0 0 0; font-size: 12px; color: #d97706; font-weight: 700; text-transform: uppercase; tracking-wider: 0.5px;">⚠️ Richiesta in attesa di approvazione dello staff</p>
       </div>
       
       ${risposteHtml}
@@ -188,64 +187,8 @@ export async function sendConfirmationEmail({ email, torneo, giocatori, data, qu
 
   return sendMailHelper({
     email,
-    subject: `Richiesta Iscrizione Ricevuta: ${torneo}`,
+    subject: `Conferma Iscrizione Torneo: ${torneo}`,
     htmlContent,
     plainTextSummary
-  });
-}
-
-/**
- * Invia un'email di approvazione dell'iscrizione al torneo
- */
-export async function sendApprovalEmail({ email, torneo, giocatori, data, quota }) {
-  const baseUrl = (process.env.NEXTAUTH_URL && !process.env.NEXTAUTH_URL.includes("localhost"))
-    ? process.env.NEXTAUTH_URL.replace(/\/$/, "")
-    : "https://www.beachvolleyinstitute.it";
-  
-  const gironiUrl = `${baseUrl}/gironi?tour=${encodeURIComponent(torneo)}`;
-
-  const htmlContent = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px 20px; border: 1px solid #eef2f6; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); color: #333;">
-      <div style="text-align: center; border-bottom: 3px solid #FFD700; padding-bottom: 25px; margin-bottom: 25px;">
-        <h2 style="color: #0a1628; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">BVI TORNEI</h2>
-        <p style="color: #888; margin: 5px 0 0 0; font-size: 13px; font-weight: 600; text-transform: uppercase; tracking-wider: 1px;">Iscrizione Confermata! 🎉</p>
-      </div>
-      
-      <p style="font-size: 15px; line-height: 1.6; color: #555;">Ciao,</p>
-      <p style="font-size: 15px; line-height: 1.6; color: #555;">ti comunichiamo che la tua iscrizione per il seguente torneo è stata **confermata con successo** dallo staff:</p>
-      
-      <div style="background-color: #f0fff4; padding: 20px; border-radius: 12px; margin: 25px 0; border-left: 5px solid #22c55e;">
-        <h3 style="color: #15803d; margin: 0 0 10px 0; font-size: 18px; font-weight: 800;">Iscrizione Confermata ✅</h3>
-        <p style="margin: 6px 0; font-size: 14px; color: #444;"><strong>Torneo:</strong> ${torneo}</p>
-        <p style="margin: 6px 0; font-size: 14px; color: #444;"><strong>Giocatori/Squadra:</strong> ${giocatori}</p>
-        ${data ? `<p style="margin: 6px 0; font-size: 14px; color: #444;"><strong>Data Gara:</strong> ${data}</p>` : ''}
-        ${quota !== undefined ? `<p style="margin: 6px 0; font-size: 14px; color: #444;"><strong>Quota:</strong> €${quota}</p>` : ''}
-      </div>
-
-      <div style="background-color: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0; margin: 25px 0; display: flex; align-items: center;">
-        <div style="font-size: 24px; margin-right: 15px;">💬</div>
-        <div style="font-size: 14px; color: #475569; line-height: 1.5;">
-          <strong>Gruppo WhatsApp:</strong> Verrai aggiunto a breve al gruppo WhatsApp dedicato al torneo per rimanere aggiornato su orari e gironi.
-        </div>
-      </div>
-
-      <div style="text-align: center; margin: 30px 0;">
-        <a href="${gironiUrl}" style="background-color: #0a1628; color: #ffffff; padding: 12px 24px; border-radius: 8px; font-weight: bold; text-decoration: none; display: inline-block; font-size: 14px; box-shadow: 0 4px 6px rgba(10, 22, 40, 0.15);">
-          Visualizza i Gironi del Torneo 📊
-        </a>
-      </div>
-
-      <div style="margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 20px; text-align: center; color: #94a3b8; font-size: 11px; line-height: 1.5;">
-        <p>Questa è una notifica automatica. Si prega di non rispondere direttamente a questa email.</p>
-        <p>© ${new Date().getFullYear()} Beach Volley Institute. Tutti i diritti riservati.</p>
-      </div>
-    </div>
-  `;
-
-  return sendMailHelper({
-    email,
-    subject: `Iscrizione Confermata: ${torneo}`,
-    htmlContent,
-    plainTextSummary: `Iscrizione confermata per ${torneo} (${giocatori}). WhatsApp group & Gironi URL: ${gironiUrl}`
   });
 }
