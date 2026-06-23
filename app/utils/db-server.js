@@ -1,4 +1,4 @@
-import admin from "firebase-admin";
+import { getApps, initializeApp, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import fs from "fs";
 import path from "path";
@@ -8,9 +8,9 @@ const isFirebaseAdminConfigured = !!process.env.FIREBASE_PROJECT_ID;
 let db = null;
 if (isFirebaseAdminConfigured) {
   try {
-    if (admin.apps.length === 0) {
-      admin.initializeApp({
-        credential: admin.cert({
+    if (getApps().length === 0) {
+      initializeApp({
+        credential: cert({
           projectId: process.env.FIREBASE_PROJECT_ID,
           clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
           privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n")
