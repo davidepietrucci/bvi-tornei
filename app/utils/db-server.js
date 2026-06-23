@@ -1,4 +1,5 @@
 import admin from "firebase-admin";
+import { getFirestore } from "firebase-admin/firestore";
 import fs from "fs";
 import path from "path";
 
@@ -9,14 +10,14 @@ if (isFirebaseAdminConfigured) {
   try {
     if (admin.apps.length === 0) {
       admin.initializeApp({
-        credential: admin.credential.cert({
+        credential: admin.cert({
           projectId: process.env.FIREBASE_PROJECT_ID,
           clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
           privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n")
         })
       });
     }
-    db = admin.firestore();
+    db = getFirestore();
   } catch (error) {
     console.error("Firebase Admin SDK init error:", error);
   }
