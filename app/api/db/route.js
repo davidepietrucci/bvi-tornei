@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { 
-  getTornei, saveTornei, 
-  getIscrizioni, saveIscrizioni, 
-  getUsers, saveUsers, 
-  getModuli, saveModuli, 
-  getGironi, saveGironi, 
+import {
+  getTornei, saveTornei,
+  getIscrizioni, saveIscrizioni,
+  getUsers, saveUsers,
+  getModuli, saveModuli,
+  getGironi, saveGironi,
   getBracket, saveBracket,
   getNotifiche, saveNotifiche,
   getStaff, saveStaff
@@ -73,7 +73,7 @@ export async function POST(req) {
       }
       if (type === "moduli") await saveModuli(data);
       if (type === "staff") await saveStaff(data);
-    } 
+    }
     else if (type === "tornei" || type === "gironi" || type === "bracket" || type === "iscrizioni" || type === "notifiche") {
       if (role !== "admin" && role !== "staff") {
         return NextResponse.json({ error: "Accesso negato: richiesto ruolo Staff" }, { status: 403 });
@@ -83,7 +83,7 @@ export async function POST(req) {
       if (type === "bracket") await saveBracket(slug, data);
       if (type === "iscrizioni") await saveIscrizioni(data);
       if (type === "notifiche") await saveNotifiche(data);
-    } 
+    }
     else if (type === "users") {
       if (isRegistration) {
         await saveUsers(data);
@@ -92,7 +92,7 @@ export async function POST(req) {
       } else {
         return NextResponse.json({ error: "Accesso negato" }, { status: 403 });
       }
-    } 
+    }
     else {
       return NextResponse.json({ error: "Tipo database non valido" }, { status: 400 });
     }
