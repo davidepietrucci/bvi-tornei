@@ -13,7 +13,7 @@ const firebaseConfig = {
 const isFirebaseConfigured = !!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 
 let db = null;
-if (isFirebaseConfigured) {
+if (isFirebaseConfigured && typeof window !== "undefined") {
   try {
     const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
     db = getFirestore(app);
@@ -30,48 +30,6 @@ function safeJsonParse(str, fallback) {
   } catch (e) {
     console.error("Failed to parse JSON:", str, e);
     return fallback;
-  }
-}
-
-// Helpers per il salvataggio su file JSON locali (solo lato Server)
-async function getLocalFileDb(type, slug = null, fallback = []) {
-  if (typeof window !== "undefined") return fallback;
-  try {
-    const fs = await import("fs");
-    const path = await import("path");
-    const dir = path.join(process.cwd(), "db_local");
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    const filename = slug ? `${type}_${slug}.json` : `${type}.json`;
-    const filePath = path.join(dir, filename);
-    if (!fs.existsSync(filePath)) {
-      return fallback;
-    }
-    const data = fs.readFileSync(filePath, "utf8");
-    return JSON.parse(data);
-  } catch (e) {
-    console.error(`Error reading local db file for ${type}:`, e);
-    return fallback;
-  }
-}
-
-async function saveLocalFileDb(type, data, slug = null) {
-  if (typeof window !== "undefined") return false;
-  try {
-    const fs = await import("fs");
-    const path = await import("path");
-    const dir = path.join(process.cwd(), "db_local");
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    const filename = slug ? `${type}_${slug}.json` : `${type}.json`;
-    const filePath = path.join(dir, filename);
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
-    return true;
-  } catch (e) {
-    console.error(`Error writing local db file for ${type}:`, e);
-    return false;
   }
 }
 
@@ -109,25 +67,17 @@ async function saveToServerDb(type, data, slug = null) {
 
 // Helper to check if using Firestore
 export function isUsingFirebase() {
+  if (typeof window === "undefined") {
+    return !!process.env.FIREBASE_PROJECT_ID;
+  }
   return isFirebaseConfigured;
 }
 
 // 1. Tornei
 export async function getTornei() {
   if (typeof window === "undefined") {
-    if (db) {
-      try {
-        const docRef = doc(db, "config", "tornei");
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          return docSnap.data().list || [];
-        }
-      } catch (e) {
-        console.error("Firestore read tornei error:", e);
-      }
-      return [];
-    }
-    return await getLocalFileDb("tornei", null, []);
+    const { getTornei } = await import("./db-server");
+    return await getTornei();
   }
 
   const serverData = await fetchFromServerDb("tornei");
@@ -138,16 +88,8 @@ export async function getTornei() {
 
 export async function saveTornei(list) {
   if (typeof window === "undefined") {
-    if (db) {
-      try {
-        const docRef = doc(db, "config", "tornei");
-        await setDoc(docRef, { list });
-      } catch (e) {
-        console.error("Firestore write tornei error:", e);
-      }
-      return;
-    }
-    await saveLocalFileDb("tornei", list);
+    const { saveTornei } = await import("./db-server");
+    await saveTornei(list);
     return;
   }
 
@@ -160,19 +102,8 @@ export async function saveTornei(list) {
 // 2. Iscrizioni
 export async function getIscrizioni() {
   if (typeof window === "undefined") {
-    if (db) {
-      try {
-        const docRef = doc(db, "config", "iscrizioni");
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          return docSnap.data().list || [];
-        }
-      } catch (e) {
-        console.error("Firestore read iscrizioni error:", e);
-      }
-      return [];
-    }
-    return await getLocalFileDb("iscrizioni", null, []);
+    const { getIscrizioni } = await import("./db-server");
+    return await getIscrizioni();
   }
 
   const serverData = await fetchFromServerDb("iscrizioni");
@@ -183,16 +114,8 @@ export async function getIscrizioni() {
 
 export async function saveIscrizioni(list) {
   if (typeof window === "undefined") {
-    if (db) {
-      try {
-        const docRef = doc(db, "config", "iscrizioni");
-        await setDoc(docRef, { list });
-      } catch (e) {
-        console.error("Firestore write iscrizioni error:", e);
-      }
-      return;
-    }
-    await saveLocalFileDb("iscrizioni", list);
+    const { saveIscrizioni } = await import("./db-server");
+    await saveIscrizioni(list);
     return;
   }
 
@@ -202,23 +125,12 @@ export async function saveIscrizioni(list) {
   }
 }
 
-// 3. Gironi (Tournament specific config)
+// 3. Gironi
 export async function getGironi(slug) {
   const key = `bvi_gironi_v2_${slug}`;
   if (typeof window === "undefined") {
-    if (db) {
-      try {
-        const docRef = doc(db, "gironi", slug);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          return docSnap.data().data || null;
-        }
-      } catch (e) {
-        console.error("Firestore read gironi error:", e);
-      }
-      return null;
-    }
-    return await getLocalFileDb("gironi", slug, null);
+    const { getGironi } = await import("./db-server");
+    return await getGironi(slug);
   }
 
   const serverData = await fetchFromServerDb("gironi", slug);
@@ -230,16 +142,8 @@ export async function getGironi(slug) {
 export async function saveGironi(slug, data) {
   const key = `bvi_gironi_v2_${slug}`;
   if (typeof window === "undefined") {
-    if (db) {
-      try {
-        const docRef = doc(db, "gironi", slug);
-        await setDoc(docRef, { data });
-      } catch (e) {
-        console.error("Firestore write gironi error:", e);
-      }
-      return;
-    }
-    await saveLocalFileDb("gironi", data, slug);
+    const { saveGironi } = await import("./db-server");
+    await saveGironi(slug, data);
     return;
   }
 
@@ -249,23 +153,12 @@ export async function saveGironi(slug, data) {
   }
 }
 
-// 4. Bracket (Tournament specific playoff/bracket matches)
+// 4. Bracket
 export async function getBracket(slug) {
   const key = `bvi_bracket_v1_${slug}`;
   if (typeof window === "undefined") {
-    if (db) {
-      try {
-        const docRef = doc(db, "bracket", slug);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          return docSnap.data().data || null;
-        }
-      } catch (e) {
-        console.error("Firestore read bracket error:", e);
-      }
-      return null;
-    }
-    return await getLocalFileDb("bracket", slug, null);
+    const { getBracket } = await import("./db-server");
+    return await getBracket(slug);
   }
 
   const serverData = await fetchFromServerDb("bracket", slug);
@@ -277,16 +170,8 @@ export async function getBracket(slug) {
 export async function saveBracket(slug, data) {
   const key = `bvi_bracket_v1_${slug}`;
   if (typeof window === "undefined") {
-    if (db) {
-      try {
-        const docRef = doc(db, "bracket", slug);
-        await setDoc(docRef, { data });
-      } catch (e) {
-        console.error("Firestore write bracket error:", e);
-      }
-      return;
-    }
-    await saveLocalFileDb("bracket", data, slug);
+    const { saveBracket } = await import("./db-server");
+    await saveBracket(slug, data);
     return;
   }
 
@@ -296,22 +181,11 @@ export async function saveBracket(slug, data) {
   }
 }
 
-// 5. Users (Athlete registrations)
+// 5. Users
 export async function getUsers() {
   if (typeof window === "undefined") {
-    if (db) {
-      try {
-        const docRef = doc(db, "config", "users");
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          return docSnap.data().list || [];
-        }
-      } catch (e) {
-        console.error("Firestore read users error:", e);
-      }
-      return [];
-    }
-    return await getLocalFileDb("users", null, []);
+    const { getUsers } = await import("./db-server");
+    return await getUsers();
   }
 
   const serverData = await fetchFromServerDb("users");
@@ -322,16 +196,8 @@ export async function getUsers() {
 
 export async function saveUsers(list) {
   if (typeof window === "undefined") {
-    if (db) {
-      try {
-        const docRef = doc(db, "config", "users");
-        await setDoc(docRef, { list });
-      } catch (e) {
-        console.error("Firestore write users error:", e);
-      }
-      return;
-    }
-    await saveLocalFileDb("users", list);
+    const { saveUsers } = await import("./db-server");
+    await saveUsers(list);
     return;
   }
 
@@ -341,22 +207,11 @@ export async function saveUsers(list) {
   }
 }
 
-// 6. Moduli (Custom Form Configurations)
+// 6. Moduli
 export async function getModuli() {
   if (typeof window === "undefined") {
-    if (db) {
-      try {
-        const docRef = doc(db, "config", "moduli");
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          return docSnap.data().list || [];
-        }
-      } catch (e) {
-        console.error("Firestore read moduli error:", e);
-      }
-      return [];
-    }
-    return await getLocalFileDb("moduli", null, []);
+    const { getModuli } = await import("./db-server");
+    return await getModuli();
   }
 
   const serverData = await fetchFromServerDb("moduli");
@@ -367,16 +222,8 @@ export async function getModuli() {
 
 export async function saveModuli(list) {
   if (typeof window === "undefined") {
-    if (db) {
-      try {
-        const docRef = doc(db, "config", "moduli");
-        await setDoc(docRef, { list });
-      } catch (e) {
-        console.error("Firestore write moduli error:", e);
-      }
-      return;
-    }
-    await saveLocalFileDb("moduli", list);
+    const { saveModuli } = await import("./db-server");
+    await saveModuli(list);
     return;
   }
 
@@ -386,22 +233,11 @@ export async function saveModuli(list) {
   }
 }
 
-// 7. Notifiche Staff
+// 7. Notifiche
 export async function getNotifiche() {
   if (typeof window === "undefined") {
-    if (db) {
-      try {
-        const docRef = doc(db, "config", "notifiche");
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          return docSnap.data().list || [];
-        }
-      } catch (e) {
-        console.error("Firestore read notifiche error:", e);
-      }
-      return [];
-    }
-    return await getLocalFileDb("notifiche", null, []);
+    const { getNotifiche } = await import("./db-server");
+    return await getNotifiche();
   }
 
   const serverData = await fetchFromServerDb("notifiche");
@@ -412,16 +248,8 @@ export async function getNotifiche() {
 
 export async function saveNotifiche(list) {
   if (typeof window === "undefined") {
-    if (db) {
-      try {
-        const docRef = doc(db, "config", "notifiche");
-        await setDoc(docRef, { list });
-      } catch (e) {
-        console.error("Firestore write notifiche error:", e);
-      }
-      return;
-    }
-    await saveLocalFileDb("notifiche", list);
+    const { saveNotifiche } = await import("./db-server");
+    await saveNotifiche(list);
     return;
   }
 
@@ -431,22 +259,11 @@ export async function saveNotifiche(list) {
   }
 }
 
-// 8. Staff (Staff/Admin accounts)
+// 8. Staff
 export async function getStaff() {
   if (typeof window === "undefined") {
-    if (db) {
-      try {
-        const docRef = doc(db, "config", "staff");
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          return docSnap.data().list || [];
-        }
-      } catch (e) {
-        console.error("Firestore read staff error:", e);
-      }
-      return [];
-    }
-    return await getLocalFileDb("staff", null, []);
+    const { getStaff } = await import("./db-server");
+    return await getStaff();
   }
 
   const serverData = await fetchFromServerDb("staff");
@@ -457,16 +274,8 @@ export async function getStaff() {
 
 export async function saveStaff(list) {
   if (typeof window === "undefined") {
-    if (db) {
-      try {
-        const docRef = doc(db, "config", "staff");
-        await setDoc(docRef, { list });
-      } catch (e) {
-        console.error("Firestore write staff error:", e);
-      }
-      return;
-    }
-    await saveLocalFileDb("staff", list);
+    const { saveStaff } = await import("./db-server");
+    await saveStaff(list);
     return;
   }
 
