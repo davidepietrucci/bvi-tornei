@@ -21,6 +21,8 @@ if (isFirebaseAdminConfigured) {
   } catch (error) {
     console.error("Firebase Admin SDK init error:", error);
   }
+} else {
+  console.warn("Firebase Admin SDK is not configured. Falling back to local JSON database.");
 }
 
 // Helpers per il salvataggio su file JSON locali (solo lato Server)
@@ -28,7 +30,12 @@ function getLocalFileDb(type, slug = null, fallback = []) {
   try {
     const dir = path.join(process.cwd(), "db_local");
     if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+      try {
+        fs.mkdirSync(dir, { recursive: true });
+      } catch (err) {
+        console.warn("Could not create db_local directory (read-only filesystem):", err.message);
+        return fallback;
+      }
     }
     const filename = slug ? `${type}_${slug}.json` : `${type}.json`;
     const filePath = path.join(dir, filename);
@@ -47,7 +54,12 @@ function saveLocalFileDb(type, data, slug = null) {
   try {
     const dir = path.join(process.cwd(), "db_local");
     if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+      try {
+        fs.mkdirSync(dir, { recursive: true });
+      } catch (err) {
+        console.warn("Could not create db_local directory (read-only filesystem):", err.message);
+        return false;
+      }
     }
     const filename = slug ? `${type}_${slug}.json` : `${type}.json`;
     const filePath = path.join(dir, filename);
