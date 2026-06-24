@@ -49,6 +49,12 @@ export default function StaffLogin() {
                 width: "100%",
                 maxWidth: "400px",
               },
+              socialButtons: {
+                display: "none",
+              },
+              dividerRow: {
+                display: "none",
+              },
               headerTitle: {
                 color: "#0a1628",
                 fontWeight: "900",
