@@ -1319,12 +1319,12 @@ function TabelloneContent() {
                 </select>
                 <select className="flex-1 md:flex-none bg-white border-2 border-gray-100 rounded-xl px-4 py-3 font-bold text-[#0a1628] text-sm shadow-xl" value={phaseType} onChange={e=>setPhaseType(e.target.value)}>
                     <option value="double">Doppia Elim.</option>
-                    <option value="single">⚡ Eliminazione Diretta</option>
+                    <option value="single">Eliminazione Diretta</option>
                     <option value="gold_silver">Gold & Silver</option>
                 </select>
                 {phaseType === "gold_silver" && (
                   <select className="flex-1 md:flex-none bg-white border-2 border-gray-100 rounded-xl px-4 py-3 font-bold text-[#0a1628] text-sm shadow-xl" value={subPhaseType} onChange={e=>setSubPhaseType(e.target.value)}>
-                      <option value="direct">⚡ Eliminazione Diretta</option>
+                      <option value="direct">Eliminazione Diretta</option>
                       <option value="groups">🔄 Gironi Intermedi + Finali</option>
                   </select>
                 )}
