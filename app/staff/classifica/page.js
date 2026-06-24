@@ -201,6 +201,7 @@ function ClassificaContent() {
 
   const renderFinalStandings = () => {
     const isGoldSilver = bracketConfig?.phaseType === "gold_silver";
+    const isSingle = bracketConfig?.phaseType === "single";
 
     if (isGoldSilver) {
       const goldRank = [
@@ -279,6 +280,45 @@ function ClassificaContent() {
                 );
               })}
             </div>
+          </div>
+        </div>
+      );
+    } else if (isSingle) {
+      const singleRank = [
+        getWinnerOfMatch("gold-f1") || "Da determinare",
+        getLoserOfMatch("gold-f1") || "Da determinare",
+        getWinnerOfMatch("gold-f3") || "Da determinare",
+        getLoserOfMatch("gold-f3") || "Da determinare",
+      ];
+
+      return (
+        <div className="bg-white rounded-[2.5rem] shadow-xl p-8 border-t-8 border-blue-600 max-w-2xl mx-auto mt-6">
+          <h3 className="text-2xl font-black text-[#0a1628] uppercase tracking-tighter mb-6 flex items-center gap-2 justify-center">
+            🏆 Classifica Finale
+          </h3>
+          <div className="space-y-4">
+            {singleRank.map((team, idx) => {
+              const colors = [
+                "bg-yellow-400 text-white shadow-sm", // 1st
+                "bg-gray-300 text-white shadow-sm", // 2nd
+                "bg-amber-600 text-white shadow-sm", // 3rd
+                "bg-gray-100 text-gray-400" // 4th
+              ];
+              const labels = ["1° Classificato", "2° Classificato", "3° Classificato", "4° Classificato"];
+              return (
+                <div key={idx} className="flex items-center justify-between p-4 bg-gray-50/50 rounded-2xl border border-gray-100">
+                  <div className="flex items-center gap-4">
+                    <span className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${colors[idx]}`}>
+                      {idx + 1}
+                    </span>
+                    <div>
+                      <p className="font-black text-lg text-[#0a1628]">{team}</p>
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-0.5">{labels[idx]}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       );

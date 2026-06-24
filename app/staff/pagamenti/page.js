@@ -9,6 +9,7 @@ export default function StaffPagamenti() {
   const router = useRouter();
   const [iscrizioni, setIscrizioni] = useState([]);
   const [filtroTorneo, setFiltroTorneo] = useState("Tutti");
+  const [cercaTeam, setCercaTeam] = useState("");
 
   useEffect(() => {
     Promise.all([getIscrizioni(), getTornei()]).then(([iscrizioniList, torneiList]) => {
@@ -16,10 +17,39 @@ export default function StaffPagamenti() {
         const torneoInfo = torneiList.find(t => (isc.torneo || "").toLowerCase().trim() === t.nome.toLowerCase().trim()) || torneiList.find(t => isc.torneo && t.nome && isc.torneo.toLowerCase().includes(t.nome.toLowerCase()));
         const quotaTorneo = torneoInfo?.quota !== undefined ? torneoInfo.quota : 40;
 
+        const players = (isc.giocatori || "").split("-").map(p => p.trim()).filter(Boolean);
+        const numPlayers = players.length;
+
+        let pagatoPlayer1 = isc.pagatoPlayer1;
+        let pagatoPlayer2 = isc.pagatoPlayer2;
+
+        // Dynamic initialization from quotaPagata if not explicitly defined in the DB
+        if (pagatoPlayer1 === undefined && pagatoPlayer2 === undefined) {
+          if (numPlayers <= 1) {
+            pagatoPlayer1 = (isc.quotaPagata || 0) >= quotaTorneo;
+          } else {
+            if ((isc.quotaPagata || 0) >= quotaTorneo) {
+              pagatoPlayer1 = true;
+              pagatoPlayer2 = true;
+            } else if ((isc.quotaPagata || 0) >= quotaTorneo / 2) {
+              pagatoPlayer1 = true;
+              pagatoPlayer2 = false;
+            } else {
+              pagatoPlayer1 = false;
+              pagatoPlayer2 = false;
+            }
+          }
+        } else {
+          pagatoPlayer1 = pagatoPlayer1 || false;
+          pagatoPlayer2 = pagatoPlayer2 || false;
+        }
+
         return {
           ...isc,
           quotaTotale: quotaTorneo, 
-          quotaPagata: isc.quotaPagata || 0
+          quotaPagata: isc.quotaPagata || 0,
+          pagatoPlayer1,
+          pagatoPlayer2
         };
       });
       setIscrizioni(data);
@@ -33,7 +63,9 @@ export default function StaffPagamenti() {
 
   const segnaSaldato = (id) => {
     const newData = iscrizioni.map(isc => 
-      isc.id === id ? { ...isc, quotaPagata: isc.quotaTotale } : isc
+      isc.id === id 
+        ? { ...isc, quotaPagata: isc.quotaTotale, pagatoPlayer1: true, pagatoPlayer2: true } 
+        : isc
     );
     salvaModifiche(newData);
   };
@@ -41,8 +73,74 @@ export default function StaffPagamenti() {
   const registraAcconto = (id, importo) => {
     const newData = iscrizioni.map(isc => {
       if (isc.id === id) {
-        const nuovoPagato = Math.min(isc.quotaPagata + importo, isc.quotaTotale);
-        return { ...isc, quotaPagata: nuovoPagato };
+        const players = (isc.giocatori || "").split("-").map(p => p.trim()).filter(Boolean);
+        const numPlayers = players.length;
+
+        let p1 = isc.pagatoPlayer1;
+        let p2 = isc.pagatoPlayer2;
+
+        if (numPlayers <= 1) {
+          p1 = true;
+        } else {
+          // Mark the first unpaid player as paid
+          if (!p1) {
+            p1 = true;
+          } else if (!p2) {
+            p2 = true;
+          }
+        }
+
+        let nuovaQuotaPagata = 0;
+        if (numPlayers <= 1) {
+          nuovaQuotaPagata = p1 ? isc.quotaTotale : 0;
+        } else {
+          const quotaMezzo = isc.quotaTotale / 2;
+          if (p1) nuovaQuotaPagata += quotaMezzo;
+          if (p2) nuovaQuotaPagata += quotaMezzo;
+        }
+
+        return {
+          ...isc,
+          pagatoPlayer1: p1,
+          pagatoPlayer2: p2,
+          quotaPagata: nuovaQuotaPagata
+        };
+      }
+      return isc;
+    });
+    salvaModifiche(newData);
+  };
+
+  const togglePlayerPayment = (id, playerIndex) => {
+    const newData = iscrizioni.map(isc => {
+      if (isc.id === id) {
+        const players = (isc.giocatori || "").split("-").map(p => p.trim()).filter(Boolean);
+        const numPlayers = players.length;
+
+        let p1 = isc.pagatoPlayer1;
+        let p2 = isc.pagatoPlayer2;
+
+        if (playerIndex === 0) {
+          p1 = !p1;
+        } else if (playerIndex === 1) {
+          p2 = !p2;
+        }
+
+        let nuovaQuotaPagata = 0;
+        if (numPlayers <= 1) {
+          nuovaQuotaPagata = p1 ? isc.quotaTotale : 0;
+        } else {
+          const quotaMezzo = isc.quotaTotale / 2;
+          if (p1) nuovaQuotaPagata += quotaMezzo;
+          if (p2) nuovaQuotaPagata += quotaMezzo;
+        }
+
+        return {
+          ...isc,
+          pagatoPlayer1: p1,
+          pagatoPlayer2: p2,
+          quotaPagata: nuovaQuotaPagata
+        };
       }
       return isc;
     });
@@ -51,16 +149,23 @@ export default function StaffPagamenti() {
 
   const azzeraPagamento = (id) => {
     const newData = iscrizioni.map(isc => 
-      isc.id === id ? { ...isc, quotaPagata: 0 } : isc
+      isc.id === id 
+        ? { ...isc, quotaPagata: 0, pagatoPlayer1: false, pagatoPlayer2: false } 
+        : isc
     );
     salvaModifiche(newData);
   };
 
   const torneiDisponibili = ["Tutti", ...new Set(iscrizioni.map(i => i.torneo))];
 
-  const iscrizioniFiltrate = filtroTorneo === "Tutti" 
-    ? iscrizioni 
-    : iscrizioni.filter(i => (i.torneo || "").toLowerCase().trim() === filtroTorneo.toLowerCase().trim());
+  const iscrizioniFiltrate = iscrizioni.filter(isc => {
+    const matchesTorneo = filtroTorneo === "Tutti" || (isc.torneo || "").toLowerCase().trim() === filtroTorneo.toLowerCase().trim();
+    const matchesCerca = !cercaTeam.trim() ||
+      (isc.giocatori || "").toLowerCase().includes(cercaTeam.toLowerCase()) ||
+      (isc.id && String(isc.id).includes(cercaTeam)) ||
+      (isc.torneo || "").toLowerCase().includes(cercaTeam.toLowerCase());
+    return matchesTorneo && matchesCerca;
+  });
 
   const totaleAtteso = iscrizioniFiltrate.reduce((acc, curr) => acc + curr.quotaTotale, 0);
   const totaleIncassato = iscrizioniFiltrate.reduce((acc, curr) => acc + curr.quotaPagata, 0);
@@ -77,17 +182,32 @@ export default function StaffPagamenti() {
                 <p className="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-widest mt-2">Gestione Incassi e Saldi</p>
             </div>
             
-            <div className="w-full md:w-auto bg-white px-6 py-4 rounded-2xl shadow-xl border border-gray-100 flex flex-col gap-2">
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Filtra Torneo</span>
-                <select 
-                    value={filtroTorneo} 
-                    onChange={(e) => setFiltroTorneo(e.target.value)}
-                    className="bg-transparent text-sm font-black focus:outline-none cursor-pointer text-[#0a1628]"
-                >
-                    {torneiDisponibili.map(t => (
-                        <option key={t} value={t}>{t}</option>
-                    ))}
-                </select>
+            <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+                {/* CERCA TEAM */}
+                <div className="w-full sm:w-64 bg-white px-6 py-4 rounded-2xl shadow-xl border border-gray-100 flex flex-col gap-1">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Cerca Team</span>
+                    <input 
+                        type="text"
+                        value={cercaTeam}
+                        onChange={(e) => setCercaTeam(e.target.value)}
+                        placeholder="Nome team o giocatore..."
+                        className="bg-transparent text-sm font-bold focus:outline-none text-[#0a1628] placeholder-gray-300 w-full"
+                    />
+                </div>
+
+                {/* FILTRA TORNEO */}
+                <div className="w-full sm:w-48 bg-white px-6 py-4 rounded-2xl shadow-xl border border-gray-100 flex flex-col gap-1">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Filtra Torneo</span>
+                    <select 
+                        value={filtroTorneo} 
+                        onChange={(e) => setFiltroTorneo(e.target.value)}
+                        className="bg-transparent text-sm font-black focus:outline-none cursor-pointer text-[#0a1628] w-full"
+                    >
+                        {torneiDisponibili.map(t => (
+                            <option key={t} value={t}>{t}</option>
+                        ))}
+                    </select>
+                </div>
             </div>
         </div>
 
@@ -131,7 +251,34 @@ export default function StaffPagamenti() {
                     )}
                   </div>
                   
-                  <h3 className="text-2xl font-black text-[#0a1628] leading-tight mb-2">{isc.giocatori}</h3>
+                  <h3 className="text-2xl font-black text-[#0a1628] leading-tight mb-3">{isc.giocatori}</h3>
+                  
+                  {/* Divisione dei due giocatori */}
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {(() => {
+                      const players = (isc.giocatori || "").split("-").map(p => p.trim()).filter(Boolean);
+                      return players.map((player, idx) => {
+                        const isPaid = idx === 0 ? isc.pagatoPlayer1 : isc.pagatoPlayer2;
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => togglePlayerPayment(isc.id, idx)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${
+                              isPaid 
+                                ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100" 
+                                : "bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100"
+                            }`}
+                          >
+                            <svg className="w-3 h-3 text-current" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                            {player} ({isPaid ? "PAGATO" : "DA PAGARE"})
+                          </button>
+                        );
+                      });
+                    })()}
+                  </div>
+                  
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{isc.torneo}</p>
                 </div>
 

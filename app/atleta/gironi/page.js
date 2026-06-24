@@ -297,7 +297,8 @@ export default function AtletaGironi() {
 
     // Filtra quali ID partita sono attualmente visibili
     const visibleMatchIds = [];
-    if (bracketConfig.phaseType === "gold_silver") {
+    if (bracketConfig.phaseType === "gold_silver" || bracketConfig.phaseType === "single") {
+      const isGroups = bracketConfig.phaseType === "gold_silver" && bracketConfig.subPhaseType === "groups";
       if (isGroups) {
         // --- GROUPS FLOW ---
         let goldSlots = 0;
@@ -329,7 +330,7 @@ export default function AtletaGironi() {
         if (silverGroupsDone) visibleMatchIds.push("silver-s1", "silver-s2");
         if (silverGroupsDone && silverSemifinalsDone) visibleMatchIds.push("silver-f3", "silver-f1");
       } else {
-        const tToGold = bracketConfig.teamsToGold || 8;
+        const tToGold = bracketConfig.phaseType === "single" ? (bracketConfig.bracketSize || 8) : (bracketConfig.teamsToGold || 8);
         const tToSilver = bracketConfig.teamsToSilver || 8;
 
         // Gold
@@ -352,23 +353,25 @@ export default function AtletaGironi() {
         if ((tToGold === 4 && goldSemifinaliDone) || (tToGold >= 8 && goldOttaviDone && goldQuartiDone && goldSemifinaliDone)) visibleMatchIds.push(...goldFinali);
 
         // Silver
-        const silverOttavi = tToSilver === 16 
-          ? ["silver-o1", "silver-o2", "silver-o3", "silver-o4", "silver-o5", "silver-o6", "silver-o7", "silver-o8"]
-          : tToSilver === 12 
-          ? ["silver-o1", "silver-o2", "silver-o3", "silver-o4"]
-          : [];
-        const silverQuarti = ["silver-q1", "silver-q2", "silver-q3", "silver-q4"];
-        const silverSemifinali = ["silver-s1", "silver-s2"];
-        const silverFinali = ["silver-f3", "silver-f1"];
+        if (bracketConfig.phaseType !== "single") {
+          const silverOttavi = tToSilver === 16 
+            ? ["silver-o1", "silver-o2", "silver-o3", "silver-o4", "silver-o5", "silver-o6", "silver-o7", "silver-o8"]
+            : tToSilver === 12 
+            ? ["silver-o1", "silver-o2", "silver-o3", "silver-o4"]
+            : [];
+          const silverQuarti = ["silver-q1", "silver-q2", "silver-q3", "silver-q4"];
+          const silverSemifinali = ["silver-s1", "silver-s2"];
+          const silverFinali = ["silver-f3", "silver-f1"];
 
-        const silverOttaviDone = silverOttavi.length === 0 || isRoundCompleted(silverOttavi);
-        const silverQuartiDone = isRoundCompleted(silverQuarti);
-        const silverSemifinaliDone = isRoundCompleted(silverSemifinali);
+          const silverOttaviDone = silverOttavi.length === 0 || isRoundCompleted(silverOttavi);
+          const silverQuartiDone = isRoundCompleted(silverQuarti);
+          const silverSemifinaliDone = isRoundCompleted(silverSemifinali);
 
-        if (tToSilver === 12 || tToSilver === 16) visibleMatchIds.push(...silverOttavi);
-        if (tToSilver >= 8 && silverOttaviDone) visibleMatchIds.push(...silverQuarti);
-        if (tToSilver === 4 || (tToSilver >= 8 && silverOttaviDone && silverQuartiDone)) visibleMatchIds.push(...silverSemifinali);
-        if ((tToSilver === 4 && silverSemifinaliDone) || (tToSilver >= 8 && silverOttaviDone && silverQuartiDone && silverSemifinaliDone)) visibleMatchIds.push(...silverFinali);
+          if (tToSilver === 12 || tToSilver === 16) visibleMatchIds.push(...silverOttavi);
+          if (tToSilver >= 8 && silverOttaviDone) visibleMatchIds.push(...silverQuarti);
+          if (tToSilver === 4 || (tToSilver >= 8 && silverOttaviDone && silverQuartiDone)) visibleMatchIds.push(...silverSemifinali);
+          if ((tToSilver === 4 && silverSemifinaliDone) || (tToSilver >= 8 && silverOttaviDone && silverQuartiDone && silverSemifinaliDone)) visibleMatchIds.push(...silverFinali);
+        }
       }
     } else {
       // Doppia Eliminazione
@@ -412,11 +415,26 @@ export default function AtletaGironi() {
       return weight;
     };
 
+    const getPrettyLabel = (id) => {
+      const parts = id.split('-');
+      const round = parts[parts.length - 1]; // o1, q1, s1, f1, f3
+      const isGold = id.startsWith('gold');
+      const isSilver = id.startsWith('silver');
+      const prefix = bracketConfig.phaseType === "single" ? "" : (isGold ? "Gold - " : isSilver ? "Silver - " : "");
+      
+      if (round.startsWith('o')) return `${prefix}Ottavo ${round.slice(1)}`;
+      if (round.startsWith('q')) return `${prefix}Quarto ${round.slice(1)}`;
+      if (round.startsWith('s')) return `${prefix}Semifinale ${round.slice(1)}`;
+      if (round === 'f3') return `${prefix}Finale 3°/4°`;
+      if (round === 'f1') return `${prefix}Finale 1°/2°`;
+      return id.toUpperCase();
+    };
+
     return visibleMatchIds
       .filter(mid => assignments[`${mid}-L`] !== undefined || assignments[`${mid}-R`] !== undefined)
       .sort((a, b) => getSortOrder(a) - getSortOrder(b))
       .map(mid => ({
-        id: mid, label: mid.toUpperCase(), left: assignments[`${mid}-L`], right: assignments[`${mid}-R`],
+        id: mid, label: getPrettyLabel(mid), left: assignments[`${mid}-L`], right: assignments[`${mid}-R`],
         scoreL: metadata[mid]?.scoreL, scoreR: metadata[mid]?.scoreR, time: metadata[mid]?.time, court: metadata[mid]?.court,
         s1L: metadata[mid]?.s1L, s1R: metadata[mid]?.s1R,
         s2L: metadata[mid]?.s2L, s2R: metadata[mid]?.s2R,
@@ -896,7 +914,7 @@ export default function AtletaGironi() {
 
                       const highlightedMatch = isMe(m.left) || isMe(m.right);
                       
-                      const isMultiSetMatch = bracketConfig?.phaseType === "gold_silver" && (
+                      const isMultiSetMatch = (bracketConfig?.phaseType === "gold_silver" || bracketConfig?.phaseType === "single") && (
                         m.id.endsWith("-q1") || m.id.endsWith("-q2") || m.id.endsWith("-q3") || m.id.endsWith("-q4") ||
                         m.id.endsWith("-s1") || m.id.endsWith("-s2") ||
                         m.id.endsWith("-f1") || m.id.endsWith("-f3")

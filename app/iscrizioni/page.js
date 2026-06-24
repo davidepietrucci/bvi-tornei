@@ -133,7 +133,8 @@ export default function Iscrizioni() {
               missingFields.push(c.label);
             }
           } else {
-            if (!ans || ans.toString().trim() === "") {
+            const ansVal = (ans !== undefined && ans !== null) ? ans.toString().trim() : "";
+            if (ansVal === "") {
               missingFields.push(c.label);
             }
           }

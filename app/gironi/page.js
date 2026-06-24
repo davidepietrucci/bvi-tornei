@@ -450,8 +450,8 @@ export default function GironiPubblici() {
       return true;
     };
 
-    if (bracketConfig.phaseType === "gold_silver") {
-      const isGroups = bracketConfig.subPhaseType === "groups";
+    if (bracketConfig.phaseType === "gold_silver" || bracketConfig.phaseType === "single") {
+      const isGroups = bracketConfig.phaseType === "gold_silver" && bracketConfig.subPhaseType === "groups";
       if (isGroups) {
         // --- GROUPS FLOW ---
         let goldSlots = 0;
@@ -505,7 +505,7 @@ export default function GironiPubblici() {
         }
       } else {
         // --- DIRECT FLOW ---
-        const tToGold = bracketConfig.teamsToGold || 8;
+        const tToGold = bracketConfig.phaseType === "single" ? (bracketConfig.bracketSize || 8) : (bracketConfig.teamsToGold || 8);
         const tToSilver = bracketConfig.teamsToSilver || 8;
 
         // Gold round matches definition
@@ -538,7 +538,7 @@ export default function GironiPubblici() {
         // Gold additions
         if (tToGold === 12 || tToGold === 16) {
           list.push({
-            title: "Ottavi Gold 🏆",
+            title: bracketConfig.phaseType === "single" ? "Ottavi di Finale 🏆" : "Ottavi Gold 🏆",
             matches: tToGold === 16 
               ? [
                   getMatchData("gold-o1", "Ottavo 1"), getMatchData("gold-o2", "Ottavo 2"),
@@ -555,7 +555,7 @@ export default function GironiPubblici() {
 
         if (tToGold >= 8 && goldOttaviDone) {
           list.push({
-            title: "Quarti Gold 🏆",
+            title: bracketConfig.phaseType === "single" ? "Quarti di Finale 🏆" : "Quarti Gold 🏆",
             matches: [
               getMatchData("gold-q1", "Quarto 1"), getMatchData("gold-q2", "Quarto 2"),
               getMatchData("gold-q3", "Quarto 3"), getMatchData("gold-q4", "Quarto 4")
@@ -566,59 +566,61 @@ export default function GironiPubblici() {
         const canShowGoldSemifinali = tToGold === 4 || (tToGold >= 8 && goldOttaviDone && goldQuartiDone);
         if (canShowGoldSemifinali) {
           list.push({
-            title: "Semifinali Gold 🏆",
+            title: bracketConfig.phaseType === "single" ? "Semifinali 🏆" : "Semifinali Gold 🏆",
             matches: [getMatchData("gold-s1", "Semifinale 1"), getMatchData("gold-s2", "Semifinale 2")],
           });
         }
 
         if (canShowGoldSemifinali && goldSemifinaliDone) {
           list.push({
-            title: "Finali Gold 🏆",
+            title: bracketConfig.phaseType === "single" ? "Finali 🏆" : "Finali Gold 🏆",
             matches: [getMatchData("gold-f3", "Finale 3°/4° Posto"), getMatchData("gold-f1", "Finale 1°/2° Posto")],
           });
         }
 
         // Silver additions
-        if (tToSilver === 12 || tToSilver === 16) {
-          list.push({
-            title: "Ottavi Silver 🥈",
-            matches: tToSilver === 16 
-              ? [
-                  getMatchData("silver-o1", "Ottavo 1"), getMatchData("silver-o2", "Ottavo 2"),
-                  getMatchData("silver-o3", "Ottavo 3"), getMatchData("silver-o4", "Ottavo 4"),
-                  getMatchData("silver-o5", "Ottavo 5"), getMatchData("silver-o6", "Ottavo 6"),
-                  getMatchData("silver-o7", "Ottavo 7"), getMatchData("silver-o8", "Ottavo 8")
-                ]
-              : [
-                  getMatchData("silver-o1", "Ottavo 1"), getMatchData("silver-o2", "Ottavo 2"),
-                  getMatchData("silver-o3", "Ottavo 3"), getMatchData("silver-o4", "Ottavo 4")
-                ]
-          });
-        }
+        if (bracketConfig.phaseType !== "single") {
+          if (tToSilver === 12 || tToSilver === 16) {
+            list.push({
+              title: "Ottavi Silver 🥈",
+              matches: tToSilver === 16 
+                ? [
+                    getMatchData("silver-o1", "Ottavo 1"), getMatchData("silver-o2", "Ottavo 2"),
+                    getMatchData("silver-o3", "Ottavo 3"), getMatchData("silver-o4", "Ottavo 4"),
+                    getMatchData("silver-o5", "Ottavo 5"), getMatchData("silver-o6", "Ottavo 6"),
+                    getMatchData("silver-o7", "Ottavo 7"), getMatchData("silver-o8", "Ottavo 8")
+                  ]
+                : [
+                    getMatchData("silver-o1", "Ottavo 1"), getMatchData("silver-o2", "Ottavo 2"),
+                    getMatchData("silver-o3", "Ottavo 3"), getMatchData("silver-o4", "Ottavo 4")
+                  ]
+            });
+          }
 
-        if (tToSilver >= 8 && silverOttaviDone) {
-          list.push({
-            title: "Quarti Silver 🥈",
-            matches: [
-              getMatchData("silver-q1", "Quarto 1"), getMatchData("silver-q2", "Quarto 2"),
-              getMatchData("silver-q3", "Quarto 3"), getMatchData("silver-q4", "Quarto 4")
-            ]
-          });
-        }
+          if (tToSilver >= 8 && silverOttaviDone) {
+            list.push({
+              title: "Quarti Silver 🥈",
+              matches: [
+                getMatchData("silver-q1", "Quarto 1"), getMatchData("silver-q2", "Quarto 2"),
+                getMatchData("silver-q3", "Quarto 3"), getMatchData("silver-q4", "Quarto 4")
+              ]
+            });
+          }
 
-        const canShowSilverSemifinali = tToSilver === 4 || (tToSilver >= 8 && silverOttaviDone && silverQuartiDone);
-        if (canShowSilverSemifinali) {
-          list.push({
-            title: "Semifinali Silver 🥈",
-            matches: [getMatchData("silver-s1", "Semifinale 1"), getMatchData("silver-s2", "Semifinale 2")],
-          });
-        }
+          const canShowSilverSemifinali = tToSilver === 4 || (tToSilver >= 8 && silverOttaviDone && silverQuartiDone);
+          if (canShowSilverSemifinali) {
+            list.push({
+              title: "Semifinali Silver 🥈",
+              matches: [getMatchData("silver-s1", "Semifinale 1"), getMatchData("silver-s2", "Semifinale 2")],
+            });
+          }
 
-        if (canShowSilverSemifinali && silverSemifinaliDone) {
-          list.push({
-            title: "Finali Silver 🥈",
-            matches: [getMatchData("silver-f3", "Finale 3°/4° Posto"), getMatchData("silver-f1", "Finale 1°/2° Posto")],
-          });
+          if (canShowSilverSemifinali && silverSemifinaliDone) {
+            list.push({
+              title: "Finali Silver 🥈",
+              matches: [getMatchData("silver-f3", "Finale 3°/4° Posto"), getMatchData("silver-f1", "Finale 1°/2° Posto")],
+            });
+          }
         }
       }
     } else {
@@ -700,7 +702,7 @@ export default function GironiPubblici() {
     const s3R = parseInt(meta?.s3R || 0);
     const isThreeSets = gironeId ? config?.gironeSets?.[gironeId] === "3 set" : false;
 
-    const isMultiSetPlayoff = isPlayoffMatch && bracketConfig?.phaseType === "gold_silver" && (
+    const isMultiSetPlayoff = isPlayoffMatch && (bracketConfig?.phaseType === "gold_silver" || bracketConfig?.phaseType === "single") && (
       (matchLabel && (matchLabel.startsWith("Quarto") || matchLabel.startsWith("Semifinale") || matchLabel.startsWith("Finale"))) ||
       (matchKeyPrefix && (matchKeyPrefix.includes("Semifinali") || matchKeyPrefix.includes("Finali") || matchKeyPrefix.includes("Quarti")))
     );
