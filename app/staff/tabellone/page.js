@@ -689,7 +689,7 @@ function TabelloneContent() {
           return `TBD ${rankIdx + 1}° Classificato`;
         };
 
-        if (phaseType === "gold_silver" && subPhaseType === "direct") {
+        if ((phaseType === "gold_silver" && subPhaseType === "direct") || phaseType === "single") {
           const buildGoldDirect = (count) => {
             if (count === 4) {
               setBracketSize(4);
