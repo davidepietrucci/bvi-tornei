@@ -477,15 +477,16 @@ function TabelloneContent() {
     const rType = gConfig.rankingType || "avulsa";
     
     const getRanking = (gid) => {
-        const teams = gConfig.gironeAssignments[gid] || {};
+        const teams = gConfig.gironeAssignments?.[gid] || {};
         const meta = gConfig.matchMetadata || {};
         const isThreeSets = gConfig.gironeSets?.[gid] === "3 set";
         const stats = {};
-        for(let i=0; i<(gConfig.teamCounts[gid]||0); i++) {
+        const count = gConfig.teamCounts?.[gid] || 0;
+        for(let i=0; i<count; i++) {
             const n = teams[i]; if(n && n!=="—" && n!=="Slot Libero") stats[n] = { nome: n, punti: 0, pf: 0, ps: 0 };
         }
         
-        const schedule = getSchedule(gConfig.teamCounts[gid] || 0, gid, teams, gConfig.gironeTypes, gConfig.gironeSets, gConfig.matchMetadata);
+        const schedule = getSchedule(count, gid, teams, gConfig.gironeTypes || {}, gConfig.gironeSets || {}, gConfig.matchMetadata || {});
         schedule.forEach((match, i) => {
             const m = meta[`${gid}-${i}`];
             if (!m) return;
@@ -522,11 +523,12 @@ function TabelloneContent() {
         }).map(s=>s.nome);
     };
 
-        const rankings = {};
+    const rankings = {};
     for(let i=0; i<numGironi; i++) { const gid = String.fromCharCode(65+i); rankings[gid] = getRanking(gid); }
     const getRanked = (gid, pos) => {
-      const count = gConfig.teamCounts[gid] || 0;
-      if (pos >= count) return "—";
+      const teams = gConfig.gironeAssignments?.[gid] || {};
+      const actualCount = Object.values(teams).filter(val => val && val !== "—" && val !== "Slot Libero").length;
+      if (pos >= actualCount) return "—";
       const name = rankings[gid]?.[pos];
       if (name) return splitNames(name).map(formatPlayerName).join(" - ");
       return `TBD ${pos+1}° ${gid}`;
@@ -669,7 +671,7 @@ function TabelloneContent() {
       let totalSlots = 0;
       for (let i = 0; i < numGironi; i++) {
         const gid = String.fromCharCode(65 + i);
-        totalSlots += gConfig.teamCounts[gid] || 0;
+        totalSlots += (gConfig.teamCounts?.[gid] || 0);
       }
 
       if (groupCompositionMethod === "classifica") {
@@ -681,7 +683,9 @@ function TabelloneContent() {
         });
 
         const unifiedRanking = calculateUnifiedRanking(gConfig);
+        const totalTeams = unifiedRanking.length;
         const getTeamByRank = (rankIdx) => {
+          if (rankIdx >= totalTeams) return "—";
           if (unifiedRanking[rankIdx]) {
             const name = unifiedRanking[rankIdx].nome;
             return splitNames(name).map(formatPlayerName).join(" - ");
@@ -819,7 +823,72 @@ function TabelloneContent() {
         }
       } else {
         // Classic "gironi" bracket fill (placements inside groups)
-        if (numGironi === 2) {
+        if (numGironi === 1) {
+            const p = (phaseType === "gold_silver" || phaseType === "single") ? "gold" : "wb";
+            let size = bracketSize;
+            if (phaseType === "gold_silver") {
+                size = 4;
+                setBracketSize(4);
+            } else if (phaseType === "double") {
+                size = 4;
+                setBracketSize(4);
+            }
+
+            if (size === 4) {
+                newAssignments[`${p}-s1-L`] = getRanked('A', 0);
+                newAssignments[`${p}-s1-R`] = getRanked('A', 3);
+                newAssignments[`${p}-s2-L`] = getRanked('A', 1);
+                newAssignments[`${p}-s2-R`] = getRanked('A', 2);
+                if (phaseType === "gold_silver") {
+                    newAssignments['silver-s1-L'] = getRanked('A', 4);
+                    newAssignments['silver-s1-R'] = getRanked('A', 7);
+                    newAssignments['silver-s2-L'] = getRanked('A', 5);
+                    newAssignments['silver-s2-R'] = getRanked('A', 6);
+                }
+            } else if (size === 8) {
+                newAssignments[`${p}-q1-L`] = getRanked('A', 0);
+                newAssignments[`${p}-q1-R`] = getRanked('A', 7);
+                newAssignments[`${p}-q2-L`] = getRanked('A', 3);
+                newAssignments[`${p}-q2-R`] = getRanked('A', 4);
+                newAssignments[`${p}-q3-L`] = getRanked('A', 1);
+                newAssignments[`${p}-q3-R`] = getRanked('A', 6);
+                newAssignments[`${p}-q4-L`] = getRanked('A', 2);
+                newAssignments[`${p}-q4-R`] = getRanked('A', 5);
+            } else if (size === 12 || size === 16) {
+                if (size === 12) {
+                    newAssignments[`${p}-q1-L`] = getRanked('A', 0);
+                    newAssignments[`${p}-q2-L`] = getRanked('A', 1);
+                    newAssignments[`${p}-q3-L`] = getRanked('A', 2);
+                    newAssignments[`${p}-q4-L`] = getRanked('A', 3);
+
+                    newAssignments[`${p}-o1-L`] = getRanked('A', 4);
+                    newAssignments[`${p}-o1-R`] = getRanked('A', 11);
+                    newAssignments[`${p}-o2-L`] = getRanked('A', 5);
+                    newAssignments[`${p}-o2-R`] = getRanked('A', 10);
+                    newAssignments[`${p}-o3-L`] = getRanked('A', 6);
+                    newAssignments[`${p}-o3-R`] = getRanked('A', 9);
+                    newAssignments[`${p}-o4-L`] = getRanked('A', 7);
+                    newAssignments[`${p}-o4-R`] = getRanked('A', 8);
+                } else {
+                    newAssignments[`${p}-o1-L`] = getRanked('A', 0);
+                    newAssignments[`${p}-o1-R`] = getRanked('A', 15);
+                    newAssignments[`${p}-o2-L`] = getRanked('A', 7);
+                    newAssignments[`${p}-o2-R`] = getRanked('A', 8);
+                    newAssignments[`${p}-o3-L`] = getRanked('A', 3);
+                    newAssignments[`${p}-o3-R`] = getRanked('A', 12);
+                    newAssignments[`${p}-o4-L`] = getRanked('A', 4);
+                    newAssignments[`${p}-o4-R`] = getRanked('A', 11);
+                    newAssignments[`${p}-o5-L`] = getRanked('A', 1);
+                    newAssignments[`${p}-o5-R`] = getRanked('A', 14);
+                    newAssignments[`${p}-o6-L`] = getRanked('A', 6);
+                    newAssignments[`${p}-o6-R`] = getRanked('A', 9);
+                    newAssignments[`${p}-o7-L`] = getRanked('A', 2);
+                    newAssignments[`${p}-o7-R`] = getRanked('A', 13);
+                    newAssignments[`${p}-o8-L`] = getRanked('A', 5);
+                    newAssignments[`${p}-o8-R`] = getRanked('A', 10);
+                }
+            }
+        } else if (numGironi === 2) {
             setBracketSize(4);
             const p = (phaseType === "gold_silver" || phaseType === "single") ? "gold" : "wb";
             newAssignments[`${p}-s1-L`] = getRanked('A', 0); newAssignments[`${p}-s1-R`] = getRanked('B', 1);
@@ -841,6 +910,9 @@ function TabelloneContent() {
                 newAssignments['silver-q3-L'] = getRanked('B', 2); newAssignments['silver-q3-R'] = getRanked('A', 3);
                 newAssignments['silver-q4-L'] = getRanked('D', 2); newAssignments['silver-q4-R'] = getRanked('C', 3);
             }
+        } else {
+            alert(`Il metodo standard 'Classifica dei Gironi' supporta 1, 2 o 4 gironi. Avendo ${numGironi} gironi, seleziona il metodo 'Classifica Avulsa (Complessiva)' in fondo.`);
+            return;
         }
       }
     }
