@@ -102,6 +102,9 @@ export default function StaffLogin() {
                   transform: "scale(0.98)",
                 }
               },
+              footerAction: {
+                display: "none",
+              },
               footerActionLink: {
                 color: "#0a1628",
                 fontWeight: "700",
@@ -128,7 +131,6 @@ export default function StaffLogin() {
               },
             }
           }}
-          signUpUrl="/atleta/registrati"
           forceRedirectUrl="/staff/dashboard"
           routing="path"
           path="/staff"
