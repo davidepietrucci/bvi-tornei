@@ -77,7 +77,7 @@ function TabelloneContent() {
 
   const [torneiAttivi, setTorneiAttivi] = useState([]);
   const [selectedTorneo, setSelectedTorneo] = useState("");
-  const [phaseType, setPhaseType] = useState("gold_silver"); // "gold_silver" o "double"
+  const [phaseType, setPhaseType] = useState("gold_silver"); // "gold_silver", "double", or "single"
   const [subPhaseType, setSubPhaseType] = useState("direct"); // "direct" o "playoff"
   const [bracketSize, setBracketSize] = useState(8); // 4, 8, 16
   const [bracketAssignments, setBracketAssignments] = useState({});
@@ -356,8 +356,9 @@ function TabelloneContent() {
       }
     };
 
-    if (phaseType === "gold_silver" && subPhaseType === "direct") {
-      ["gold", "silver"].forEach(p => {
+    if ((phaseType === "gold_silver" && subPhaseType === "direct") || phaseType === "single") {
+      const parts = phaseType === "single" ? ["gold"] : ["gold", "silver"];
+      parts.forEach(p => {
           const hasOttavi = bracketAssignments[`${p}-o1-L`] !== undefined;
           const is16Teams = bracketAssignments[`${p}-o5-L`] !== undefined;
           if (hasOttavi) {
@@ -791,8 +792,12 @@ function TabelloneContent() {
             }
           };
 
-          buildGoldDirect(teamsToGold);
-          buildSilverDirect(teamsToSilver, teamsToGold);
+          if (phaseType === "single") {
+            buildGoldDirect(bracketSize);
+          } else {
+            buildGoldDirect(teamsToGold);
+            buildSilverDirect(teamsToSilver, teamsToGold);
+          }
         } else if (phaseType === "double") {
           if (numGironi === 2) {
             setBracketSize(4);
@@ -816,7 +821,7 @@ function TabelloneContent() {
         // Classic "gironi" bracket fill (placements inside groups)
         if (numGironi === 2) {
             setBracketSize(4);
-            const p = phaseType === "gold_silver" ? "gold" : "wb";
+            const p = (phaseType === "gold_silver" || phaseType === "single") ? "gold" : "wb";
             newAssignments[`${p}-s1-L`] = getRanked('A', 0); newAssignments[`${p}-s1-R`] = getRanked('B', 1);
             newAssignments[`${p}-s2-L`] = getRanked('B', 0); newAssignments[`${p}-s2-R`] = getRanked('A', 1);
             if (phaseType === "gold_silver") {
@@ -825,7 +830,7 @@ function TabelloneContent() {
             }
         } else if (numGironi === 4) {
             setBracketSize(8);
-            const p = phaseType === "gold_silver" ? "gold" : "wb";
+            const p = (phaseType === "gold_silver" || phaseType === "single") ? "gold" : "wb";
             newAssignments[`${p}-q1-L`] = getRanked('A', 0); newAssignments[`${p}-q1-R`] = getRanked('B', 1);
             newAssignments[`${p}-q2-L`] = getRanked('C', 0); newAssignments[`${p}-q2-R`] = getRanked('D', 1);
             newAssignments[`${p}-q3-L`] = getRanked('B', 0); newAssignments[`${p}-q3-R`] = getRanked('A', 1);
@@ -1242,6 +1247,7 @@ function TabelloneContent() {
                 </select>
                 <select className="flex-1 md:flex-none bg-white border-2 border-gray-100 rounded-xl px-4 py-3 font-bold text-[#0a1628] text-sm shadow-xl" value={phaseType} onChange={e=>setPhaseType(e.target.value)}>
                     <option value="double">Doppia Elim.</option>
+                    <option value="single">⚡ Eliminazione Diretta</option>
                     <option value="gold_silver">Gold & Silver</option>
                 </select>
                 {phaseType === "gold_silver" && (
@@ -1267,10 +1273,10 @@ function TabelloneContent() {
             </div>
         </div>
 
-        {isLoaded && torneiAttivi.length > 0 && phaseType === "gold_silver" && (
+        {isLoaded && torneiAttivi.length > 0 && (phaseType === "gold_silver" || phaseType === "single") && (
           <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-xl mb-8 flex flex-col md:flex-row gap-6 items-stretch md:items-center justify-between">
             <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-6">
-              {subPhaseType === "groups" ? (
+              {phaseType === "gold_silver" && subPhaseType === "groups" ? (
                 <>
                   {/* Gold Config */}
                   <div className="space-y-2">
@@ -1339,6 +1345,27 @@ function TabelloneContent() {
                       </div>
                     </div>
                   </div>
+                </>
+              ) : phaseType === "single" ? (
+                <>
+                  {/* Single bracket size configuration */}
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest block font-sans">Squadre in Tabellone</span>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-gray-400 uppercase">Avanzano al Tabellone</label>
+                      <select 
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] cursor-pointer"
+                        value={bracketSize}
+                        onChange={(e) => setBracketSize(parseInt(e.target.value))}
+                      >
+                        <option value={4}>4 Squadre (Semifinali)</option>
+                        <option value={8}>8 Squadre (Quarti)</option>
+                        <option value={12}>12 Squadre (4 Ottavi + 4 Bye)</option>
+                        <option value={16}>16 Squadre (8 Ottavi)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="hidden sm:block"></div>
                 </>
               ) : (
                 <>
@@ -1433,6 +1460,10 @@ function TabelloneContent() {
                     <h3 className="text-2xl md:text-4xl font-black text-[#FFD700] uppercase mb-8 text-center relative z-10 tracking-tighter">GRAND FINAL 👑</h3>
                     <div className="max-w-xl mx-auto relative z-10">{renderMatch('grand-final', 'Finalissima', 'gold')}</div>
                 </section>
+            </div>
+        ) : phaseType === "single" ? (
+            <div className="space-y-16">
+                {renderSection("gold", "🏆 Tabellone Eliminazione Diretta", "blue")}
             </div>
         ) : subPhaseType === "groups" ? (
             <div className="space-y-16">
