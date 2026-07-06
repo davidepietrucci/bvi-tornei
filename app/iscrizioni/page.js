@@ -321,7 +321,7 @@ export default function Iscrizioni() {
                     <div className="bg-white rounded-2xl shadow-xl p-8 relative overflow-hidden">
                       <div className="absolute top-0 left-0 right-0 h-3" style={{ backgroundColor: activeModulo.coloreTema || "#673ab7" }}></div>
                       <h3 className="text-3xl font-black text-[#0a1628] mb-2">{activeModulo.titolo}</h3>
-                      <p className="text-sm font-medium text-gray-500">{activeModulo.descrizione}</p>
+                      <p className="text-sm font-medium text-gray-500 whitespace-pre-wrap">{activeModulo.descrizione}</p>
                       <p className="text-[10px] text-red-500 font-bold mt-4">* Indica un campo obbligatorio</p>
                     </div>
 
