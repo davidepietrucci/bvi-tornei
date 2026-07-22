@@ -24,11 +24,21 @@ export default function MieIscrizioni() {
       return;
     }
     if (user) {
-      const nomeUtente = user.fullName || "";
+      const email = (user.primaryEmailAddress?.emailAddress || "").toLowerCase().trim();
+      const terms = [user.fullName, user.firstName, user.username]
+        .map((t) => (t || "").toLowerCase().trim())
+        .filter((t) => t.length >= 2);
+
       getIscrizioni().then((all) => {
-        const mie = all.filter((isc) =>
-          isc.giocatori?.toLowerCase().includes(nomeUtente.toLowerCase())
-        );
+        const mie = all.filter((isc) => {
+          const iscEmail1 = (isc.email1 || isc.email || "").toLowerCase().trim();
+          const iscEmail2 = (isc.email2 || "").toLowerCase().trim();
+          if (email && (iscEmail1 === email || iscEmail2 === email)) return true;
+
+          const giocatori = (isc.giocatori || "").toLowerCase();
+          if (!giocatori) return false;
+          return terms.length > 0 && terms.some((term) => giocatori.includes(term));
+        });
         setIscrizioni(mie);
       }).finally(() => setLoading(false));
     }

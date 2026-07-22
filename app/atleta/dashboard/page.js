@@ -30,15 +30,25 @@ export default function AtletaDashboard() {
       return;
     }
     if (user) {
-      const nomeUtente = user.fullName || "";
+      const email = (user.primaryEmailAddress?.emailAddress || "").toLowerCase().trim();
+      const terms = [user.fullName, user.firstName, user.username]
+        .map((t) => (t || "").toLowerCase().trim())
+        .filter((t) => t.length >= 2);
+
       Promise.all([
         getIscrizioni(),
         getTornei(),
         getNotifiche(),
       ]).then(([allIscrizioni, allTornei, allNotifiche]) => {
-        const mie = allIscrizioni.filter(
-          (isc) => isc.giocatori?.toLowerCase().includes(nomeUtente.toLowerCase())
-        );
+        const mie = allIscrizioni.filter((isc) => {
+          const iscEmail1 = (isc.email1 || isc.email || "").toLowerCase().trim();
+          const iscEmail2 = (isc.email2 || "").toLowerCase().trim();
+          if (email && (iscEmail1 === email || iscEmail2 === email)) return true;
+
+          const giocatori = (isc.giocatori || "").toLowerCase();
+          if (!giocatori) return false;
+          return terms.length > 0 && terms.some((term) => giocatori.includes(term));
+        });
         setIscrizioni(mie);
         setTorneiAperti(allTornei.filter((t) => t.stato === "Iscrizioni Aperte"));
         setNotifiche(allNotifiche.slice(0, 3)); // ultimi 3 avvisi
