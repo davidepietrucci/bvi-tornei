@@ -27,7 +27,9 @@ export default function StaffHeader() {
     if (user) {
       const userRole = user.publicMetadata?.role || "staff";
       setRole(userRole);
-      setUsername(user.firstName || user.fullName || "Staff");
+      const rawName = user.firstName || user.fullName || user.username || (user.primaryEmailAddress?.emailAddress ? user.primaryEmailAddress.emailAddress.split("@")[0] : "Staff");
+      const formattedName = rawName ? rawName.charAt(0).toUpperCase() + rawName.slice(1) : "Staff";
+      setUsername(formattedName);
 
       if (userRole !== "admin" && pathname === "/staff/atleti") {
         router.push("/staff/dashboard");

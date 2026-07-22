@@ -25,8 +25,9 @@ export default function AthleteHeader() {
     signOut({ redirectUrl: "/" });
   };
 
-  const initials = user?.fullName
-    ? user.fullName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
+  const userDisplayName = user?.firstName || user?.fullName || user?.username || (user?.primaryEmailAddress?.emailAddress ? user.primaryEmailAddress.emailAddress.split("@")[0] : "Atleta");
+  const initials = userDisplayName !== "Atleta"
+    ? userDisplayName.slice(0, 2).toUpperCase()
     : "A";
 
   return (
@@ -80,7 +81,7 @@ export default function AthleteHeader() {
             {initials}
           </div>
           <span className="font-black text-[10px] text-[#0a1628] uppercase tracking-widest hidden md:block">
-            {user?.firstName || "Atleta"}
+            {userDisplayName}
           </span>
         </div>
 
