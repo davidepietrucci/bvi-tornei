@@ -31,9 +31,9 @@ export default function AtletaDashboard() {
     }
     if (user) {
       const email = (user.primaryEmailAddress?.emailAddress || "").toLowerCase().trim();
-      const terms = [user.fullName, user.firstName, user.username]
-        .map((t) => (t || "").toLowerCase().trim())
-        .filter((t) => t.length >= 2);
+      const fullName = (user.fullName || "").toLowerCase().trim();
+      const firstName = (user.firstName || "").toLowerCase().trim();
+      const lastName = (user.lastName || "").toLowerCase().trim();
 
       Promise.all([
         getIscrizioni(),
@@ -41,13 +41,21 @@ export default function AtletaDashboard() {
         getNotifiche(),
       ]).then(([allIscrizioni, allTornei, allNotifiche]) => {
         const mie = allIscrizioni.filter((isc) => {
-          const iscEmail1 = (isc.email1 || isc.email || "").toLowerCase().trim();
-          const iscEmail2 = (isc.email2 || "").toLowerCase().trim();
-          if (email && (iscEmail1 === email || iscEmail2 === email)) return true;
+          const iscEmail = (isc.email || isc.email1 || isc.email2 || "").toLowerCase().trim();
+          if (email && iscEmail && (iscEmail === email || email.includes(iscEmail) || iscEmail.includes(email))) {
+            return true;
+          }
+          if (isc.userId && isc.userId === user.id) return true;
 
-          const giocatori = (isc.giocatori || "").toLowerCase();
+          const giocatori = (isc.giocatori || "").toLowerCase().trim();
           if (!giocatori) return false;
-          return terms.length > 0 && terms.some((term) => giocatori.includes(term));
+
+          if (fullName && fullName.length >= 4 && giocatori.includes(fullName)) return true;
+          if (firstName && lastName && firstName.length >= 2 && lastName.length >= 2) {
+            if (giocatori.includes(firstName) && giocatori.includes(lastName)) return true;
+          }
+          // If no last name is set, match exact full word of firstName if fullName or email wasn't matched
+          return false;
         });
         setIscrizioni(mie);
         setTorneiAperti(allTornei.filter((t) => t.stato === "Iscrizioni Aperte"));

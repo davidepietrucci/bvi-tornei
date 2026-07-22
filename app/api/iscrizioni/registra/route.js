@@ -13,7 +13,8 @@ export async function POST(request) {
       note, 
       moduloIscrizioneId, 
       risposte,
-      checkDuplicateName 
+      checkDuplicateName,
+      userId 
     } = body;
 
     // Validazione campi minimi obbligatori
@@ -76,6 +77,7 @@ export async function POST(request) {
       note: note ? String(note).trim() : "",
       stato: "In Attesa",
       quotaPagata: 0,
+      ...(userId ? { userId: String(userId) } : {}),
       ...(moduloIscrizioneId ? { 
         moduloIscrizioneId: String(moduloIscrizioneId),
         risposte: risposte || []
