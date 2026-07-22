@@ -2,12 +2,17 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { getTornei } from "@/app/utils/db";
+import { getTornei, getIscrizioni } from "@/app/utils/db";
 
 export default function Home() {
   const [torneiLive, setTorneiLive] = useState([]);
   const [torneiAperti, setTorneiAperti] = useState([]);
   const [torneiConclusi, setTorneiConclusi] = useState([]);
+  const [allIscrizioni, setAllIscrizioni] = useState([]);
+
+  // State for Coppie Iscritte modal
+  const [selectedTorneoModal, setSelectedTorneoModal] = useState(null);
+  const [searchCoppia, setSearchCoppia] = useState("");
 
   useEffect(() => {
     // Leggi i tornei dal database per mostrarli in home
@@ -24,10 +29,14 @@ export default function Home() {
       const conclusi = allTornei.filter(t => t.stato === "Concluso");
       setTorneiConclusi(conclusi);
     });
+
+    getIscrizioni().then(isc => {
+      setAllIscrizioni(isc || []);
+    });
   }, []);
 
   return (
-    <main className="min-h-screen" style={{ backgroundColor: "#f0f4ff" }}>
+    <main className="min-h-screen relative" style={{ backgroundColor: "#f0f4ff" }}>
 
       {/* Header */}
       <header style={{ backgroundColor: "#0a1628" }} className="text-white py-4 px-8 flex flex-col sm:flex-row justify-between items-center shadow-md gap-4">
@@ -162,9 +171,15 @@ export default function Home() {
                         📋 Iscriviti
                       </a>
                     )}
-                    <a href={`/gironi?tour=${encodeURIComponent(t.nome)}`} className="flex-1 py-3 text-center rounded-xl font-bold text-sm text-white bg-[#0a1628] hover:bg-opacity-90 transition-colors shadow-sm">
-                      🏆 Gironi
-                    </a>
+                    <button
+                      onClick={() => {
+                        setSelectedTorneoModal(t);
+                        setSearchCoppia("");
+                      }}
+                      className="flex-1 py-3 text-center rounded-xl font-bold text-sm text-white bg-[#0a1628] hover:bg-opacity-90 transition-colors shadow-sm cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      👥 Coppie Iscritte
+                    </button>
                   </div>
                 </div>
               </div>
@@ -217,6 +232,135 @@ export default function Home() {
             ))}
           </div>
         </section>
+      )}
+
+      {/* Modal Coppie Iscritte */}
+      {selectedTorneoModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Modal Header */}
+            <div className="p-6 text-white flex justify-between items-center" style={{ backgroundColor: "#0a1628" }}>
+              <div>
+                <span className="text-xs font-bold text-yellow-400 uppercase tracking-widest block mb-1">
+                  {selectedTorneoModal.categoria || "Coppie Iscritte"}
+                </span>
+                <h3 className="text-2xl font-black">{selectedTorneoModal.nome}</h3>
+              </div>
+              <button
+                onClick={() => setSelectedTorneoModal(null)}
+                className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center font-bold text-lg transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto flex-1 flex flex-col gap-4">
+              {/* Search & Info bar */}
+              <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
+                <div className="relative flex-1">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+                  <input
+                    type="text"
+                    placeholder="Cerca coppia o giocatore..."
+                    value={searchCoppia}
+                    onChange={(e) => setSearchCoppia(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#0a1628] focus:bg-white transition-all text-gray-800"
+                  />
+                </div>
+                <a
+                  href={`/iscritti?tour=${encodeURIComponent(selectedTorneoModal.nome)}`}
+                  className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-[#0a1628] font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap"
+                >
+                  🔗 Apri Pagina
+                </a>
+              </div>
+
+              {/* List of couples */}
+              {(() => {
+                const listTorneo = allIscrizioni.filter(
+                  (isc) => (isc.torneo || "").toLowerCase().trim() === (selectedTorneoModal.nome || "").toLowerCase().trim()
+                );
+                const filteredList = listTorneo.filter((isc) =>
+                  (isc.giocatori || "").toLowerCase().includes(searchCoppia.toLowerCase())
+                );
+
+                if (listTorneo.length === 0) {
+                  return (
+                    <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-2xl border border-dashed border-gray-200 my-2">
+                      <span className="text-4xl block mb-2">🏐</span>
+                      <p className="font-bold text-gray-700">Ancora nessuna coppia iscritta</p>
+                      <p className="text-xs text-gray-400 mt-1">Sii il primo ad iscriverti a questo torneo!</p>
+                    </div>
+                  );
+                }
+
+                if (filteredList.length === 0) {
+                  return (
+                    <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-2xl my-2">
+                      <p className="font-semibold text-sm">Nessuna coppia trovata per "{searchCoppia}"</p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="flex flex-col gap-3 mt-1">
+                    <div className="flex justify-between items-center text-xs font-bold text-gray-400 uppercase tracking-wider px-1">
+                      <span>Coppia / Giocatori ({filteredList.length})</span>
+                      <span>Stato</span>
+                    </div>
+                    <div className="divide-y divide-gray-100 bg-gray-50/50 rounded-2xl border border-gray-100 overflow-hidden">
+                      {filteredList.map((isc, index) => {
+                        const isApprovata = isc.stato === "Approvata";
+                        return (
+                          <div key={isc.id || index} className="p-4 flex items-center justify-between gap-4 bg-white hover:bg-gray-50/80 transition-colors">
+                            <div className="flex items-center gap-3.5 min-w-0">
+                              <span className="w-8 h-8 rounded-full bg-blue-50 text-[#0a1628] font-black text-xs flex items-center justify-center shrink-0">
+                                #{index + 1}
+                              </span>
+                              <div className="min-w-0">
+                                <h4 className="font-bold text-gray-900 text-sm sm:text-base leading-snug truncate">
+                                  {isc.giocatori || "Coppia non specificata"}
+                                </h4>
+                                {isc.data && (
+                                  <p className="text-[11px] font-medium text-gray-400 mt-0.5">
+                                    Iscritto il {isc.data}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <span
+                              className={`px-3 py-1 text-xs font-bold rounded-full shrink-0 ${
+                                isApprovata
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-amber-100 text-amber-800"
+                              }`}
+                            >
+                              {isApprovata ? "Confermata" : "In attesa"}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
+              <span className="text-xs text-gray-400 font-medium">
+                Privacy protetta • Nessun dato sensibile visibile
+              </span>
+              <button
+                onClick={() => setSelectedTorneoModal(null)}
+                className="px-5 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+              >
+                Chiudi
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Footer */}
