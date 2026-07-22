@@ -15,11 +15,28 @@ export default function AtletaProfilo() {
   const [tab, setTab] = useState("Info");
   const [notifiche, setNotifiche] = useState(true);
 
+  // Profile Edit State
+  const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editForm, setEditForm] = useState({
+    firstName: "",
+    lastName: "",
+    username: ""
+  });
+
   useEffect(() => {
     // Carica preferenze da localStorage
     const savedNotif = localStorage.getItem("bvi_notif_atleta");
     if (savedNotif !== null) setNotifiche(savedNotif === "true");
-  }, []);
+
+    if (user) {
+      setEditForm({
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        username: user.username || ""
+      });
+    }
+  }, [user]);
 
   if (!isLoaded) {
     return (
@@ -29,7 +46,7 @@ export default function AtletaProfilo() {
     );
   }
 
-  const nome = user?.fullName || "—";
+  const nome = user?.fullName || `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || user?.username || "—";
   const email = user?.primaryEmailAddress?.emailAddress || "—";
   const initials = nome !== "—"
     ? nome.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
@@ -43,6 +60,24 @@ export default function AtletaProfilo() {
 
   const handleLogout = () => {
     signOut({ redirectUrl: "/" });
+  };
+
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await user.update({
+        firstName: editForm.firstName.trim(),
+        lastName: editForm.lastName.trim(),
+        ...(editForm.username.trim() ? { username: editForm.username.trim() } : {})
+      });
+      alert("Profilo aggiornato con successo!");
+      setIsEditing(false);
+    } catch (err) {
+      alert("Errore durante l'aggiornamento: " + (err.errors?.[0]?.message || err.message));
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -85,11 +120,19 @@ export default function AtletaProfilo() {
         {/* Tab: Info */}
         {tab === "Info" && (
           <div className="space-y-3">
-            <InfoRow emoji="👤" label="Nome Completo" value={nome} />
+            <InfoRow emoji="👤" label="Nome" value={user?.firstName || "Non impostato"} />
+            <InfoRow emoji="👤" label="Cognome" value={user?.lastName || "Non impostato"} />
+            <InfoRow emoji="🏷️" label="Username" value={user?.username || "Non impostato"} />
             <InfoRow emoji="📧" label="Email" value={email} />
-            <InfoRow emoji="🆔" label="Provider Login" value={user?.externalAccounts?.length > 0 ? "Google" : "Credenziali"} />
 
-            <div className="pt-2">
+            <div className="pt-3 flex flex-col gap-3">
+              <button
+                onClick={() => setIsEditing(true)}
+                className="w-full py-4 bg-[#0a1628] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all hover:bg-slate-800 shadow-md"
+              >
+                ✏️ Modifica Dati Profilo
+              </button>
+
               <button
                 onClick={handleLogout}
                 className="w-full py-4 bg-red-50 border border-red-100 text-red-500 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all hover:bg-red-100"
@@ -102,8 +145,6 @@ export default function AtletaProfilo() {
             </div>
           </div>
         )}
-
-
 
         {/* Tab: Impostazioni */}
         {tab === "Impostazioni" && (
@@ -123,6 +164,12 @@ export default function AtletaProfilo() {
             <div className="bg-white rounded-[1.8rem] p-5 shadow-sm border border-gray-100">
               <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Account</h2>
               <div className="space-y-2">
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="w-full flex items-center justify-between p-4 bg-gray-50 rounded-2xl text-xs font-black text-gray-700 hover:bg-gray-100 transition-colors active:scale-[0.98]"
+                >
+                  <span>✏️ Modifica Nome, Cognome o Username</span>
+                </button>
                 <button
                   onClick={() => router.push("/")}
                   className="w-full flex items-center justify-between p-4 bg-gray-50 rounded-2xl text-xs font-black text-gray-600 hover:bg-gray-100 transition-colors active:scale-[0.98]"
@@ -146,6 +193,83 @@ export default function AtletaProfilo() {
           </div>
         )}
       </div>
+
+      {/* Modal Edit Profile */}
+      {isEditing && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-black text-[#0a1628]">Modifica Profilo</h3>
+              <button
+                onClick={() => setIsEditing(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-500 hover:bg-gray-200"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveProfile} className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                  Nome
+                </label>
+                <input
+                  type="text"
+                  value={editForm.firstName}
+                  onChange={(e) => setEditForm({ ...editForm, firstName: e.target.value })}
+                  placeholder="Es. Davide"
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-[#0a1628] focus:outline-none focus:ring-2 focus:ring-[#0a1628]"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                  Cognome
+                </label>
+                <input
+                  type="text"
+                  value={editForm.lastName}
+                  onChange={(e) => setEditForm({ ...editForm, lastName: e.target.value })}
+                  placeholder="Es. Pietrucci"
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-[#0a1628] focus:outline-none focus:ring-2 focus:ring-[#0a1628]"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                  Username
+                </label>
+                <input
+                  type="text"
+                  value={editForm.username}
+                  onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
+                  placeholder="Es. davide"
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-[#0a1628] focus:outline-none focus:ring-2 focus:ring-[#0a1628]"
+                />
+              </div>
+
+              <div className="pt-4 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(false)}
+                  className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl transition-colors"
+                >
+                  Annulla
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="flex-1 py-3 bg-[#0a1628] hover:bg-slate-800 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
+                >
+                  {saving ? "Salvataggio..." : "Salva Modifiche"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <AthleteBottomNav />
     </main>
