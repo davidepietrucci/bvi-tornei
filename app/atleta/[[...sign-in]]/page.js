@@ -10,12 +10,7 @@ export default function AtletaLogin() {
 
   useEffect(() => {
     if (isLoaded && user) {
-      const role = user.publicMetadata?.role || "atleta";
-      if (role === "admin" || role === "staff") {
-        router.replace("/staff/dashboard");
-      } else {
-        router.replace("/atleta/dashboard");
-      }
+      router.replace("/atleta/dashboard");
     }
   }, [user, isLoaded, router]);
 
