@@ -305,42 +305,22 @@ export default function Home() {
 
                 return (
                   <div className="flex flex-col gap-3 mt-1">
-                    <div className="flex justify-between items-center text-xs font-bold text-gray-400 uppercase tracking-wider px-1">
-                      <span>Coppia / Giocatori ({filteredList.length})</span>
-                      <span>Stato</span>
+                    <div className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1">
+                      Coppia / Giocatori ({filteredList.length})
                     </div>
                     <div className="divide-y divide-gray-100 bg-gray-50/50 rounded-2xl border border-gray-100 overflow-hidden">
-                      {filteredList.map((isc, index) => {
-                        const isApprovata = isc.stato === "Approvata";
-                        return (
-                          <div key={isc.id || index} className="p-4 flex items-center justify-between gap-4 bg-white hover:bg-gray-50/80 transition-colors">
-                            <div className="flex items-center gap-3.5 min-w-0">
-                              <span className="w-8 h-8 rounded-full bg-blue-50 text-[#0a1628] font-black text-xs flex items-center justify-center shrink-0">
-                                #{index + 1}
-                              </span>
-                              <div className="min-w-0">
-                                <h4 className="font-bold text-gray-900 text-sm sm:text-base leading-snug truncate">
-                                  {isc.giocatori || "Coppia non specificata"}
-                                </h4>
-                                {isc.data && (
-                                  <p className="text-[11px] font-medium text-gray-400 mt-0.5">
-                                    Iscritto il {isc.data}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            <span
-                              className={`px-3 py-1 text-xs font-bold rounded-full shrink-0 ${
-                                isApprovata
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-amber-100 text-amber-800"
-                              }`}
-                            >
-                              {isApprovata ? "Confermata" : "In attesa"}
+                      {filteredList.map((isc, index) => (
+                        <div key={isc.id || index} className="p-4 flex items-center justify-between gap-4 bg-white hover:bg-gray-50/80 transition-colors">
+                          <div className="flex items-center gap-3.5 min-w-0">
+                            <span className="w-8 h-8 rounded-full bg-blue-50 text-[#0a1628] font-black text-xs flex items-center justify-center shrink-0">
+                              #{index + 1}
                             </span>
+                            <h4 className="font-bold text-gray-900 text-sm sm:text-base leading-snug truncate">
+                              {isc.giocatori || "Coppia non specificata"}
+                            </h4>
                           </div>
-                        );
-                      })}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 );

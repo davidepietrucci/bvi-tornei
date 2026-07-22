@@ -158,40 +158,21 @@ function IscrittiContent() {
             </div>
           ) : (
             <div className="divide-y divide-gray-100 bg-gray-50/50 rounded-2xl border border-gray-100 overflow-hidden">
-              {filteredList.map((isc, index) => {
-                const isApprovata = isc.stato === "Approvata";
-                return (
-                  <div
-                    key={isc.id || index}
-                    className="p-4 sm:p-5 flex items-center justify-between gap-4 bg-white hover:bg-gray-50/80 transition-colors"
-                  >
-                    <div className="flex items-center gap-4 min-w-0">
-                      <span className="w-10 h-10 rounded-2xl bg-blue-50 text-[#0a1628] font-black text-sm flex items-center justify-center shrink-0 shadow-sm">
-                        #{index + 1}
-                      </span>
-                      <div className="min-w-0">
-                        <h4 className="font-black text-gray-900 text-base sm:text-lg leading-tight truncate">
-                          {isc.giocatori || "Coppia non specificata"}
-                        </h4>
-                        {isc.data && (
-                          <p className="text-xs font-medium text-gray-400 mt-1">
-                            Iscritto il {isc.data}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <span
-                      className={`px-3.5 py-1.5 text-xs font-black rounded-full shrink-0 ${
-                        isApprovata
-                          ? "bg-green-100 text-green-800"
-                          : "bg-amber-100 text-amber-800"
-                      }`}
-                    >
-                      {isApprovata ? "Confermata" : "In attesa"}
+              {filteredList.map((isc, index) => (
+                <div
+                  key={isc.id || index}
+                  className="p-4 sm:p-5 flex items-center justify-between gap-4 bg-white hover:bg-gray-50/80 transition-colors"
+                >
+                  <div className="flex items-center gap-4 min-w-0">
+                    <span className="w-10 h-10 rounded-2xl bg-blue-50 text-[#0a1628] font-black text-sm flex items-center justify-center shrink-0 shadow-sm">
+                      #{index + 1}
                     </span>
+                    <h4 className="font-black text-gray-900 text-base sm:text-lg leading-tight truncate">
+                      {isc.giocatori || "Coppia non specificata"}
+                    </h4>
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           )}
         </div>
