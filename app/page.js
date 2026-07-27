@@ -270,16 +270,6 @@ export default function Home() {
                     className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#0a1628] focus:bg-white transition-all text-gray-800"
                   />
                 </div>
-                <button
-                  onClick={() => {
-                    const torneoNome = selectedTorneoModal.nome;
-                    setSelectedTorneoModal(null);
-                    router.push(`/iscritti?tour=${encodeURIComponent(torneoNome)}`);
-                  }}
-                  className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-[#0a1628] font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap cursor-pointer"
-                >
-                  🔗 Apri Pagina
-                </button>
               </div>
 
               {(() => {
