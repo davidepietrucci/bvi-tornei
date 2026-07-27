@@ -19,20 +19,33 @@ export async function GET(req) {
     const slug = searchParams.get("slug");
 
     // Controlliamo l'autenticazione per le letture sensibili
-    if (type === "users" || type === "iscrizioni" || type === "staff") {
-      const { userId, sessionClaims } = await auth();
+    const { userId, sessionClaims } = await auth();
+    const role = sessionClaims?.metadata?.role || "atleta";
+
+    if (type === "users" || type === "staff") {
       if (!userId) {
         return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
       }
-      const role = sessionClaims?.metadata?.role || "atleta";
-      if ((type === "users" || type === "staff") && role !== "admin") {
+      if (role !== "admin") {
         return NextResponse.json({ error: "Accesso negato: richiesto ruolo Admin" }, { status: 403 });
       }
     }
 
     let data = null;
     if (type === "tornei") data = await getTornei();
-    else if (type === "iscrizioni") data = await getIscrizioni();
+    else if (type === "iscrizioni") {
+      data = await getIscrizioni();
+      // Per gli utenti non autenticati (visitatori pubblici), restituiamo solo i dati necessari per la visualizzazione delle coppie iscritte
+      if (!userId && Array.isArray(data)) {
+        data = data.map((isc) => ({
+          id: isc.id,
+          torneo: isc.torneo,
+          giocatori: isc.giocatori,
+          stato: isc.stato,
+          data: isc.data,
+        }));
+      }
+    }
     else if (type === "users") data = await getUsers();
     else if (type === "staff") data = await getStaff();
     else if (type === "moduli") data = await getModuli();
