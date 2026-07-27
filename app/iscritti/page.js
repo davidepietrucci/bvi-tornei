@@ -20,25 +20,46 @@ function IscrittiContent() {
       setTornei(allTornei || []);
       setIscrizioni(allIscrizioni || []);
 
-      if (allTornei && allTornei.length > 0) {
-        let initial = allTornei[0].nome;
-        if (tourParam) {
-          const match = allTornei.find(
-            (t) => t.nome.toLowerCase().trim() === tourParam.toLowerCase().trim()
-          );
+      let initial = "";
+      if (tourParam) {
+        let decoded = tourParam;
+        try {
+          decoded = decodeURIComponent(tourParam).toLowerCase().trim();
+        } catch (e) {
+          decoded = tourParam.toLowerCase().trim();
+        }
+        initial = tourParam;
+        if (allTornei && allTornei.length > 0) {
+          const match = allTornei.find((t) => {
+            const tNome = (t.nome || "").toLowerCase().trim();
+            return tNome === decoded || tNome.includes(decoded) || decoded.includes(tNome);
+          });
           if (match) initial = match.nome;
         }
-        setSelectedTorneoNome(initial);
+      } else if (allTornei && allTornei.length > 0) {
+        initial = allTornei[0].nome;
       }
+      setSelectedTorneoNome(initial);
       setLoading(false);
     });
   }, [tourParam]);
 
-  const activeTorneo = tornei.find((t) => t.nome === selectedTorneoNome);
+  const targetName = (selectedTorneoNome || "").toLowerCase().trim();
 
-  const listTorneo = iscrizioni.filter(
-    (isc) => (isc.torneo || "").toLowerCase().trim() === (selectedTorneoNome || "").toLowerCase().trim()
-  );
+  const activeTorneo = tornei.find((t) => {
+    const tNome = (t.nome || "").toLowerCase().trim();
+    return tNome === targetName || tNome.includes(targetName) || targetName.includes(tNome);
+  });
+
+  const listTorneo = iscrizioni.filter((isc) => {
+    const iscTorneo = (isc.torneo || "").toLowerCase().trim();
+    if (!iscTorneo || !targetName) return false;
+    return (
+      iscTorneo === targetName ||
+      iscTorneo.includes(targetName) ||
+      targetName.includes(iscTorneo)
+    );
+  });
 
   const filteredList = listTorneo.filter((isc) =>
     (isc.giocatori || "").toLowerCase().includes(search.toLowerCase())
@@ -78,7 +99,7 @@ function IscrittiContent() {
         </div>
 
         {/* Tournament Selector */}
-        {tornei.length > 0 && (
+        {(tornei.length > 0 || selectedTorneoNome) && (
           <div className="bg-white p-6 rounded-3xl shadow-md border border-gray-100 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center">
             <div className="w-full md:w-auto flex-1">
               <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">
@@ -89,6 +110,9 @@ function IscrittiContent() {
                 onChange={(e) => handleTorneoChange(e.target.value)}
                 className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 font-bold text-sm text-[#0a1628] focus:outline-none focus:ring-2 focus:ring-[#0a1628] focus:bg-white transition-all cursor-pointer"
               >
+                {selectedTorneoNome && !tornei.some(t => t.nome === selectedTorneoNome) && (
+                  <option value={selectedTorneoNome}>{selectedTorneoNome}</option>
+                )}
                 {tornei.map((t, idx) => (
                   <option key={idx} value={t.nome}>
                     {t.nome} ({t.categoria || 'Categoria Libera'}) - {t.stato || 'Iscrizioni Aperte'}

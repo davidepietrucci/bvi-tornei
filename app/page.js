@@ -282,11 +282,17 @@ export default function Home() {
                 </button>
               </div>
 
-              {/* List of couples */}
               {(() => {
-                const listTorneo = allIscrizioni.filter(
-                  (isc) => (isc.torneo || "").toLowerCase().trim() === (selectedTorneoModal.nome || "").toLowerCase().trim()
-                );
+                const modalTorneoName = (selectedTorneoModal.nome || "").toLowerCase().trim();
+                const listTorneo = allIscrizioni.filter((isc) => {
+                  const iscTorneoLower = (isc.torneo || "").toLowerCase().trim();
+                  if (!iscTorneoLower || !modalTorneoName) return false;
+                  return (
+                    iscTorneoLower === modalTorneoName ||
+                    iscTorneoLower.includes(modalTorneoName) ||
+                    modalTorneoName.includes(iscTorneoLower)
+                  );
+                });
                 const filteredList = listTorneo.filter((isc) =>
                   (isc.giocatori || "").toLowerCase().includes(searchCoppia.toLowerCase())
                 );
