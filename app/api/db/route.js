@@ -35,8 +35,9 @@ export async function GET(req) {
     if (type === "tornei") data = await getTornei();
     else if (type === "iscrizioni") {
       data = await getIscrizioni();
-      // Per gli utenti non autenticati (visitatori pubblici), restituiamo solo i dati necessari per la visualizzazione delle coppie iscritte
-      if (!userId && Array.isArray(data)) {
+      const isPublicRequest = searchParams.get("public") === "true";
+      // Sanitizziamo i dati sensibili SOLO se è esplicitamente richiesta una vista pubblica
+      if (isPublicRequest && Array.isArray(data)) {
         data = data.map((isc) => ({
           id: isc.id,
           torneo: isc.torneo,
@@ -95,7 +96,23 @@ export async function POST(req) {
       if (type === "tornei") await saveTornei(data);
       if (type === "gironi") await saveGironi(slug, data);
       if (type === "bracket") await saveBracket(slug, data);
-      if (type === "iscrizioni") await saveIscrizioni(data);
+      if (type === "iscrizioni") {
+        const existing = await getIscrizioni();
+        const existingMap = new Map(existing.map(i => [String(i.id), i]));
+        const mergedData = Array.isArray(data) ? data.map(item => {
+          const oldItem = existingMap.get(String(item.id));
+          if (!oldItem) return item;
+          return {
+            ...oldItem,
+            ...item,
+            risposte: (item.risposte && item.risposte.length > 0) ? item.risposte : (oldItem.risposte || item.risposte),
+            tel: (item.tel && item.tel !== "Non inserito" && item.tel !== "") ? item.tel : (oldItem.tel || item.tel),
+            email: (item.email && item.email !== "Non inserita" && item.email !== "") ? item.email : (oldItem.email || item.email),
+            note: (item.note !== undefined && item.note !== "") ? item.note : (oldItem.note || "")
+          };
+        }) : data;
+        await saveIscrizioni(mergedData);
+      }
       if (type === "notifiche") await saveNotifiche(data);
     }
     else if (type === "users") {
