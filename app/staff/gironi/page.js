@@ -34,35 +34,7 @@ const splitNames = (name) => {
 
 const formatPlayerName = (fullName) => {
   if (!fullName) return "";
-  const cleanName = fullName.trim();
-  if (!cleanName) return "";
-  if (
-    cleanName.toLowerCase().startsWith("slot") ||
-    cleanName === "—" ||
-    cleanName.toLowerCase().startsWith("vincente") ||
-    cleanName.toLowerCase().startsWith("perdente") ||
-    cleanName === "TBD"
-  ) {
-    return cleanName;
-  }
-
-  // Se contiene già un punto o l'ultima parte è una singola lettera, è già formattato
-  const parts = cleanName.split(/\s+/);
-  const lastPart = parts[parts.length - 1];
-  if (cleanName.includes(".") || lastPart.length === 1 || (lastPart.length === 2 && lastPart.endsWith("."))) {
-    if (lastPart.length === 1) {
-      return cleanName + ".";
-    }
-    return cleanName;
-  }
-
-  if (parts.length < 2) return capitalizeName(cleanName);
-  const firstName = parts[0];
-  const surname = parts.slice(1).join(" ");
-  const firstNameCap = capitalizeName(firstName);
-  const surnameCap = capitalizeName(surname);
-  const initial = firstNameCap.charAt(0).toUpperCase();
-  return `${surnameCap} ${initial}.`;
+  return fullName.trim();
 };
 
 function shuffle(array) {
