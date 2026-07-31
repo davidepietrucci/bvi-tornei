@@ -1301,7 +1301,8 @@ function TabelloneContent() {
   const handleMetadataChange = (matchId, field, value) => {
     setBracketMetadata(prev => {
       const currentMeta = { ...(prev[matchId] || {}), [field]: value };
-      const isMultiSet = (matchId.startsWith("gold-") || matchId.startsWith("silver-")) && (
+      const isMultiSet = subPhaseType !== "custom_18" &&
+        (matchId.startsWith("gold-") || matchId.startsWith("silver-")) && (
         matchId.endsWith("-q1") || matchId.endsWith("-q2") || matchId.endsWith("-q3") || matchId.endsWith("-q4") ||
         matchId.endsWith("-s1") || matchId.endsWith("-s2") ||
         matchId.endsWith("-f1") || matchId.endsWith("-f3")
@@ -1338,7 +1339,8 @@ function TabelloneContent() {
     const meta = bracketMetadata[matchId] || {};
     const borderClass = color === "gold" ? "hover:border-yellow-500" : color === "silver" ? "hover:border-gray-400" : "hover:border-blue-600";
     
-    const isMultiSetMatch = (matchId.startsWith("gold-") || matchId.startsWith("silver-")) && (
+    const isMultiSetMatch = subPhaseType !== "custom_18" &&
+      (matchId.startsWith("gold-") || matchId.startsWith("silver-")) && (
       matchId.endsWith("-q1") || matchId.endsWith("-q2") || matchId.endsWith("-q3") || matchId.endsWith("-q4") ||
       matchId.endsWith("-s1") || matchId.endsWith("-s2") ||
       matchId.endsWith("-f1") || matchId.endsWith("-f3")
