@@ -58,6 +58,7 @@ function TabelloneContent() {
   const [tabellonePubblicato, setTabellonePubblicato] = useState(false);
   const [numGironi, setNumGironi] = useState(4);
   const [teamCounts, setTeamCounts] = useState({ A: 4, B: 4, C: 4, D: 4, E: 4, F: 4, G: 4, H: 4 });
+  const [gConfigData, setGConfigData] = useState(null); // dati gironi iniziali per classifica avulsa
 
   const [numGoldGironiOpt, setNumGoldGironiOpt] = useState(0); // 0 = Auto
   const [teamsPerGoldGirone, setTeamsPerGoldGirone] = useState(4);
@@ -100,9 +101,11 @@ function TabelloneContent() {
       if (gConfig) {
         setNumGironi(gConfig.numGironi || 4);
         setTeamCounts(gConfig.teamCounts || { A: 4, B: 4, C: 4, D: 4, E: 4, F: 4, G: 4, H: 4 });
+        setGConfigData(gConfig);
       } else {
         setNumGironi(4);
         setTeamCounts({ A: 4, B: 4, C: 4, D: 4, E: 4, F: 4, G: 4, H: 4 });
+        setGConfigData(null);
       }
     });
 
@@ -681,6 +684,78 @@ function TabelloneContent() {
 
     if (changed) setBracketAssignments(newAssignments);
   }, [bracketMetadata, bracketAssignments, isLoaded, phaseType, subPhaseType, numGironi, teamCounts]);
+
+  // Calcola la Classifica Avulsa Gold per custom_18 (12 team: 1° e 2° dei gironi iniziali A-F)
+  const getClassificaAvulsaGoldCustom18 = () => {
+    const gConfig = gConfigData;
+    if (!gConfig) return [];
+    const nGironi = gConfig.numGironi || 0;
+
+    const getRanking = (gid) => {
+      const teams = gConfig.gironeAssignments?.[gid] || {};
+      const meta = gConfig.matchMetadata || {};
+      const isThreeSets = gConfig.gironeSets?.[gid] === "3 set";
+      const stats = {};
+      const count = gConfig.teamCounts?.[gid] || 0;
+      for (let i = 0; i < count; i++) {
+        const n = teams[i]; if (n && n !== "—" && n !== "Slot Libero") stats[n] = { nome: n, punti: 0, pf: 0, ps: 0 };
+      }
+      const schedule = getSchedule(count, gid, teams, gConfig.gironeTypes || {}, gConfig.gironeSets || {}, meta);
+      schedule.forEach((match, i) => {
+        const m = meta[`${gid}-${i}`];
+        if (!m) return;
+        const l = match.left; const r = match.right;
+        if (!stats[l] || !stats[r]) return;
+        const s1L = parseInt(m.s1L||0), s1R = parseInt(m.s1R||0);
+        const s2L = parseInt(m.s2L||0), s2R = parseInt(m.s2R||0);
+        const s3L = parseInt(m.s3L||0), s3R = parseInt(m.s3R||0);
+        if (s1L === 0 && s1R === 0) return;
+        stats[l].pf += (s1L + s2L + s3L);
+        stats[r].pf += (s1R + s2R + s3R);
+        stats[l].ps += (s1R + s2R + s3R);
+        stats[r].ps += (s1L + s2L + s3L);
+        const isThreeS = isThreeSets;
+        let winL = 0;
+        if (isThreeS) {
+          let sL = 0, sR = 0;
+          if (s1L > s1R) sL++; else if (s1R > s1L) sR++;
+          if (s2L > s2R) sL++; else if (s2R > s2L) sR++;
+          if (s3L > s3R) sL++; else if (s3R > s3L) sR++;
+          winL = sL > sR ? 1 : 0;
+        } else { winL = s1L > s1R ? 1 : 0; }
+        if (winL) stats[l].punti++; else stats[r].punti++;
+      });
+      return Object.values(stats).sort((a, b) => {
+        if (b.punti !== a.punti) return b.punti - a.punti;
+        const qA = a.ps === 0 ? a.pf : a.pf / a.ps;
+        const qB = b.ps === 0 ? b.pf : b.pf / b.ps;
+        return qB - qA;
+      });
+    };
+
+    const firstsList = [];
+    const secondsList = [];
+    for (let i = 0; i < nGironi; i++) {
+      const gid = String.fromCharCode(65 + i);
+      const ranked = getRanking(gid);
+      const gLabel = `Girone ${gid}`;
+      if (ranked[0]) firstsList.push({ ...ranked[0], girone: gLabel, pos: "1°" });
+      if (ranked[1]) secondsList.push({ ...ranked[1], girone: gLabel, pos: "2°" });
+    }
+
+    // Ordina le prime per punti/quoziente, poi le seconde
+    const sort = (list) => list.sort((a, b) => {
+      if (b.punti !== a.punti) return b.punti - a.punti;
+      const qA = a.ps === 0 ? a.pf : a.pf / a.ps;
+      const qB = b.ps === 0 ? b.pf : b.pf / b.ps;
+      return qB - qA;
+    });
+
+    return [
+      ...sort(firstsList).map((t, idx) => ({ ...t, rank: idx + 1 })),
+      ...sort(secondsList).map((t, idx) => ({ ...t, rank: firstsList.length + idx + 1 }))
+    ];
+  };
 
   const handleAutoFill = async () => {
     const slug = selectedTorneo.toLowerCase().trim().replace(/\s+/g, '_');
@@ -1913,6 +1988,76 @@ function TabelloneContent() {
             <div className="space-y-16">
                 <section>
                   <h2 className="text-2xl md:text-4xl font-black text-yellow-600 uppercase tracking-tighter mb-8">🏆 Gironi Intermedi GOLD</h2>
+
+                  {/* Classifica Avulsa Iniziale Gold (solo custom_18) */}
+                  {subPhaseType === "custom_18" && (() => {
+                    const classifica = getClassificaAvulsaGoldCustom18();
+                    if (classifica.length === 0) return null;
+                    return (
+                      <div className="mb-10 bg-white rounded-[2rem] border border-yellow-100 shadow-lg overflow-hidden">
+                        <div className="bg-gradient-to-r from-yellow-500 to-amber-400 px-6 py-4 flex items-center gap-3">
+                          <span className="text-2xl">📊</span>
+                          <div>
+                            <h3 className="text-white font-black text-sm uppercase tracking-widest">Classifica Avulsa Iniziale Gold</h3>
+                            <p className="text-yellow-100 text-[10px] font-bold uppercase tracking-widest">Base per la composizione dei 4 Gironi Gold</p>
+                          </div>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs">
+                            <thead className="bg-yellow-50">
+                              <tr>
+                                <th className="px-4 py-2 text-left font-black text-yellow-700 uppercase tracking-widest">#</th>
+                                <th className="px-4 py-2 text-left font-black text-yellow-700 uppercase tracking-widest">Squadra</th>
+                                <th className="px-4 py-2 text-center font-black text-yellow-700 uppercase tracking-widest">Provenienza</th>
+                                <th className="px-4 py-2 text-center font-black text-yellow-700 uppercase tracking-widest">Pt</th>
+                                <th className="px-4 py-2 text-center font-black text-yellow-700 uppercase tracking-widest">PF</th>
+                                <th className="px-4 py-2 text-center font-black text-yellow-700 uppercase tracking-widest">PS</th>
+                                <th className="px-4 py-2 text-center font-black text-yellow-700 uppercase tracking-widest">Quoz.</th>
+                                <th className="px-4 py-2 text-center font-black text-yellow-700 uppercase tracking-widest">Assegnata a</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                              {classifica.map((team, idx) => {
+                                const quotient = team.ps === 0 ? team.pf : (team.pf / team.ps).toFixed(3);
+                                // Determina il girone Gold assegnato basandosi sull'ordine
+                                const goldGironeMap = [
+                                  "Gold A", "Gold B", "Gold C", "Gold D",
+                                  "Gold B", "Gold C", "Gold D", "Gold A",
+                                  "Gold A", "Gold B", "Gold C", "Gold D"
+                                ];
+                                const goldGirone = goldGironeMap[idx] || "—";
+                                const isFirst6 = idx < 6;
+                                return (
+                                  <tr key={team.nome} className={`hover:bg-yellow-50/30 ${idx === 5 ? 'border-b-2 border-dashed border-yellow-200' : ''}`}>
+                                    <td className="px-4 py-2">
+                                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black ${
+                                        isFirst6 ? 'bg-yellow-500 text-white' : 'bg-gray-100 text-gray-500'
+                                      }`}>{team.rank}</span>
+                                    </td>
+                                    <td className="px-4 py-2 font-bold text-gray-900 max-w-[160px] truncate">
+                                      {splitNames(team.nome).map(formatPlayerName).join(" - ")}
+                                    </td>
+                                    <td className="px-4 py-2 text-center">
+                                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                                        isFirst6 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-500'
+                                      }`}>{team.pos} {team.girone}</span>
+                                    </td>
+                                    <td className="px-4 py-2 text-center font-bold text-blue-600">{team.punti}</td>
+                                    <td className="px-4 py-2 text-center text-gray-600">{team.pf}</td>
+                                    <td className="px-4 py-2 text-center text-gray-400">{team.ps}</td>
+                                    <td className="px-4 py-2 text-center text-gray-700 font-mono">{quotient}</td>
+                                    <td className="px-4 py-2 text-center">
+                                      <span className="px-2 py-0.5 rounded text-[9px] font-black bg-amber-100 text-amber-700 uppercase">{goldGirone}</span>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  })()}
                   {Array.from({ length: numGoldGironi }, (_, i) => {
                     const letter = String.fromCharCode(65 + i);
                     const groupKey = `gold-${letter}`;
