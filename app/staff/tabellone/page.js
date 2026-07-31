@@ -210,6 +210,34 @@ function TabelloneContent() {
     return list;
   };
 
+  const resolveWinner = (matchId) => {
+    const left = bracketAssignments[`${matchId}-L`];
+    const right = bracketAssignments[`${matchId}-R`];
+
+    if (left === "—" && right && right !== "—") return right;
+    if (right === "—" && left && left !== "—") return left;
+
+    const meta = bracketMetadata[matchId] || {};
+    const scoreL = parseInt(meta.scoreL || 0);
+    const scoreR = parseInt(meta.scoreR || 0);
+    if (scoreL === 0 && scoreR === 0) return null;
+    return scoreL > scoreR ? left : right;
+  };
+
+  const resolveLoser = (matchId) => {
+    const left = bracketAssignments[`${matchId}-L`];
+    const right = bracketAssignments[`${matchId}-R`];
+
+    if (left === "—" && right && right !== "—") return "—";
+    if (right === "—" && left && left !== "—") return "—";
+
+    const meta = bracketMetadata[matchId] || {};
+    const scoreL = parseInt(meta.scoreL || 0);
+    const scoreR = parseInt(meta.scoreR || 0);
+    if (scoreL === 0 && scoreR === 0) return null;
+    return scoreL > scoreR ? right : left;
+  };
+
   const getRoundRobinPairs = (numTeams) => {
     if (!numTeams || numTeams < 2) return [];
     const pairs = [];
@@ -222,7 +250,54 @@ function TabelloneContent() {
     return pairs;
   };
 
+  const getPoolPairs = (groupKey) => {
+    const t0 = bracketAssignments[`${groupKey}-0`];
+    const t1 = bracketAssignments[`${groupKey}-1`];
+    const t2 = bracketAssignments[`${groupKey}-2`];
+    const t3 = bracketAssignments[`${groupKey}-3`];
+
+    const isGold = groupKey.startsWith("gold");
+
+    const winM0 = resolveWinner(`${groupKey}-m0`);
+    const winM1 = resolveWinner(`${groupKey}-m1`);
+    const losM0 = resolveLoser(`${groupKey}-m0`);
+    const losM1 = resolveLoser(`${groupKey}-m1`);
+
+    const winM2 = resolveWinner(`${groupKey}-m2`);
+    const losM2 = resolveLoser(`${groupKey}-m2`);
+    const winM3 = resolveWinner(`${groupKey}-m3`);
+
+    return [
+      { label: `Gara 1 (${isGold ? '1°A vs 2°B' : '3°A vs 4°B'})`, l: t0, r: t1, matchId: `${groupKey}-m0` },
+      { label: `Gara 2 (${isGold ? '1°C vs 2°D' : '3°C vs 4°D'})`, l: t2, r: t3, matchId: `${groupKey}-m1` },
+      { label: "Gara 3 (Vincenti ➔ 1° in Semifinale)", l: winM0 || "Vincente Gara 1", r: winM1 || "Vincente Gara 2", matchId: `${groupKey}-m2` },
+      { label: "Gara 4 (Perdenti ➔ 4° Eliminato)", l: losM0 || "Perdente Gara 1", r: losM1 || "Perdente Gara 2", matchId: `${groupKey}-m3` },
+      { label: "Gara 5 (Spareggio ➔ 2° ai Quarti, 3° agli Ottavi)", l: losM2 || "Perdente Gara 3", r: winM3 || "Vincente Gara 4", matchId: `${groupKey}-m4` },
+    ];
+  };
+
   const getIntermediateGroupStats = (groupKey) => {
+    if (subPhaseType === "pool_stepladder") {
+      const winM2 = resolveWinner(`${groupKey}-m2`);
+      const winM4 = resolveWinner(`${groupKey}-m4`);
+      const losM4 = resolveLoser(`${groupKey}-m4`);
+      const losM3 = resolveLoser(`${groupKey}-m3`);
+
+      const t0 = bracketAssignments[`${groupKey}-0`];
+      const t1 = bracketAssignments[`${groupKey}-1`];
+      const t2 = bracketAssignments[`${groupKey}-2`];
+      const t3 = bracketAssignments[`${groupKey}-3`];
+
+      const res = [
+        { nome: winM2 || `1° ${groupKey}`, note: "Qualificata in Semifinale 🏆", pos: 1 },
+        { nome: winM4 || `2° ${groupKey}`, note: "Qualificata ai Quarti ⚽", pos: 2 },
+        { nome: losM4 || `3° ${groupKey}`, note: "Qualificata agli Ottavi 🥊", pos: 3 },
+        { nome: losM3 || `4° ${groupKey}`, note: "Eliminata ❌", pos: 4 },
+      ];
+
+      return res;
+    }
+
     const stats = {};
     const numTeams = getTeamsCountForGroup(groupKey);
     const teams = getIntermediateGroupTeamsList(groupKey).filter(t => t && t !== "—" && t !== "Slot Libero");
@@ -276,6 +351,20 @@ function TabelloneContent() {
     let changed = false;
 
     const getIntermediateRanking = (groupKey) => {
+      if (subPhaseType === "pool_stepladder") {
+        const winM2 = resolveWinner(`${groupKey}-m2`);
+        const winM4 = resolveWinner(`${groupKey}-m4`);
+        const losM4 = resolveLoser(`${groupKey}-m4`);
+        const losM3 = resolveLoser(`${groupKey}-m3`);
+
+        return [
+          winM2 || `1° ${groupKey}`,
+          winM4 || `2° ${groupKey}`,
+          losM4 || `3° ${groupKey}`,
+          losM3 || `4° ${groupKey}`
+        ];
+      }
+
       const stats = {};
       const numTeams = getTeamsCountForGroup(groupKey);
       const teams = getIntermediateGroupTeamsList(groupKey);
@@ -319,42 +408,34 @@ function TabelloneContent() {
       }).map(s => s.nome);
     };
 
-    const resolveWinner = (matchId) => {
-      const left = bracketAssignments[`${matchId}-L`];
-      const right = bracketAssignments[`${matchId}-R`];
-
-      // Se uno dei due lati è un Bye ("—") e l'altro ha una squadra reale/valida, avanza l'altra squadra
-      if (left === "—" && right && right !== "—") return right;
-      if (right === "—" && left && left !== "—") return left;
-
-      const meta = bracketMetadata[matchId] || {};
-      const scoreL = parseInt(meta.scoreL || 0);
-      const scoreR = parseInt(meta.scoreR || 0);
-      if (scoreL === 0 && scoreR === 0) return null;
-      return scoreL > scoreR ? left : right;
-    };
-
-    const resolveLoser = (matchId) => {
-      const left = bracketAssignments[`${matchId}-L`];
-      const right = bracketAssignments[`${matchId}-R`];
-
-      // Se uno dei due lati è un Bye ("—"), il perdente è "—"
-      if (left === "—" && right && right !== "—") return "—";
-      if (right === "—" && left && left !== "—") return "—";
-
-      const meta = bracketMetadata[matchId] || {};
-      const scoreL = parseInt(meta.scoreL || 0);
-      const scoreR = parseInt(meta.scoreR || 0);
-      if (scoreL === 0 && scoreR === 0) return null;
-      return scoreL > scoreR ? right : left;
-    };
-
     const update = (targetKey, value) => {
       if (value && newAssignments[targetKey] !== value) {
         newAssignments[targetKey] = value;
         changed = true;
       }
     };
+
+    // Propagation within Pool Groups
+    if (subPhaseType === "pool_stepladder") {
+      ["gold-A", "gold-B", "gold-C", "gold-D", "silver-A", "silver-B", "silver-C", "silver-D"].forEach(groupKey => {
+        const winM0 = resolveWinner(`${groupKey}-m0`);
+        const winM1 = resolveWinner(`${groupKey}-m1`);
+        const losM0 = resolveLoser(`${groupKey}-m0`);
+        const losM1 = resolveLoser(`${groupKey}-m1`);
+
+        update(`${groupKey}-m2-L`, winM0);
+        update(`${groupKey}-m2-R`, winM1);
+
+        update(`${groupKey}-m3-L`, losM0);
+        update(`${groupKey}-m3-R`, losM1);
+
+        const losM2 = resolveLoser(`${groupKey}-m2`);
+        const winM3 = resolveWinner(`${groupKey}-m3`);
+
+        update(`${groupKey}-m4-L`, losM2);
+        update(`${groupKey}-m4-R`, winM3);
+      });
+    }
 
     if ((phaseType === "gold_silver" && subPhaseType === "direct") || phaseType === "single") {
       const parts = phaseType === "single" ? ["gold"] : ["gold", "silver"];
@@ -1221,13 +1302,16 @@ function TabelloneContent() {
   };
 
   const renderIntermediateGroup = (groupKey, title, color) => {
+    const isPoolMode = subPhaseType === "pool_stepladder";
     const stats = getIntermediateGroupStats(groupKey);
     const numTeams = getTeamsCountForGroup(groupKey);
     const teams = getIntermediateGroupTeamsList(groupKey);
-    const matchPairs = getRoundRobinPairs(numTeams);
 
     const titleColor = color === "gold" ? "text-yellow-600" : "text-gray-500";
     
+    const poolPairs = isPoolMode ? getPoolPairs(groupKey) : [];
+    const rrPairs = !isPoolMode ? getRoundRobinPairs(numTeams) : [];
+
     return (
       <div className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-sm border border-gray-100 mb-12">
         <h3 className={`text-xl font-black uppercase mb-6 ${titleColor}`}>{title}</h3>
@@ -1265,36 +1349,55 @@ function TabelloneContent() {
               <tr>
                 <th className="px-4 py-3">Pos</th>
                 <th className="px-4 py-3">Squadra</th>
-                <th className="px-4 py-3 text-center">V</th>
-                <th className="px-4 py-3 text-center">PF</th>
-                <th className="px-4 py-3 text-center">PS</th>
-                <th className="px-4 py-3 text-center">Quoz.</th>
+                {isPoolMode ? (
+                  <th className="px-4 py-3">Esito Pool</th>
+                ) : (
+                  <>
+                    <th className="px-4 py-3 text-center">V</th>
+                    <th className="px-4 py-3 text-center">PF</th>
+                    <th className="px-4 py-3 text-center">PS</th>
+                    <th className="px-4 py-3 text-center">Quoz.</th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 font-bold">
-              {stats.map((team, idx) => {
-                const quotient = team.ps === 0 ? team.pf : (team.pf / team.ps).toFixed(3);
-                return (
-                  <tr key={team.nome} className="hover:bg-blue-50/20">
+              {isPoolMode ? (
+                stats.map((item) => (
+                  <tr key={item.pos} className="hover:bg-blue-50/20">
                     <td className="px-4 py-3">
                       <span className="w-5 h-5 rounded flex items-center justify-center bg-gray-100 text-gray-500 text-[10px] font-black">
-                        {idx + 1}
+                        {item.pos}°
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-900">
-                      {team.nome && team.nome !== "—" && team.nome !== "Slot Libero" ? splitNames(team.nome).map(formatPlayerName).join(" - ") : (team.nome || "")}
+                    <td className="px-4 py-3 text-gray-900 font-extrabold">
+                      {item.nome && item.nome !== "—" && item.nome !== "Slot Libero" ? splitNames(item.nome).map(formatPlayerName).join(" - ") : (item.nome || "")}
                     </td>
-                    <td className="px-4 py-3 text-center text-green-600">{team.vinte}</td>
-                    <td className="px-4 py-3 text-center text-gray-600">{team.pf}</td>
-                    <td className="px-4 py-3 text-center text-gray-400">{team.ps}</td>
-                    <td className="px-4 py-3 text-center text-[#0a1628]">{quotient}</td>
+                    <td className="px-4 py-3 text-blue-600 font-bold">
+                      {item.note}
+                    </td>
                   </tr>
-                );
-              })}
-              {stats.length === 0 && (
-                <tr>
-                  <td colSpan="6" className="py-8 text-center text-gray-400 italic">Nessuna squadra assegnata. Clicca su GENERA o scrivi nei campi sopra.</td>
-                </tr>
+                ))
+              ) : (
+                stats.map((team, idx) => {
+                  const quotient = team.ps === 0 ? team.pf : (team.pf / team.ps).toFixed(3);
+                  return (
+                    <tr key={team.nome} className="hover:bg-blue-50/20">
+                      <td className="px-4 py-3">
+                        <span className="w-5 h-5 rounded flex items-center justify-center bg-gray-100 text-gray-500 text-[10px] font-black">
+                          {idx + 1}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-900">
+                        {team.nome && team.nome !== "—" && team.nome !== "Slot Libero" ? splitNames(team.nome).map(formatPlayerName).join(" - ") : (team.nome || "")}
+                      </td>
+                      <td className="px-4 py-3 text-center text-green-600">{team.vinte}</td>
+                      <td className="px-4 py-3 text-center text-gray-600">{team.pf}</td>
+                      <td className="px-4 py-3 text-center text-gray-400">{team.ps}</td>
+                      <td className="px-4 py-3 text-center text-[#0a1628]">{quotient}</td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -1302,16 +1405,28 @@ function TabelloneContent() {
 
         {/* Matches Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {matchPairs.map((pair, idx) => {
-            const teamL = teams[pair.l];
-            const teamR = teams[pair.r];
-            if (!teamL || teamL === "—" || teamL === "Slot Libero" || !teamR || teamR === "—" || teamR === "Slot Libero") return null;
-            return (
-              <div key={idx}>
-                {renderGroupMatch(groupKey, idx, pair.label, teamL, teamR)}
-              </div>
-            );
-          })}
+          {isPoolMode ? (
+            poolPairs.map((pair, idx) => {
+              const teamL = pair.l;
+              const teamR = pair.r;
+              return (
+                <div key={idx}>
+                  {renderGroupMatch(groupKey, idx, pair.label, teamL, teamR)}
+                </div>
+              );
+            })
+          ) : (
+            rrPairs.map((pair, idx) => {
+              const teamL = teams[pair.l];
+              const teamR = teams[pair.r];
+              if (!teamL || teamL === "—" || teamL === "Slot Libero" || !teamR || teamR === "—" || teamR === "Slot Libero") return null;
+              return (
+                <div key={idx}>
+                  {renderGroupMatch(groupKey, idx, pair.label, teamL, teamR)}
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
     );

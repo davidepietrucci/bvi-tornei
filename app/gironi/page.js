@@ -429,22 +429,29 @@ export default function GironiPubblici() {
     };
 
     const areIntermediateGroupsCompleted = (prefix, numGroups, teamsPerGroup) => {
+      const isPoolMode = bracketConfig.subPhaseType === "pool_stepladder";
       for (let g = 0; g < numGroups; g++) {
         const letter = String.fromCharCode(65 + g);
         const groupKey = `${prefix}-${letter}`;
-        const numTeams = teamsPerGroup || 4;
-        const pairs = getRoundRobinPairs(numTeams);
-        for (let m = 0; m < pairs.length; m++) {
-          const pair = pairs[m];
-          const teamL = assignments[`${groupKey}-${pair.l}`];
-          const teamR = assignments[`${groupKey}-${pair.r}`];
-          if (!teamL || teamL === "—" || teamL === "Slot Libero" || !teamR || teamR === "—" || teamR === "Slot Libero") {
-            continue;
+        if (isPoolMode) {
+          const m2Done = isMatchCompleted(`${groupKey}-m2`);
+          const m4Done = isMatchCompleted(`${groupKey}-m4`);
+          if (!m2Done || !m4Done) return false;
+        } else {
+          const numTeams = teamsPerGroup || 4;
+          const pairs = getRoundRobinPairs(numTeams);
+          for (let m = 0; m < pairs.length; m++) {
+            const pair = pairs[m];
+            const teamL = assignments[`${groupKey}-${pair.l}`];
+            const teamR = assignments[`${groupKey}-${pair.r}`];
+            if (!teamL || teamL === "—" || teamL === "Slot Libero" || !teamR || teamR === "—" || teamR === "Slot Libero") {
+              continue;
+            }
+            const matchId = `${groupKey}-m${m}`;
+            const meta = metadata[matchId] || {};
+            const hasScore = meta.scoreL !== undefined && meta.scoreL !== "" && meta.scoreR !== undefined && meta.scoreR !== "";
+            if (!hasScore) return false;
           }
-          const matchId = `${groupKey}-m${m}`;
-          const meta = metadata[matchId] || {};
-          const hasScore = meta.scoreL !== undefined && meta.scoreL !== "" && meta.scoreR !== undefined && meta.scoreR !== "";
-          if (!hasScore) return false;
         }
       }
       return true;
