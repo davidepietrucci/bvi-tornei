@@ -439,7 +439,11 @@ export default function GironiPubblici() {
     };
 
     if (bracketConfig.phaseType === "gold_silver" || bracketConfig.phaseType === "single") {
-      const isGroups = bracketConfig.phaseType === "gold_silver" && (bracketConfig.subPhaseType === "groups" || bracketConfig.subPhaseType === "pool_stepladder");
+      const isGroups = bracketConfig.phaseType === "gold_silver" && (
+        bracketConfig.subPhaseType === "groups" || 
+        bracketConfig.subPhaseType === "pool_stepladder" || 
+        bracketConfig.subPhaseType === "custom_18"
+      );
       if (isGroups) {
         // --- GROUPS FLOW ---
         let goldSlots = 0;
@@ -455,10 +459,10 @@ export default function GironiPubblici() {
         const autoNumGoldGironi = goldSlots > 4 ? 2 : 1;
         const autoNumSilverGironi = silverSlots > 4 ? 2 : 1;
 
-        const numGoldGironi = bracketConfig.numGoldGironi !== undefined && bracketConfig.numGoldGironi !== 0 ? bracketConfig.numGoldGironi : autoNumGoldGironi;
-        const numSilverGironi = bracketConfig.numSilverGironi !== undefined && bracketConfig.numSilverGironi !== 0 ? bracketConfig.numSilverGironi : autoNumSilverGironi;
-        const teamsPerGoldGirone = bracketConfig.teamsPerGoldGirone || 4;
-        const teamsPerSilverGirone = bracketConfig.teamsPerSilverGirone || 4;
+        const numGoldGironi = bracketConfig.subPhaseType === "custom_18" ? 4 : (bracketConfig.numGoldGironi !== undefined && bracketConfig.numGoldGironi !== 0 ? bracketConfig.numGoldGironi : autoNumGoldGironi);
+        const numSilverGironi = bracketConfig.subPhaseType === "custom_18" ? 2 : (bracketConfig.numSilverGironi !== undefined && bracketConfig.numSilverGironi !== 0 ? bracketConfig.numSilverGironi : autoNumSilverGironi);
+        const teamsPerGoldGirone = bracketConfig.subPhaseType === "custom_18" ? 3 : (bracketConfig.teamsPerGoldGirone || 4);
+        const teamsPerSilverGirone = bracketConfig.subPhaseType === "custom_18" ? 3 : (bracketConfig.teamsPerSilverGirone || 4);
 
         const isStepladder = bracketConfig.subPhaseType === "pool_stepladder";
 
@@ -503,16 +507,21 @@ export default function GironiPubblici() {
               title: "Quarti Silver (2° Classificati) 🥈",
               matches: [getMatchData("silver-q1", "Quarto 1"), getMatchData("silver-q2", "Quarto 2")],
             });
+            list.push({
+              title: "Semifinali Silver 🥈",
+              matches: [getMatchData("silver-s1", "Semifinale 1"), getMatchData("silver-s2", "Semifinale 2")],
+            });
+          } else if (bracketConfig.subPhaseType !== "custom_18") {
+            list.push({
+              title: "Semifinali Silver 🥈",
+              matches: [getMatchData("silver-s1", "Semifinale 1"), getMatchData("silver-s2", "Semifinale 2")],
+            });
           }
-          list.push({
-            title: "Semifinali Silver 🥈",
-            matches: [getMatchData("silver-s1", "Semifinale 1"), getMatchData("silver-s2", "Semifinale 2")],
-          });
         }
-        if (silverGroupsDone && silverSemifinalsDone) {
+        if (silverGroupsDone && (silverSemifinalsDone || bracketConfig.subPhaseType === "custom_18")) {
           list.push({
             title: "Finali Silver 🥈",
-            matches: [getMatchData("silver-f3", "Finale 3°/4° Posto"), getMatchData("silver-f1", "Finale 1°/2° Posto")],
+            matches: [getMatchData("silver-f3", "Finalina 3°/4° Posto Silver"), getMatchData("silver-f1", "Finale 1°/2° Posto Silver")],
           });
         }
       } else {

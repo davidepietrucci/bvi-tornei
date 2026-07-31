@@ -599,6 +599,14 @@ function TabelloneContent() {
           update("silver-s2-L", getRankedInt(sA_rank, 1, "2° Silver"));
           update("silver-s2-R", getRankedInt(sA_rank, 2, "3° Silver"));
         }
+      } else if (subPhaseType === "custom_18") {
+        // Custom 18 squadre: 2 Gironi Silver all'italiana da 3 squadre.
+        // 1° Silver A vs 1° Silver B => Finale 1°/2° Posto Silver
+        // 2° Silver A vs 2° Silver B => Finalina 3°/4° Posto Silver
+        update("silver-f1-L", getRankedInt(sA_rank, 0, "1° Silver A"));
+        update("silver-f1-R", getRankedInt(sB_rank, 0, "1° Silver B"));
+        update("silver-f3-L", getRankedInt(sA_rank, 1, "2° Silver A"));
+        update("silver-f3-R", getRankedInt(sB_rank, 1, "2° Silver B"));
       } else {
         // Standard Intermediate Groups (1° e 2° vanno in Semifinale)
         if (currentNumSilverGironi === 4) {
@@ -619,10 +627,12 @@ function TabelloneContent() {
         }
       }
 
-      update("silver-f1-L", resolveWinner("silver-s1"));
-      update("silver-f1-R", resolveWinner("silver-s2"));
-      update("silver-f3-L", resolveLoser("silver-s1"));
-      update("silver-f3-R", resolveLoser("silver-s2"));
+      if (subPhaseType !== "custom_18") {
+        update("silver-f1-L", resolveWinner("silver-s1"));
+        update("silver-f1-R", resolveWinner("silver-s2"));
+        update("silver-f3-L", resolveLoser("silver-s1"));
+        update("silver-f3-R", resolveLoser("silver-s2"));
+      }
     }
 
     if (phaseType === "double") {
@@ -723,22 +733,55 @@ function TabelloneContent() {
         }
       });
 
-      // Calculate dynamically the target groups count
-      let currentGoldSlots = 0;
-      let currentSilverSlots = 0;
-      for (let i = 0; i < numGironi; i++) {
-        const gid = String.fromCharCode(65 + i);
-        const count = gConfig.teamCounts[gid] || 0;
-        currentGoldSlots += Math.min(2, count);
-        currentSilverSlots += Math.min(2, Math.max(0, count - 2));
-      }
-      const autoNumGoldGironi = currentGoldSlots > 4 ? 2 : 1;
-      const autoNumSilverGironi = currentSilverSlots > 4 ? 2 : 1;
+      if (subPhaseType === "custom_18") {
+        setNumSilverGironiOpt(2);
+        setTeamsPerSilverGirone(3);
+        setNumGoldGironiOpt(4);
+        setTeamsPerGoldGirone(3);
 
-      const currentNumGoldGironi = numGoldGironiOpt > 0 ? numGoldGironiOpt : autoNumGoldGironi;
-      const currentNumSilverGironi = numSilverGironiOpt > 0 ? numSilverGironiOpt : autoNumSilverGironi;
-      const currentTeamsPerGoldGirone = teamsPerGoldGirone || 4;
-      const currentTeamsPerSilverGirone = teamsPerSilverGirone || 4;
+        // Silver Girone A: 3°A, 3°C, 3°E
+        newAssignments["silver-A-0"] = getRanked('A', 2);
+        newAssignments["silver-A-1"] = getRanked('C', 2);
+        newAssignments["silver-A-2"] = getRanked('E', 2);
+
+        // Silver Girone B: 3°B, 3°D, 3°F
+        newAssignments["silver-B-0"] = getRanked('B', 2);
+        newAssignments["silver-B-1"] = getRanked('D', 2);
+        newAssignments["silver-B-2"] = getRanked('F', 2);
+
+        // Gold: 12 teams (1° and 2° of A, B, C, D, E, F)
+        newAssignments["gold-A-0"] = getRanked('A', 0);
+        newAssignments["gold-A-1"] = getRanked('B', 1);
+        newAssignments["gold-A-2"] = getRanked('C', 0);
+
+        newAssignments["gold-B-0"] = getRanked('B', 0);
+        newAssignments["gold-B-1"] = getRanked('A', 1);
+        newAssignments["gold-B-2"] = getRanked('D', 0);
+
+        newAssignments["gold-C-0"] = getRanked('C', 1);
+        newAssignments["gold-C-1"] = getRanked('D', 1);
+        newAssignments["gold-C-2"] = getRanked('E', 0);
+
+        newAssignments["gold-D-0"] = getRanked('E', 1);
+        newAssignments["gold-D-1"] = getRanked('F', 0);
+        newAssignments["gold-D-2"] = getRanked('F', 1);
+      } else {
+        // Calculate dynamically the target groups count
+        let currentGoldSlots = 0;
+        let currentSilverSlots = 0;
+        for (let i = 0; i < numGironi; i++) {
+          const gid = String.fromCharCode(65 + i);
+          const count = gConfig.teamCounts[gid] || 0;
+          currentGoldSlots += Math.min(2, count);
+          currentSilverSlots += Math.min(2, Math.max(0, count - 2));
+        }
+        const autoNumGoldGironi = currentGoldSlots > 4 ? 2 : 1;
+        const autoNumSilverGironi = currentSilverSlots > 4 ? 2 : 1;
+
+        const currentNumGoldGironi = numGoldGironiOpt > 0 ? numGoldGironiOpt : autoNumGoldGironi;
+        const currentNumSilverGironi = numSilverGironiOpt > 0 ? numSilverGironiOpt : autoNumSilverGironi;
+        const currentTeamsPerGoldGirone = teamsPerGoldGirone || 4;
+        const currentTeamsPerSilverGirone = teamsPerSilverGirone || 4;
 
       if (groupCompositionMethod === "classifica") {
         const rankingsUnified = calculateUnifiedRanking(gConfig).map(s => {
@@ -835,6 +878,7 @@ function TabelloneContent() {
             newAssignments[`silver-${targetLetter}-${slotIdx}`] = "—";
           }
         }
+      }
       }
     } else {
       let totalSlots = 0;
@@ -1581,6 +1625,7 @@ function TabelloneContent() {
                       <option value="direct">Eliminazione Diretta</option>
                       <option value="groups">🔄 Gironi Intermedi (Standard)</option>
                       <option value="pool_stepladder">🪜 Gironi Pool + Scaletta (Ottavi/Quarti/Semis)</option>
+                      <option value="custom_18">⭐ Personalizzato 18 squadre (Silver: 2 Gironi + Finali)</option>
                   </select>
                 )}
                 <button onClick={handleAutoFill} disabled={!selectedTorneo} className="flex-1 md:flex-none bg-[#FFD700] text-[#0a1628] px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all disabled:opacity-50">🔄 GENERA</button>
