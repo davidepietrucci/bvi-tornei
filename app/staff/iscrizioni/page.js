@@ -425,14 +425,12 @@ export default function StaffIscrizioni() {
                                 <span className="inline-block px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-black uppercase border border-blue-100">
                                     {req.torneo}
                                 </span>
-                                {req.risposte && req.risposte.length > 0 && (
-                                    <button 
-                                        onClick={() => setSelectedIscrizioneDetail(req)}
-                                        className="px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded text-[9px] font-black uppercase border border-indigo-100 transition-colors"
-                                    >
-                                        📋 Info Modulo
-                                    </button>
-                                )}
+                                <button 
+                                    onClick={() => setSelectedIscrizioneDetail(req)}
+                                    className="px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded text-[9px] font-black uppercase border border-indigo-100 transition-colors"
+                                >
+                                    📋 {req.risposte && req.risposte.length > 0 ? "Info Modulo" : "Dettagli"}
+                                </button>
                             </div>
                         </div>
 
@@ -759,18 +757,30 @@ export default function StaffIscrizioni() {
             </div>
 
             <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2">
-              {selectedIscrizioneDetail.risposte && selectedIscrizioneDetail.risposte.length > 0 ? (
-                selectedIscrizioneDetail.risposte.map((r, rIdx) => (
-                  <div key={rIdx} className="border-b border-gray-100 pb-3 last:border-b-0">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{r.label}</p>
-                    <p className="text-sm font-bold text-[#0a1628] whitespace-pre-wrap">{r.valore || "—"}</p>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center text-xs text-gray-400 py-6 italic font-bold">
-                  Nessuna risposta dettagliata disponibile.
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100 mb-2">
+                <div>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Telefono</p>
+                  <p className="text-sm font-bold text-[#0a1628]">{selectedIscrizioneDetail.tel || "Non inserito"}</p>
                 </div>
-              )}
+                <div>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Email</p>
+                  <p className="text-sm font-bold text-[#0a1628] break-all">{selectedIscrizioneDetail.email || "Non inserita"}</p>
+                </div>
+              </div>
+
+              {selectedIscrizioneDetail.risposte && selectedIscrizioneDetail.risposte.length > 0 ? (
+                <div>
+                  <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-2 mt-4">Risposte Modulo Personalizzato</p>
+                  <div className="space-y-3 bg-indigo-50/40 p-4 rounded-2xl border border-indigo-100/60">
+                    {selectedIscrizioneDetail.risposte.map((r, rIdx) => (
+                      <div key={rIdx} className="border-b border-indigo-100/40 pb-2.5 last:border-b-0">
+                        <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-0.5">{r.label}</p>
+                        <p className="text-sm font-bold text-[#0a1628] whitespace-pre-wrap">{r.valore || "—"}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               
               {selectedIscrizioneDetail.note && (
                 <div className="border-t border-gray-200 pt-3 mt-3">

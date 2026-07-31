@@ -67,22 +67,23 @@ export async function POST(request) {
     const dataFormatted = `${oggi.getDate().toString().padStart(2, "0")}/${(oggi.getMonth() + 1).toString().padStart(2, "0")}/${oggi.getFullYear()}`;
 
     // Crea l'iscrizione
-    const nuovaIscrizione = {
-      id: newId.toString(),
-      data: dataFormatted,
-      torneo: matchTorneo.nome,
-      giocatori: String(giocatori).trim(),
-      tel: tel ? String(tel).trim() : "Non inserito",
-      email: email ? String(email).trim() : "Non inserita",
-      note: note ? String(note).trim() : "",
-      stato: "In Attesa",
-      quotaPagata: 0,
-      ...(userId ? { userId: String(userId) } : {}),
-      ...(moduloIscrizioneId ? { 
-        moduloIscrizioneId: String(moduloIscrizioneId),
-        risposte: risposte || []
-      } : {})
-    };
+      const effectiveModuloId = moduloIscrizioneId || matchTorneo?.moduloIscrizioneId;
+      const nuovaIscrizione = {
+        id: newId.toString(),
+        data: dataFormatted,
+        torneo: matchTorneo.nome,
+        giocatori: String(giocatori).trim(),
+        tel: tel ? String(tel).trim() : "Non inserito",
+        email: email ? String(email).trim() : "Non inserita",
+        note: note ? String(note).trim() : "",
+        stato: "In Attesa",
+        quotaPagata: 0,
+        ...(userId ? { userId: String(userId) } : {}),
+        ...(effectiveModuloId ? { 
+          moduloIscrizioneId: String(effectiveModuloId),
+          risposte: risposte || []
+        } : {})
+      };
 
     // Salva l'iscrizione accodata
     const updatedIscrizioni = [...iscrizioni, nuovaIscrizione];
