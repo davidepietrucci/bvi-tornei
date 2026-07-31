@@ -464,7 +464,7 @@ function TabelloneContent() {
       });
     }
 
-    if (phaseType === "gold_silver" && (subPhaseType === "groups" || subPhaseType === "pool_stepladder")) {
+    if (phaseType === "gold_silver" && (subPhaseType === "groups" || subPhaseType === "pool_stepladder" || subPhaseType === "custom_18")) {
       let currentGoldSlots = 0;
       let currentSilverSlots = 0;
       for (let i = 0; i < numGironi; i++) {
@@ -473,8 +473,8 @@ function TabelloneContent() {
         currentGoldSlots += Math.min(2, count);
         currentSilverSlots += Math.max(0, count - 2);
       }
-      const currentNumGoldGironi = numGoldGironiOpt > 0 ? numGoldGironiOpt : (currentGoldSlots > 4 ? 2 : 1);
-      const currentNumSilverGironi = numSilverGironiOpt > 0 ? numSilverGironiOpt : (currentSilverSlots > 4 ? 2 : 1);
+      const currentNumGoldGironi = subPhaseType === "custom_18" ? 4 : (numGoldGironiOpt > 0 ? numGoldGironiOpt : (currentGoldSlots > 4 ? 2 : 1));
+      const currentNumSilverGironi = subPhaseType === "custom_18" ? 2 : (numSilverGironiOpt > 0 ? numSilverGironiOpt : (currentSilverSlots > 4 ? 2 : 1));
 
       const gA_rank = getIntermediateRanking("gold-A");
       const gB_rank = currentNumGoldGironi >= 2 ? getIntermediateRanking("gold-B") : [];
@@ -1837,7 +1837,7 @@ function TabelloneContent() {
             <div className="space-y-16">
                 {renderSection("gold", "🏆 Tabellone Eliminazione Diretta", "blue")}
             </div>
-        ) : (subPhaseType === "groups" || subPhaseType === "pool_stepladder") ? (
+        ) : (subPhaseType === "groups" || subPhaseType === "pool_stepladder" || subPhaseType === "custom_18") ? (
             <div className="space-y-16">
                 <section>
                   <h2 className="text-2xl md:text-4xl font-black text-yellow-600 uppercase tracking-tighter mb-8">🏆 Gironi Intermedi GOLD</h2>
