@@ -190,7 +190,9 @@ export default function StaffGironi() {
   const giocatoriFiltrati = tutteLeIscrizioni.filter(isc => {
     const tName = (isc.torneo || "").toLowerCase().trim();
     const sName = (selectedTorneo || "").toLowerCase().trim();
-    return tName === sName && isc.stato === "Approvata";
+    const st = (isc.stato || "").toLowerCase().trim();
+    const isApp = !st || st.startsWith("approvat") || st === "ok" || st === "confermato" || st === "confermata";
+    return tName === sName && isApp;
   });
 
   const handleAssignmentChange = (gironeId, slotIdx, playerName) => {

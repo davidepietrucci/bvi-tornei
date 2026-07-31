@@ -57,7 +57,14 @@ export function syncAssignmentsWithIscrizioni(assignments, iscrizioniList) {
 
   let changed = false;
   const newAssignments = JSON.parse(JSON.stringify(assignments));
-  const approved = iscrizioniList.filter(i => i.stato === "Approvata" || i.stato === undefined);
+
+  const isApproved = (st) => {
+    if (!st) return true;
+    const l = String(st).toLowerCase().trim();
+    return l.startsWith("approvat") || l === "ok" || l === "confermato" || l === "confermata";
+  };
+
+  const approved = iscrizioniList.filter(i => isApproved(i.stato));
 
   const findUpdatedTeamName = (currentName) => {
     if (!currentName || currentName === "—" || currentName === "Slot Libero" || currentName.startsWith("TBD")) return currentName;
