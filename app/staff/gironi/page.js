@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import StaffHeader from "@/app/components/StaffHeader";
-import { getTornei, getIscrizioni, getGironi, saveGironi } from "@/app/utils/db";
+import { getTornei, getIscrizioni, getGironi, saveGironi, syncAssignmentsWithIscrizioni } from "@/app/utils/db";
 import { getSchedule as getScheduleShared } from "@/app/utils/ranking";
 
 const capitalizeWord = (word) => {
@@ -133,13 +133,17 @@ export default function StaffGironi() {
     setIsLoaded(false);
     
     const slug = selectedTorneo.toLowerCase().trim().replace(/\s+/g, '_');
-    getGironi(slug).then(config => {
+    Promise.all([getGironi(slug), getIscrizioni()]).then(([config, iscrizioniList]) => {
+      if (iscrizioniList) setTutteLeIscrizioni(iscrizioniList);
       if (config) {
         setNumGironi(config.numGironi || 4);
         setTeamCounts(config.teamCounts || { A: 4, B: 4, C: 4, D: 4, E: 4, F: 4, G: 4, H: 4 });
         setGironeTypes(config.gironeTypes || { A: "Pool", B: "Pool", C: "Pool", D: "Pool", E: "Pool", F: "Pool", G: "Pool", H: "Pool" });
         setGironeSets(config.gironeSets || { A: "1 set", B: "1 set", C: "1 set", D: "1 set", E: "1 set", F: "1 set", G: "1 set", H: "1 set" });
-        setGironeAssignments(config.gironeAssignments || {});
+
+        const syncedAssignments = syncAssignmentsWithIscrizioni(config.gironeAssignments || {}, iscrizioniList || []);
+        setGironeAssignments(syncedAssignments);
+
         setMatchMetadata(config.matchMetadata || {});
         setPubblicato(config.pubblicato || false);
         setRankingType(config.rankingType || "avulsa");

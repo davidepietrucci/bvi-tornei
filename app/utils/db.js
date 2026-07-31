@@ -48,6 +48,61 @@ async function fetchFromServerDb(type, slug = null) {
   }
 }
 
+// Sincronizza dinamicamente i nomi delle squadre nei gironi/tabellone con le iscrizioni aggiornate
+export function syncAssignmentsWithIscrizioni(assignments, iscrizioniList) {
+  if (!assignments || !iscrizioniList || iscrizioniList.length === 0) return assignments;
+
+  let changed = false;
+  const newAssignments = JSON.parse(JSON.stringify(assignments));
+  const approved = iscrizioniList.filter(i => i.stato === "Approvata" || i.stato === undefined);
+
+  const findUpdatedTeamName = (currentName) => {
+    if (!currentName || currentName === "—" || currentName === "Slot Libero" || currentName.startsWith("TBD")) return currentName;
+
+    const cleanCur = currentName.toLowerCase().trim();
+
+    // 1. Exact match
+    const exact = approved.find(i => (i.giocatori || "").toLowerCase().trim() === cleanCur);
+    if (exact) return exact.giocatori;
+
+    // 2. Extract significant word tokens (length >= 2)
+    const words = cleanCur.split(/[^a-z0-9]+/).filter(w => w.length >= 2);
+    if (words.length > 0) {
+      const match = approved.find(i => {
+        const gLower = (i.giocatori || "").toLowerCase().trim();
+        return words.every(w => gLower.includes(w));
+      });
+      if (match) return match.giocatori;
+    }
+
+    return currentName;
+  };
+
+  if (typeof newAssignments === "object" && newAssignments !== null) {
+    Object.keys(newAssignments).forEach(gKey => {
+      const val = newAssignments[gKey];
+      if (typeof val === "object" && val !== null) {
+        Object.keys(val).forEach(slotIdx => {
+          const currentName = val[slotIdx];
+          const updatedName = findUpdatedTeamName(currentName);
+          if (updatedName && updatedName !== currentName) {
+            val[slotIdx] = updatedName;
+            changed = true;
+          }
+        });
+      } else if (typeof val === "string") {
+        const updatedName = findUpdatedTeamName(val);
+        if (updatedName && updatedName !== val) {
+          newAssignments[gKey] = updatedName;
+          changed = true;
+        }
+      }
+    });
+  }
+
+  return changed ? newAssignments : assignments;
+}
+
 async function saveToServerDb(type, data, slug = null) {
   let url = `/api/db`;
   try {

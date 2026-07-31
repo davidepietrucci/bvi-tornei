@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import StaffHeader from "@/app/components/StaffHeader";
-import { getTornei, getIscrizioni, saveIscrizioni, saveTornei, getGironi, saveGironi, getBracket, saveBracket } from "@/app/utils/db";
+import { getTornei, getIscrizioni, saveIscrizioni, saveTornei, getGironi, saveGironi, getBracket, saveBracket, syncAssignmentsWithIscrizioni } from "@/app/utils/db";
 
 export default function StaffIscrizioni() {
   const [iscrizioni, setIscrizioni] = useState([]);
@@ -77,39 +77,17 @@ export default function StaffIscrizioni() {
     setIscrizioni(updated);
     await saveIscrizioni(updated);
 
-    // Synchronize team name in gironi and bracket if changed
-    if (tournamentName) {
-      const slug = tournamentName.toLowerCase().trim().replace(/\s+/g, '_');
+    // Synchronize team name in gironi and bracket across all tournaments
+    const allTorneiList = tornei.length > 0 ? tornei : await getTornei();
+    for (const t of allTorneiList) {
+      const slug = t.nome.toLowerCase().trim().replace(/\s+/g, '_');
       
       // Update Gironi assignments
       try {
         const gConfig = await getGironi(slug);
         if (gConfig && gConfig.gironeAssignments) {
-          let gChanged = false;
-          const newGAssignments = { ...gConfig.gironeAssignments };
-          
-          const cleanOld = oldTeamName.toLowerCase().trim();
-          const oldWords = cleanOld.split(/[^a-z0-9]+/).filter(w => w.length > 2);
-
-          Object.keys(newGAssignments).forEach(gKey => {
-            const groupMap = newGAssignments[gKey];
-            if (typeof groupMap === "object" && groupMap !== null) {
-              Object.keys(groupMap).forEach(slotIdx => {
-                const currentVal = groupMap[slotIdx] || "";
-                const cleanCurrent = currentVal.toLowerCase().trim();
-                const matchesExact = cleanCurrent === cleanOld;
-                const matchesWords = oldWords.length > 0 && oldWords.every(w => cleanCurrent.includes(w));
-                if (matchesExact || matchesWords) {
-                  groupMap[slotIdx] = newTeamName;
-                  gChanged = true;
-                }
-              });
-            }
-          });
-
-          if (gChanged) {
-            await saveGironi(slug, { ...gConfig, gironeAssignments: newGAssignments });
-          }
+          const syncedAssignments = syncAssignmentsWithIscrizioni(gConfig.gironeAssignments, updated);
+          await saveGironi(slug, { ...gConfig, gironeAssignments: syncedAssignments });
         }
       } catch (err) {
         console.error("Errore aggiornamento gironi:", err);
@@ -119,26 +97,8 @@ export default function StaffIscrizioni() {
       try {
         const bConfig = await getBracket(slug);
         if (bConfig && bConfig.bracketAssignments) {
-          let bChanged = false;
-          const newBAssignments = { ...bConfig.bracketAssignments };
-          
-          const cleanOld = oldTeamName.toLowerCase().trim();
-          const oldWords = cleanOld.split(/[^a-z0-9]+/).filter(w => w.length > 2);
-
-          Object.keys(newBAssignments).forEach(slotKey => {
-            const currentVal = newBAssignments[slotKey] || "";
-            const cleanCurrent = currentVal.toLowerCase().trim();
-            const matchesExact = cleanCurrent === cleanOld;
-            const matchesWords = oldWords.length > 0 && oldWords.every(w => cleanCurrent.includes(w));
-            if (matchesExact || matchesWords) {
-              newBAssignments[slotKey] = newTeamName;
-              bChanged = true;
-            }
-          });
-
-          if (bChanged) {
-            await saveBracket(slug, { ...bConfig, bracketAssignments: newBAssignments });
-          }
+          const syncedAssignments = syncAssignmentsWithIscrizioni(bConfig.bracketAssignments, updated);
+          await saveBracket(slug, { ...bConfig, bracketAssignments: syncedAssignments });
         }
       } catch (err) {
         console.error("Errore aggiornamento tabellone:", err);
@@ -146,7 +106,7 @@ export default function StaffIscrizioni() {
     }
 
     setEditingIscrizione(null);
-    alert("Iscrizione modificata e sincronizzata nei gironi con successo! 💾");
+    alert("Iscrizione modificata e sincronizzata con successo! 💾");
   };
 
   useEffect(() => {

@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import StaffHeader from "@/app/components/StaffHeader";
-import { getTornei, getGironi, getBracket, saveBracket } from "@/app/utils/db";
+import { getTornei, getGironi, getBracket, saveBracket, getIscrizioni, syncAssignmentsWithIscrizioni } from "@/app/utils/db";
 import { calculateUnifiedRanking, getSchedule as getScheduleShared } from "@/app/utils/ranking";
 
 const capitalizeWord = (word) => {
@@ -106,12 +106,15 @@ function TabelloneContent() {
       }
     });
 
-    getBracket(slug).then(config => {
+    Promise.all([getBracket(slug), getIscrizioni()]).then(([config, iscrizioniList]) => {
       if (config) {
         setPhaseType(config.phaseType || "gold_silver");
         setSubPhaseType(config.subPhaseType || "direct");
         setBracketSize(config.bracketSize || 8);
-        setBracketAssignments(config.bracketAssignments || {});
+
+        const syncedAssignments = syncAssignmentsWithIscrizioni(config.bracketAssignments || {}, iscrizioniList || []);
+        setBracketAssignments(syncedAssignments);
+
         setBracketMetadata(config.bracketMetadata || {});
         setNumGoldGironiOpt(config.numGoldGironi || 0);
         setTeamsPerGoldGirone(config.teamsPerGoldGirone || 4);

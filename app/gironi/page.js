@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { getTornei, getGironi, getBracket } from "@/app/utils/db";
+import { getTornei, getGironi, getBracket, getIscrizioni, syncAssignmentsWithIscrizioni } from "@/app/utils/db";
 import { calculateUnifiedRanking, getSchedule as getScheduleShared } from "@/app/utils/ranking";
 
 const capitalizeWord = (word) => {
@@ -78,11 +78,20 @@ export default function GironiPubblici() {
     const slug = selectedTorneo.toLowerCase().trim().replace(/\s+/g, "_");
 
     const fetchLive = () => {
-      getGironi(slug).then((data) => {
-        setConfig(data);
-      });
-      getBracket(slug).then((data) => {
-        setBracketConfig(data);
+      Promise.all([getGironi(slug), getBracket(slug), getIscrizioni()]).then(([gData, bData, iscData]) => {
+        if (gData) {
+          const syncedGAssignments = syncAssignmentsWithIscrizioni(gData.gironeAssignments || {}, iscData || []);
+          setConfig({ ...gData, gironeAssignments: syncedGAssignments });
+        } else {
+          setConfig(null);
+        }
+
+        if (bData) {
+          const syncedBAssignments = syncAssignmentsWithIscrizioni(bData.bracketAssignments || {}, iscData || []);
+          setBracketConfig({ ...bData, bracketAssignments: syncedBAssignments });
+        } else {
+          setBracketConfig(null);
+        }
       });
     };
 
