@@ -11,6 +11,9 @@ import {
   getStaff, saveStaff
 } from "@/app/utils/db";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 // 1. GET: Gestisce le letture del database controllando i permessi di lettura
 export async function GET(req) {
   try {
@@ -57,7 +60,11 @@ export async function GET(req) {
       return NextResponse.json({ error: "Tipo database non valido" }, { status: 400 });
     }
 
-    return NextResponse.json({ data });
+    return NextResponse.json({ data }, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate"
+      }
+    });
   } catch (error) {
     console.error("Errore nell'API GET database:", error);
     return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });

@@ -38,7 +38,10 @@ async function fetchFromServerDb(type, slug = null) {
   let url = `/api/db?type=${type}`;
   if (slug) url += `&slug=${slug}`;
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, {
+      cache: "no-store",
+      headers: { "Pragma": "no-cache", "Cache-Control": "no-cache" }
+    });
     if (!res.ok) throw new Error(`Fetch fallito: ${res.statusText}`);
     const json = await res.json();
     return json.data;
