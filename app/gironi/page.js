@@ -451,7 +451,7 @@ export default function GironiPubblici() {
     };
 
     if (bracketConfig.phaseType === "gold_silver" || bracketConfig.phaseType === "single") {
-      const isGroups = bracketConfig.phaseType === "gold_silver" && bracketConfig.subPhaseType === "groups";
+      const isGroups = bracketConfig.phaseType === "gold_silver" && (bracketConfig.subPhaseType === "groups" || bracketConfig.subPhaseType === "pool_stepladder");
       if (isGroups) {
         // --- GROUPS FLOW ---
         let goldSlots = 0;

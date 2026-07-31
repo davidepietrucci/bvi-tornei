@@ -1683,7 +1683,7 @@ function TabelloneContent() {
             <div className="space-y-16">
                 {renderSection("gold", "🏆 Tabellone Eliminazione Diretta", "blue")}
             </div>
-        ) : subPhaseType === "groups" ? (
+        ) : (subPhaseType === "groups" || subPhaseType === "pool_stepladder") ? (
             <div className="space-y-16">
                 <section>
                   <h2 className="text-2xl md:text-4xl font-black text-yellow-600 uppercase tracking-tighter mb-8">🏆 Gironi Intermedi GOLD</h2>
