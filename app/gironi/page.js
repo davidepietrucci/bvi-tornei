@@ -473,12 +473,25 @@ export default function GironiPubblici() {
         const teamsPerSilverGirone = bracketConfig.teamsPerSilverGirone || 4;
 
         const goldGroupsDone = areIntermediateGroupsCompleted("gold", numGoldGironi, teamsPerGoldGirone);
+        const goldOttaviDone = isRoundCompleted(["gold-o1"]);
+        const goldQuartiDone = isRoundCompleted(["gold-q1", "gold-q2"]);
         const goldSemifinalsDone = isRoundCompleted(["gold-s1", "gold-s2"]);
 
         const silverGroupsDone = areIntermediateGroupsCompleted("silver", numSilverGironi, teamsPerSilverGirone);
+        const silverOttaviDone = isRoundCompleted(["silver-o1"]);
+        const silverQuartiDone = isRoundCompleted(["silver-q1", "silver-q2"]);
         const silverSemifinalsDone = isRoundCompleted(["silver-s1", "silver-s2"]);
 
+        // Gold rounds
         if (goldGroupsDone) {
+          list.push({
+            title: "Ottavi Gold (3° Classificati) 🏆",
+            matches: [getMatchData("gold-o1", "Incontro Ottavo (3° Pool 1 vs 3° Pool 2)")],
+          });
+          list.push({
+            title: "Quarti Gold (2° Classificati) 🏆",
+            matches: [getMatchData("gold-q1", "Quarto 1"), getMatchData("gold-q2", "Quarto 2")],
+          });
           list.push({
             title: "Semifinali Gold 🏆",
             matches: [getMatchData("gold-s1", "Semifinale 1"), getMatchData("gold-s2", "Semifinale 2")],
@@ -491,7 +504,16 @@ export default function GironiPubblici() {
           });
         }
 
+        // Silver rounds
         if (silverGroupsDone) {
+          list.push({
+            title: "Ottavi Silver (3° Classificati) 🥈",
+            matches: [getMatchData("silver-o1", "Incontro Ottavo (3° Pool 1 vs 3° Pool 2)")],
+          });
+          list.push({
+            title: "Quarti Silver (2° Classificati) 🥈",
+            matches: [getMatchData("silver-q1", "Quarto 1"), getMatchData("silver-q2", "Quarto 2")],
+          });
           list.push({
             title: "Semifinali Silver 🥈",
             matches: [getMatchData("silver-s1", "Semifinale 1"), getMatchData("silver-s2", "Semifinale 2")],

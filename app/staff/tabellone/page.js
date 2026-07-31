@@ -414,15 +414,45 @@ function TabelloneContent() {
       const getRankedInt = (rankArr, pos, fallback) => rankArr?.[pos] || fallback;
 
       if (currentNumGoldGironi === 4) {
+        update("gold-o1-L", getRankedInt(gA_rank, 2, "3° Gold A"));
+        update("gold-o1-R", getRankedInt(gB_rank, 2, "3° Gold B"));
+        update("gold-o2-L", getRankedInt(gC_rank, 2, "3° Gold C"));
+        update("gold-o2-R", getRankedInt(gD_rank, 2, "3° Gold D"));
+
+        update("gold-q1-L", getRankedInt(gA_rank, 1, "2° Gold A"));
+        update("gold-q1-R", resolveWinner("gold-o1") || "Vincente Ottavo 1");
+        update("gold-q2-L", getRankedInt(gB_rank, 1, "2° Gold B"));
+        update("gold-q2-R", resolveWinner("gold-o2") || "Vincente Ottavo 2");
+        update("gold-q3-L", getRankedInt(gC_rank, 1, "2° Gold C"));
+        update("gold-q3-R", resolveWinner("gold-o1") || "Vincente Ottavo 1");
+        update("gold-q4-L", getRankedInt(gD_rank, 1, "2° Gold D"));
+        update("gold-q4-R", resolveWinner("gold-o2") || "Vincente Ottavo 2");
+
         update("gold-s1-L", getRankedInt(gA_rank, 0, "1° Gold A"));
-        update("gold-s1-R", getRankedInt(gB_rank, 0, "1° Gold B"));
-        update("gold-s2-L", getRankedInt(gC_rank, 0, "1° Gold C"));
-        update("gold-s2-R", getRankedInt(gD_rank, 0, "1° Gold D"));
-      } else if (currentNumGoldGironi === 2) {
-        update("gold-s1-L", getRankedInt(gA_rank, 0, "1° Gold A"));
-        update("gold-s1-R", getRankedInt(gB_rank, 1, "2° Gold B"));
+        update("gold-s1-R", resolveWinner("gold-q2") || "Vincente Quarto 2");
         update("gold-s2-L", getRankedInt(gB_rank, 0, "1° Gold B"));
-        update("gold-s2-R", getRankedInt(gA_rank, 1, "2° Gold A"));
+        update("gold-s2-R", resolveWinner("gold-q1") || "Vincente Quarto 1");
+      } else if (currentNumGoldGironi === 2) {
+        // 1° Classificati -> Direttamente in Semifinale
+        update("gold-s1-L", getRankedInt(gA_rank, 0, "1° Gold A"));
+        update("gold-s2-L", getRankedInt(gB_rank, 0, "1° Gold B"));
+
+        // 2° Classificati -> Ai Quarti di Finale
+        update("gold-q1-L", getRankedInt(gA_rank, 1, "2° Gold A"));
+        update("gold-q2-L", getRankedInt(gB_rank, 1, "2° Gold B"));
+
+        // 3° Classificati -> Agli Ottavi di Finale
+        update("gold-o1-L", getRankedInt(gA_rank, 2, "3° Gold A"));
+        update("gold-o1-R", getRankedInt(gB_rank, 2, "3° Gold B"));
+
+        // Vincente Ottavo -> va nei Quarti
+        const winnerOttavoGold = resolveWinner("gold-o1");
+        update("gold-q1-R", winnerOttavoGold || "Vincente Ottavo");
+        update("gold-q2-R", winnerOttavoGold || "Vincente Ottavo");
+
+        // Vincenti Quarti -> vanno nelle Semifinali (incrociati)
+        update("gold-s1-R", resolveWinner("gold-q2") || "Vincente Quarto 2");
+        update("gold-s2-R", resolveWinner("gold-q1") || "Vincente Quarto 1");
       } else if (currentNumGoldGironi === 1) {
         update("gold-s1-L", getRankedInt(gA_rank, 0, "1° Gold"));
         update("gold-s1-R", getRankedInt(gA_rank, 3, "4° Gold"));
@@ -435,15 +465,45 @@ function TabelloneContent() {
       update("gold-f3-R", resolveLoser("gold-s2"));
 
       if (currentNumSilverGironi === 4) {
+        update("silver-o1-L", getRankedInt(sA_rank, 2, "3° Silver A"));
+        update("silver-o1-R", getRankedInt(sB_rank, 2, "3° Silver B"));
+        update("silver-o2-L", getRankedInt(sC_rank, 2, "3° Silver C"));
+        update("silver-o2-R", getRankedInt(sD_rank, 2, "3° Silver D"));
+
+        update("silver-q1-L", getRankedInt(sA_rank, 1, "2° Silver A"));
+        update("silver-q1-R", resolveWinner("silver-o1") || "Vincente Ottavo 1");
+        update("silver-q2-L", getRankedInt(sB_rank, 1, "2° Silver B"));
+        update("silver-q2-R", resolveWinner("silver-o2") || "Vincente Ottavo 2");
+        update("silver-q3-L", getRankedInt(sC_rank, 1, "2° Silver C"));
+        update("silver-q3-R", resolveWinner("silver-o1") || "Vincente Ottavo 1");
+        update("silver-q4-L", getRankedInt(sD_rank, 1, "2° Silver D"));
+        update("silver-q4-R", resolveWinner("silver-o2") || "Vincente Ottavo 2");
+
         update("silver-s1-L", getRankedInt(sA_rank, 0, "1° Silver A"));
-        update("silver-s1-R", getRankedInt(sB_rank, 0, "1° Silver B"));
-        update("silver-s2-L", getRankedInt(sC_rank, 0, "1° Silver C"));
-        update("silver-s2-R", getRankedInt(sD_rank, 0, "1° Silver D"));
-      } else if (currentNumSilverGironi === 2) {
-        update("silver-s1-L", getRankedInt(sA_rank, 0, "1° Silver A"));
-        update("silver-s1-R", getRankedInt(sB_rank, 1, "2° Silver B"));
+        update("silver-s1-R", resolveWinner("silver-q2") || "Vincente Quarto 2");
         update("silver-s2-L", getRankedInt(sB_rank, 0, "1° Silver B"));
-        update("silver-s2-R", getRankedInt(sA_rank, 1, "2° Silver A"));
+        update("silver-s2-R", resolveWinner("silver-q1") || "Vincente Quarto 1");
+      } else if (currentNumSilverGironi === 2) {
+        // 1° Classificati -> Direttamente in Semifinale
+        update("silver-s1-L", getRankedInt(sA_rank, 0, "1° Silver A"));
+        update("silver-s2-L", getRankedInt(sB_rank, 0, "1° Silver B"));
+
+        // 2° Classificati -> Ai Quarti di Finale
+        update("silver-q1-L", getRankedInt(sA_rank, 1, "2° Silver A"));
+        update("silver-q2-L", getRankedInt(sB_rank, 1, "2° Silver B"));
+
+        // 3° Classificati -> Agli Ottavi di Finale
+        update("silver-o1-L", getRankedInt(sA_rank, 2, "3° Silver A"));
+        update("silver-o1-R", getRankedInt(sB_rank, 2, "3° Silver B"));
+
+        // Vincente Ottavo -> va nei Quarti
+        const winnerOttavoSilver = resolveWinner("silver-o1");
+        update("silver-q1-R", winnerOttavoSilver || "Vincente Ottavo");
+        update("silver-q2-R", winnerOttavoSilver || "Vincente Ottavo");
+
+        // Vincenti Quarti -> vanno nelle Semifinali (incrociati)
+        update("silver-s1-R", resolveWinner("silver-q2") || "Vincente Quarto 2");
+        update("silver-s2-R", resolveWinner("silver-q1") || "Vincente Quarto 1");
       } else if (currentNumSilverGironi === 1) {
         update("silver-s1-L", getRankedInt(sA_rank, 0, "1° Silver"));
         update("silver-s1-R", getRankedInt(sA_rank, 3, "4° Silver"));
@@ -1227,13 +1287,58 @@ function TabelloneContent() {
     return (
       <div className="mb-16">
         <h3 className={`text-xl font-black uppercase mb-6 ${color==='gold'?'text-yellow-600':'text-gray-500'}`}>{title}</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-4xl mb-10">
-          <div><h4 className="text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest">Semifinale 1</h4>{renderMatch(`${p}-s1`,'SF1',color)}</div>
-          <div><h4 className="text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest">Semifinale 2</h4>{renderMatch(`${p}-s2`,'SF2',color)}</div>
+
+        {/* Turno 1: Ottavi di Finale (Incontro tra i 3° Classificati) */}
+        <div className="mb-8 max-w-4xl">
+          <h4 className="text-[10px] font-black text-indigo-500 mb-2 uppercase tracking-widest">
+            Ottavi di Finale (3° Pool 1 vs 3° Pool 2)
+          </h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+            <div>
+              <span className="text-[10px] font-bold text-gray-400 block mb-1">Incontro Ottavo (3° Pool 1 vs 3° Pool 2)</span>
+              {renderMatch(`${p}-o1`, 'OTTAVO 1', color)}
+            </div>
+          </div>
         </div>
+
+        {/* Turno 2: Quarti di Finale (2° Classificati vs Vincente Ottavo) */}
+        <div className="mb-8 max-w-4xl">
+          <h4 className="text-[10px] font-black text-blue-500 mb-2 uppercase tracking-widest">
+            Quarti di Finale (2° Classificati vs Vincente Ottavo)
+          </h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+            <div>
+              <span className="text-[10px] font-bold text-gray-400 block mb-1">Quarto 1 (2° Pool 1 vs Vincente Ottavo)</span>
+              {renderMatch(`${p}-q1`, 'QUARTO 1', color)}
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-gray-400 block mb-1">Quarto 2 (2° Pool 2 vs Vincente Ottavo)</span>
+              {renderMatch(`${p}-q2`, 'QUARTO 2', color)}
+            </div>
+          </div>
+        </div>
+
+        {/* Turno 3: Semifinali (1° Classificati vs Vincenti Quarti) */}
+        <div className="mb-8 max-w-4xl">
+          <h4 className="text-[10px] font-black text-purple-500 mb-2 uppercase tracking-widest">
+            Semifinali (1° Classificati vs Vincenti Quarti)
+          </h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+            <div>
+              <span className="text-[10px] font-bold text-gray-400 block mb-1">Semifinale 1 (1° Pool 1 vs Vincente Quarto 2)</span>
+              {renderMatch(`${p}-s1`, 'SF1', color)}
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-gray-400 block mb-1">Semifinale 2 (1° Pool 2 vs Vincente Quarto 1)</span>
+              {renderMatch(`${p}-s2`, 'SF2', color)}
+            </div>
+          </div>
+        </div>
+
+        {/* Turno 4: Finali (3°/4° e 1°/2° Posto) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-4xl">
-          <div><h4 className="text-[10px] font-black text-red-400 mb-2 uppercase tracking-widest">Finale 3°/4°</h4>{renderMatch(`${p}-f3`,'BRONZO',color)}</div>
-          <div><h4 className="text-[10px] font-black text-yellow-500 mb-2 uppercase tracking-widest">Finale 1°/2°</h4>{renderMatch(`${p}-f1`,'ORO',color)}</div>
+          <div><h4 className="text-[10px] font-black text-red-400 mb-2 uppercase tracking-widest">Finale 3°/4° Posto</h4>{renderMatch(`${p}-f3`,'BRONZO',color)}</div>
+          <div><h4 className="text-[10px] font-black text-yellow-500 mb-2 uppercase tracking-widest">Finale 1°/2° Posto</h4>{renderMatch(`${p}-f1`,'ORO',color)}</div>
         </div>
       </div>
     );
