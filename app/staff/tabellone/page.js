@@ -527,30 +527,26 @@ function TabelloneContent() {
           update("gold-q2-L", getRankedInt(gB_rank, 1, "2° Gold B"));
           update("gold-q2-R", resolveWinner("gold-o2") || "Vincente Ottavo 2");
           update("gold-q3-L", getRankedInt(gC_rank, 1, "2° Gold C"));
-          update("gold-q3-R", resolveWinner("gold-o1") || "Vincente Ottavo 1");
+          update("gold-q3-R", resolveWinner("gold-o2") || "Vincente Ottavo 2");
           update("gold-q4-L", getRankedInt(gD_rank, 1, "2° Gold D"));
-          update("gold-q4-R", resolveWinner("gold-o2") || "Vincente Ottavo 2");
+          update("gold-q4-R", resolveWinner("gold-o1") || "Vincente Ottavo 1");
 
           update("gold-s1-L", getRankedInt(gA_rank, 0, "1° Gold A"));
           update("gold-s1-R", resolveWinner("gold-q2") || "Vincente Quarto 2");
           update("gold-s2-L", getRankedInt(gB_rank, 0, "1° Gold B"));
           update("gold-s2-R", resolveWinner("gold-q1") || "Vincente Quarto 1");
         } else if (currentNumGoldGironi === 2) {
-          update("gold-s1-L", getRankedInt(gA_rank, 0, "1° Gold A"));
-          update("gold-s2-L", getRankedInt(gB_rank, 0, "1° Gold B"));
-
+          // Nessun ottavo: quarti a croce (2°A vs 3°B, 2°B vs 3°A)
+          // 1° di ogni girone va diretto in semifinale
           update("gold-q1-L", getRankedInt(gA_rank, 1, "2° Gold A"));
+          update("gold-q1-R", getRankedInt(gB_rank, 2, "3° Gold B"));
           update("gold-q2-L", getRankedInt(gB_rank, 1, "2° Gold B"));
+          update("gold-q2-R", getRankedInt(gA_rank, 2, "3° Gold A"));
 
-          update("gold-o1-L", getRankedInt(gA_rank, 2, "3° Gold A"));
-          update("gold-o1-R", getRankedInt(gB_rank, 2, "3° Gold B"));
-
-          const winnerOttavoGold = resolveWinner("gold-o1");
-          update("gold-q1-R", winnerOttavoGold || "Vincente Ottavo");
-          update("gold-q2-R", winnerOttavoGold || "Vincente Ottavo");
-
-          update("gold-s1-R", resolveWinner("gold-q2") || "Vincente Quarto 2");
-          update("gold-s2-R", resolveWinner("gold-q1") || "Vincente Quarto 1");
+          update("gold-s1-L", getRankedInt(gA_rank, 0, "1° Gold A"));
+          update("gold-s1-R", resolveWinner("gold-q1") || "Vincente Quarto 1");
+          update("gold-s2-L", getRankedInt(gB_rank, 0, "1° Gold B"));
+          update("gold-s2-R", resolveWinner("gold-q2") || "Vincente Quarto 2");
         } else if (currentNumGoldGironi === 1) {
           update("gold-s1-L", getRankedInt(gA_rank, 0, "1° Gold"));
           update("gold-s1-R", getRankedInt(gA_rank, 3, "4° Gold"));
@@ -612,30 +608,26 @@ function TabelloneContent() {
           update("silver-q2-L", getRankedInt(sB_rank, 1, "2° Silver B"));
           update("silver-q2-R", resolveWinner("silver-o2") || "Vincente Ottavo 2");
           update("silver-q3-L", getRankedInt(sC_rank, 1, "2° Silver C"));
-          update("silver-q3-R", resolveWinner("silver-o1") || "Vincente Ottavo 1");
+          update("silver-q3-R", resolveWinner("silver-o2") || "Vincente Ottavo 2");
           update("silver-q4-L", getRankedInt(sD_rank, 1, "2° Silver D"));
-          update("silver-q4-R", resolveWinner("silver-o2") || "Vincente Ottavo 2");
+          update("silver-q4-R", resolveWinner("silver-o1") || "Vincente Ottavo 1");
 
           update("silver-s1-L", getRankedInt(sA_rank, 0, "1° Silver A"));
           update("silver-s1-R", resolveWinner("silver-q2") || "Vincente Quarto 2");
           update("silver-s2-L", getRankedInt(sB_rank, 0, "1° Silver B"));
           update("silver-s2-R", resolveWinner("silver-q1") || "Vincente Quarto 1");
         } else if (currentNumSilverGironi === 2) {
-          update("silver-s1-L", getRankedInt(sA_rank, 0, "1° Silver A"));
-          update("silver-s2-L", getRankedInt(sB_rank, 0, "1° Silver B"));
-
+          // Nessun ottavo: quarti a croce (2°A vs 3°B, 2°B vs 3°A)
+          // 1° di ogni girone va diretto in semifinale
           update("silver-q1-L", getRankedInt(sA_rank, 1, "2° Silver A"));
+          update("silver-q1-R", getRankedInt(sB_rank, 2, "3° Silver B"));
           update("silver-q2-L", getRankedInt(sB_rank, 1, "2° Silver B"));
+          update("silver-q2-R", getRankedInt(sA_rank, 2, "3° Silver A"));
 
-          update("silver-o1-L", getRankedInt(sA_rank, 2, "3° Silver A"));
-          update("silver-o1-R", getRankedInt(sB_rank, 2, "3° Silver B"));
-
-          const winnerOttavoSilver = resolveWinner("silver-o1");
-          update("silver-q1-R", winnerOttavoSilver || "Vincente Ottavo");
-          update("silver-q2-R", winnerOttavoSilver || "Vincente Ottavo");
-
-          update("silver-s1-R", resolveWinner("silver-q2") || "Vincente Quarto 2");
-          update("silver-s2-R", resolveWinner("silver-q1") || "Vincente Quarto 1");
+          update("silver-s1-L", getRankedInt(sA_rank, 0, "1° Silver A"));
+          update("silver-s1-R", resolveWinner("silver-q1") || "Vincente Quarto 1");
+          update("silver-s2-L", getRankedInt(sB_rank, 0, "1° Silver B"));
+          update("silver-s2-R", resolveWinner("silver-q2") || "Vincente Quarto 2");
         } else if (currentNumSilverGironi === 1) {
           update("silver-s1-L", getRankedInt(sA_rank, 0, "1° Silver"));
           update("silver-s1-R", getRankedInt(sA_rank, 3, "4° Silver"));
@@ -1526,12 +1518,15 @@ function TabelloneContent() {
 
   const renderFinalsForGroups = (p, title, color) => {
     const isStepladder = subPhaseType === "pool_stepladder";
+    // For 2-group stepladder there are no ottavi: 2° vs 3° go directly to cross-bracket quarti
+    const numGroupsForPhase = p === "gold" ? (numGoldGironiOpt || 2) : (numSilverGironiOpt || 2);
+    const hasOttavi = isStepladder && numGroupsForPhase >= 4;
 
     return (
       <div className="mb-16">
         <h3 className={`text-xl font-black uppercase mb-6 ${color==='gold'?'text-yellow-600':'text-gray-500'}`}>{title}</h3>
 
-        {isStepladder && (
+        {hasOttavi && (
           <>
             {/* Turno 1: Ottavi di Finale (Incontro tra i 3° Classificati) */}
             <div className="mb-8 max-w-4xl">
@@ -1563,6 +1558,25 @@ function TabelloneContent() {
               </div>
             </div>
           </>
+        )}
+
+        {/* Quarti a Croce (solo per 2 gironi stepladder) */}
+        {isStepladder && !hasOttavi && (
+          <div className="mb-8 max-w-4xl">
+            <h4 className="text-[10px] font-black text-blue-500 mb-2 uppercase tracking-widest">
+              Quarti di Finale (2° vs 3° a Croce — 1° va diretto in Semifinale)
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+              <div>
+                <span className="text-[10px] font-bold text-gray-400 block mb-1">Quarto 1 (2° Girone A vs 3° Girone B)</span>
+                {renderMatch(`${p}-q1`, 'QUARTO 1', color)}
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-gray-400 block mb-1">Quarto 2 (2° Girone B vs 3° Girone A)</span>
+                {renderMatch(`${p}-q2`, 'QUARTO 2', color)}
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Turno 3: Semifinali */}
