@@ -34,7 +34,10 @@ export default function StaffIscrizioni() {
   const [editFormData, setEditFormData] = useState({
     giocatori: "",
     tel: "",
-    email: ""
+    email: "",
+    torneo: "",
+    stato: "Approvata",
+    note: ""
   });
 
   const startEdit = (req) => {
@@ -42,7 +45,10 @@ export default function StaffIscrizioni() {
     setEditFormData({
       giocatori: req.giocatori || "",
       tel: req.tel || "",
-      email: req.email || ""
+      email: req.email || "",
+      torneo: req.torneo || "",
+      stato: req.stato || "Approvata",
+      note: req.note || ""
     });
   };
 
@@ -52,18 +58,22 @@ export default function StaffIscrizioni() {
       return;
     }
     const updated = iscrizioni.map((isc) => 
-      isc.id === editingIscrizione.id 
+      String(isc.id) === String(editingIscrizione.id) 
         ? { 
             ...isc, 
             giocatori: editFormData.giocatori.trim(),
             tel: editFormData.tel.trim(),
-            email: editFormData.email.trim()
+            email: editFormData.email.trim(),
+            torneo: editFormData.torneo,
+            stato: editFormData.stato,
+            note: editFormData.note.trim()
           } 
         : isc
     );
     setIscrizioni(updated);
     await saveIscrizioni(updated);
     setEditingIscrizione(null);
+    alert("Iscrizione modificata con successo! 💾");
   };
 
   useEffect(() => {
@@ -81,7 +91,7 @@ export default function StaffIscrizioni() {
 
   const handleApprove = async (id) => {
     const updated = iscrizioni.map((isc) => 
-      isc.id === id ? { ...isc, stato: "Approvata" } : isc
+      String(isc.id) === String(id) ? { ...isc, stato: "Approvata" } : isc
     );
     setIscrizioni(updated);
     await saveIscrizioni(updated);
@@ -89,8 +99,8 @@ export default function StaffIscrizioni() {
 
   const handleDelete = async (id) => {
     if (typeof window !== "undefined" && window.confirm("Sei sicuro di voler eliminare definitivamente questa iscrizione?")) {
-      const deletedIsc = iscrizioni.find((isc) => isc.id === id);
-      const updated = iscrizioni.filter((isc) => isc.id !== id);
+      const deletedIsc = iscrizioni.find((isc) => String(isc.id) === String(id));
+      const updated = iscrizioni.filter((isc) => String(isc.id) !== String(id));
       setIscrizioni(updated);
       await saveIscrizioni(updated);
 
@@ -830,22 +840,58 @@ export default function StaffIscrizioni() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Recapito Telefonico</label>
-                <input 
-                  type="text"
-                  value={editFormData.tel}
-                  onChange={(e) => setEditFormData(prev => ({ ...prev, tel: e.target.value }))}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 font-bold text-sm text-[#0a1628] outline-none focus:ring-4 focus:ring-blue-500/5 transition-all"
-                />
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Torneo</label>
+                <select
+                  value={editFormData.torneo}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, torneo: e.target.value }))}
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 font-bold text-sm text-[#0a1628] outline-none focus:ring-4 focus:ring-blue-500/5 transition-all cursor-pointer"
+                >
+                  {tornei.map(t => <option key={t.id} value={t.nome}>{t.nome}</option>)}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Recapito Telefonico</label>
+                  <input 
+                    type="text"
+                    value={editFormData.tel}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, tel: e.target.value }))}
+                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 font-bold text-sm text-[#0a1628] outline-none focus:ring-4 focus:ring-blue-500/5 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Indirizzo Email</label>
+                  <input 
+                    type="email"
+                    value={editFormData.email}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, email: e.target.value }))}
+                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 font-bold text-sm text-[#0a1628] outline-none focus:ring-4 focus:ring-blue-500/5 transition-all"
+                  />
+                </div>
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Indirizzo Email</label>
-                <input 
-                  type="email"
-                  value={editFormData.email}
-                  onChange={(e) => setEditFormData(prev => ({ ...prev, email: e.target.value }))}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 font-bold text-sm text-[#0a1628] outline-none focus:ring-4 focus:ring-blue-500/5 transition-all"
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Stato Iscrizione</label>
+                <select
+                  value={editFormData.stato}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, stato: e.target.value }))}
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 font-bold text-sm text-[#0a1628] outline-none focus:ring-4 focus:ring-blue-500/5 transition-all cursor-pointer"
+                >
+                  <option value="Approvata">Approvata</option>
+                  <option value="In Attesa">In Attesa</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Note Aggiuntive</label>
+                <textarea
+                  rows={3}
+                  value={editFormData.note}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, note: e.target.value }))}
+                  placeholder="Note interne o dettagli pagamento..."
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 font-bold text-xs text-[#0a1628] outline-none focus:ring-4 focus:ring-blue-500/5 transition-all resize-none"
                 />
               </div>
             </div>

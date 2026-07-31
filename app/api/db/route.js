@@ -105,10 +105,13 @@ export async function POST(req) {
           return {
             ...oldItem,
             ...item,
-            risposte: (item.risposte && item.risposte.length > 0) ? item.risposte : (oldItem.risposte || item.risposte),
-            tel: (item.tel && item.tel !== "Non inserito" && item.tel !== "") ? item.tel : (oldItem.tel || item.tel),
-            email: (item.email && item.email !== "Non inserita" && item.email !== "") ? item.email : (oldItem.email || item.email),
-            note: (item.note !== undefined && item.note !== "") ? item.note : (oldItem.note || "")
+            giocatori: item.giocatori !== undefined ? item.giocatori : oldItem.giocatori,
+            tel: item.tel !== undefined ? item.tel : oldItem.tel,
+            email: item.email !== undefined ? item.email : oldItem.email,
+            torneo: item.torneo !== undefined ? item.torneo : oldItem.torneo,
+            stato: item.stato !== undefined ? item.stato : oldItem.stato,
+            note: item.note !== undefined ? item.note : oldItem.note,
+            risposte: (item.risposte && item.risposte.length > 0) ? item.risposte : (oldItem.risposte || item.risposte)
           };
         }) : data;
         await saveIscrizioni(mergedData);
