@@ -456,6 +456,37 @@ export default function StaffGironi() {
     alert("Punteggi di test inseriti! Non dimenticare di salvare la configurazione.");
   };
 
+  const handleClearScores = async () => {
+    if (!selectedTorneo) return;
+    if (!window.confirm("Sei sicuro di voler eliminare TUTTI i punteggi inseriti nei gironi? Le squadre e la composizione rimarranno invariate.")) return;
+
+    // Rimuoviamo solo i campi punteggio da ogni voce di metadata,
+    // mantenendo campo campo campo court e time se presenti
+    const clearedMetadata = {};
+    Object.keys(matchMetadata).forEach(key => {
+      const existing = matchMetadata[key] || {};
+      const cleaned = {};
+      if (existing.court) cleaned.court = existing.court;
+      if (existing.time) cleaned.time = existing.time;
+      if (Object.keys(cleaned).length > 0) clearedMetadata[key] = cleaned;
+    });
+
+    setMatchMetadata(clearedMetadata);
+    const slug = selectedTorneo.toLowerCase().trim().replace(/\s+/g, '_');
+    const config = {
+      numGironi,
+      teamCounts,
+      gironeTypes,
+      gironeSets,
+      gironeAssignments,
+      matchMetadata: clearedMetadata,
+      pubblicato,
+      rankingType
+    };
+    await saveGironi(slug, config);
+    alert("Punteggi eliminati e salvati! ✅");
+  };
+
   const allGironi = [
     { id: 'A', colorClass: 'blue' },
     { id: 'B', colorClass: 'red' },
@@ -531,6 +562,13 @@ export default function StaffGironi() {
                     className="flex-1 md:flex-none bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all disabled:opacity-50"
                 >
                     ⚡ Punteggi Test
+                </button>
+                <button 
+                    onClick={handleClearScores}
+                    disabled={!selectedTorneo}
+                    className="flex-1 md:flex-none bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all disabled:opacity-50"
+                >
+                    🧹 Azzera Punteggi
                 </button>
                 <button 
                     onClick={handleSave}
