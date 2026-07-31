@@ -519,14 +519,6 @@ export default function StaffGironi() {
                     )}
                 </select>
                 <button 
-                    onClick={handleSyncNamesFromIscrizioni}
-                    disabled={!selectedTorneo}
-                    className="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all disabled:opacity-50"
-                    title="Aggiorna i nomi delle squadre nei gironi con quelli attuali delle iscrizioni"
-                >
-                    🔄 Sincronizza Nomi
-                </button>
-                <button 
                     onClick={handleRandomizeGironi}
                     disabled={!selectedTorneo}
                     className="flex-1 md:flex-none bg-[#FFD700] text-[#0a1628] px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all disabled:opacity-50"
