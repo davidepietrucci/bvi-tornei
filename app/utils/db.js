@@ -81,7 +81,10 @@ export async function getTornei() {
   }
 
   const serverData = await fetchFromServerDb("tornei");
-  if (serverData !== null) return serverData;
+  if (serverData !== null) {
+    localStorage.setItem("bvi_tornei", JSON.stringify(serverData));
+    return serverData;
+  }
   const saved = localStorage.getItem("bvi_tornei");
   return safeJsonParse(saved, []);
 }
@@ -93,10 +96,8 @@ export async function saveTornei(list) {
     return;
   }
 
-  const success = await saveToServerDb("tornei", list);
-  if (!success) {
-    localStorage.setItem("bvi_tornei", JSON.stringify(list));
-  }
+  localStorage.setItem("bvi_tornei", JSON.stringify(list));
+  await saveToServerDb("tornei", list);
 }
 
 // 2. Iscrizioni
@@ -107,7 +108,10 @@ export async function getIscrizioni() {
   }
 
   const serverData = await fetchFromServerDb("iscrizioni");
-  if (serverData !== null) return serverData;
+  if (serverData !== null) {
+    localStorage.setItem("bvi_iscrizioni", JSON.stringify(serverData));
+    return serverData;
+  }
   const saved = localStorage.getItem("bvi_iscrizioni");
   return safeJsonParse(saved, []);
 }
@@ -119,10 +123,8 @@ export async function saveIscrizioni(list) {
     return;
   }
 
-  const success = await saveToServerDb("iscrizioni", list);
-  if (!success) {
-    localStorage.setItem("bvi_iscrizioni", JSON.stringify(list));
-  }
+  localStorage.setItem("bvi_iscrizioni", JSON.stringify(list));
+  await saveToServerDb("iscrizioni", list);
 }
 
 // 3. Gironi
@@ -134,7 +136,10 @@ export async function getGironi(slug) {
   }
 
   const serverData = await fetchFromServerDb("gironi", slug);
-  if (serverData !== null) return serverData;
+  if (serverData !== null) {
+    if (serverData) localStorage.setItem(key, JSON.stringify(serverData));
+    return serverData;
+  }
   const saved = localStorage.getItem(key);
   return safeJsonParse(saved, null);
 }
@@ -147,10 +152,8 @@ export async function saveGironi(slug, data) {
     return;
   }
 
-  const success = await saveToServerDb("gironi", data, slug);
-  if (!success) {
-    localStorage.setItem(key, JSON.stringify(data));
-  }
+  localStorage.setItem(key, JSON.stringify(data));
+  await saveToServerDb("gironi", data, slug);
 }
 
 // 4. Bracket
@@ -162,7 +165,10 @@ export async function getBracket(slug) {
   }
 
   const serverData = await fetchFromServerDb("bracket", slug);
-  if (serverData !== null) return serverData;
+  if (serverData !== null) {
+    if (serverData) localStorage.setItem(key, JSON.stringify(serverData));
+    return serverData;
+  }
   const saved = localStorage.getItem(key);
   return safeJsonParse(saved, null);
 }
@@ -175,10 +181,8 @@ export async function saveBracket(slug, data) {
     return;
   }
 
-  const success = await saveToServerDb("bracket", data, slug);
-  if (!success) {
-    localStorage.setItem(key, JSON.stringify(data));
-  }
+  localStorage.setItem(key, JSON.stringify(data));
+  await saveToServerDb("bracket", data, slug);
 }
 
 // 5. Users
@@ -189,7 +193,10 @@ export async function getUsers() {
   }
 
   const serverData = await fetchFromServerDb("users");
-  if (serverData !== null) return serverData;
+  if (serverData !== null) {
+    localStorage.setItem("bvi_users", JSON.stringify(serverData));
+    return serverData;
+  }
   const saved = localStorage.getItem("bvi_users");
   return safeJsonParse(saved, []);
 }
@@ -201,10 +208,8 @@ export async function saveUsers(list) {
     return;
   }
 
-  const success = await saveToServerDb("users", list);
-  if (!success) {
-    localStorage.setItem("bvi_users", JSON.stringify(list));
-  }
+  localStorage.setItem("bvi_users", JSON.stringify(list));
+  await saveToServerDb("users", list);
 }
 
 // 6. Moduli
@@ -215,7 +220,10 @@ export async function getModuli() {
   }
 
   const serverData = await fetchFromServerDb("moduli");
-  if (serverData !== null) return serverData;
+  if (serverData !== null) {
+    localStorage.setItem("bvi_moduli", JSON.stringify(serverData));
+    return serverData;
+  }
   const saved = localStorage.getItem("bvi_moduli");
   return safeJsonParse(saved, []);
 }
@@ -227,10 +235,8 @@ export async function saveModuli(list) {
     return;
   }
 
-  const success = await saveToServerDb("moduli", list);
-  if (!success) {
-    localStorage.setItem("bvi_moduli", JSON.stringify(list));
-  }
+  localStorage.setItem("bvi_moduli", JSON.stringify(list));
+  await saveToServerDb("moduli", list);
 }
 
 // 7. Notifiche
@@ -241,7 +247,10 @@ export async function getNotifiche() {
   }
 
   const serverData = await fetchFromServerDb("notifiche");
-  if (serverData !== null) return serverData;
+  if (serverData !== null) {
+    localStorage.setItem("bvi_notifiche", JSON.stringify(serverData));
+    return serverData;
+  }
   const saved = localStorage.getItem("bvi_notifiche");
   return safeJsonParse(saved, []);
 }
@@ -253,10 +262,8 @@ export async function saveNotifiche(list) {
     return;
   }
 
-  const success = await saveToServerDb("notifiche", list);
-  if (!success) {
-    localStorage.setItem("bvi_notifiche", JSON.stringify(list));
-  }
+  localStorage.setItem("bvi_notifiche", JSON.stringify(list));
+  await saveToServerDb("notifiche", list);
 }
 
 // 8. Staff
@@ -267,7 +274,10 @@ export async function getStaff() {
   }
 
   const serverData = await fetchFromServerDb("staff");
-  if (serverData !== null) return serverData;
+  if (serverData !== null) {
+    localStorage.setItem("bvi_staff", JSON.stringify(serverData));
+    return serverData;
+  }
   const saved = localStorage.getItem("bvi_staff");
   return safeJsonParse(saved, []);
 }
@@ -279,8 +289,6 @@ export async function saveStaff(list) {
     return;
   }
 
-  const success = await saveToServerDb("staff", list);
-  if (!success) {
-    localStorage.setItem("bvi_staff", JSON.stringify(list));
-  }
+  localStorage.setItem("bvi_staff", JSON.stringify(list));
+  await saveToServerDb("staff", list);
 }
