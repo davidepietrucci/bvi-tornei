@@ -628,7 +628,7 @@ function TabelloneContent() {
       return `TBD ${pos+1}° ${gid}`;
     };
 
-    if (phaseType === "gold_silver" && subPhaseType === "groups") {
+    if (phaseType === "gold_silver" && (subPhaseType === "groups" || subPhaseType === "pool_stepladder")) {
       // Clean previous intermediate results to avoid stale data
       const cleanedMetadata = { ...bracketMetadata };
       Object.keys(cleanedMetadata).forEach(key => {
