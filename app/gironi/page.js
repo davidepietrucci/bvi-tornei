@@ -182,16 +182,25 @@ export default function GironiPubblici() {
       const autoNumGoldGironi = goldSlots > 4 ? 2 : 1;
       const autoNumSilverGironi = silverSlots > 4 ? 2 : 1;
 
-      const numGoldGironi = bracketConfig.numGoldGironi !== undefined ? bracketConfig.numGoldGironi : autoNumGoldGironi;
-      const numSilverGironi = bracketConfig.numSilverGironi !== undefined ? bracketConfig.numSilverGironi : autoNumSilverGironi;
+      if (bracketConfig.subPhaseType === "custom_18") {
+        list.push({ id: `gold-A`, label: `Gold A 🏆`, type: "intermedio", category: "gold" });
+        list.push({ id: `gold-B`, label: `Gold B 🏆`, type: "intermedio", category: "gold" });
+        list.push({ id: `gold-C`, label: `Gold C 🏆`, type: "intermedio", category: "gold" });
+        list.push({ id: `gold-D`, label: `Gold D 🏆`, type: "intermedio", category: "gold" });
+        list.push({ id: `pool-gold-1`, label: `POOL Gold 1 🔥`, type: "intermedio", category: "gold" });
+        list.push({ id: `pool-gold-2`, label: `POOL Gold 2 🔥`, type: "intermedio", category: "gold" });
 
-      for (let i = 0; i < numGoldGironi; i++) {
-        const letter = String.fromCharCode(65 + i);
-        list.push({ id: `gold-${letter}`, label: `Gold ${letter} 🏆`, type: "intermedio", category: "gold" });
-      }
-      for (let i = 0; i < numSilverGironi; i++) {
-        const letter = String.fromCharCode(65 + i);
-        list.push({ id: `silver-${letter}`, label: `Silver ${letter} 🥈`, type: "intermedio", category: "silver" });
+        list.push({ id: `silver-A`, label: `Silver A 🥈`, type: "intermedio", category: "silver" });
+        list.push({ id: `silver-B`, label: `Silver B 🥈`, type: "intermedio", category: "silver" });
+      } else {
+        for (let i = 0; i < numGoldGironi; i++) {
+          const letter = String.fromCharCode(65 + i);
+          list.push({ id: `gold-${letter}`, label: `Gold ${letter} 🏆`, type: "intermedio", category: "gold" });
+        }
+        for (let i = 0; i < numSilverGironi; i++) {
+          const letter = String.fromCharCode(65 + i);
+          list.push({ id: `silver-${letter}`, label: `Silver ${letter} 🥈`, type: "intermedio", category: "silver" });
+        }
       }
     }
     return list;
@@ -322,6 +331,48 @@ export default function GironiPubblici() {
     const assignments = bracketConfig.bracketAssignments;
     const metadata = bracketConfig.bracketMetadata || {};
     
+    if (groupKey.startsWith("pool-gold-")) {
+      const t0 = assignments[`${groupKey}-0`];
+      const t1 = assignments[`${groupKey}-1`];
+      const t2 = assignments[`${groupKey}-2`];
+      const t3 = assignments[`${groupKey}-3`];
+
+      const getWinner = (mId) => {
+        const meta = metadata[mId] || {};
+        const sL = parseInt(meta.scoreL || 0);
+        const sR = parseInt(meta.scoreR || 0);
+        if (sL === 0 && sR === 0) return null;
+        return sL > sR ? assignments[`${mId}-L`] : sR > sL ? assignments[`${mId}-R`] : null;
+      };
+      const getLoser = (mId) => {
+        const meta = metadata[mId] || {};
+        const sL = parseInt(meta.scoreL || 0);
+        const sR = parseInt(meta.scoreR || 0);
+        if (sL === 0 && sR === 0) return null;
+        return sL > sR ? assignments[`${mId}-R`] : sR > sL ? assignments[`${mId}-L`] : null;
+      };
+
+      const isPool1 = groupKey.endsWith("-1");
+      const winM0 = getWinner(`${groupKey}-m0`);
+      const winM1 = getWinner(`${groupKey}-m1`);
+      const losM0 = getLoser(`${groupKey}-m0`);
+      const losM1 = getLoser(`${groupKey}-m1`);
+
+      const pairs = [
+        { label: `Gara 1 (${isPool1 ? '1°A vs 2°B' : '1°B vs 2°A'})`, left: t0, right: t1, mKey: `${groupKey}-m0` },
+        { label: `Gara 2 (${isPool1 ? '1°C vs 2°D' : '1°D vs 2°C'})`, left: t2, right: t3, mKey: `${groupKey}-m1` },
+        { label: "Gara 3 (Vincenti ➔ 1°/2° Pool)", left: winM0 || "Vincente Gara 1", right: winM1 || "Vincente Gara 2", mKey: `${groupKey}-m2` },
+        { label: "Gara 4 (Perdenti ➔ 3°/4° Pool)", left: losM0 || "Perdente Gara 1", right: losM1 || "Perdente Gara 2", mKey: `${groupKey}-m3` },
+      ];
+
+      return pairs.map(p => ({
+        label: p.label,
+        left: p.left,
+        right: p.right,
+        meta: metadata[p.mKey] || {}
+      }));
+    }
+
     const isGold = groupKey.startsWith("gold");
     const numTeams = isGold 
       ? (bracketConfig.teamsPerGoldGirone || 4) 

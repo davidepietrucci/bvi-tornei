@@ -260,6 +260,17 @@ function TabelloneContent() {
     const winM2 = resolveWinner(`${groupKey}-m2`);
     const losM2 = resolveLoser(`${groupKey}-m2`);
     const winM3 = resolveWinner(`${groupKey}-m3`);
+    const losM3 = resolveLoser(`${groupKey}-m3`);
+
+    if (subPhaseType === "custom_18") {
+      const isPool1 = groupKey.endsWith("-1");
+      return [
+        { label: `Gara 1 (${isPool1 ? '1°A vs 2°B' : '1°B vs 2°A'})`, l: t0, r: t1, matchId: `${groupKey}-m0` },
+        { label: `Gara 2 (${isPool1 ? '1°C vs 2°D' : '1°D vs 2°C'})`, l: t2, r: t3, matchId: `${groupKey}-m1` },
+        { label: "Gara 3 (Vincenti ➔ 1°/2° Pool)", l: winM0 || "Vincente Gara 1", r: winM1 || "Vincente Gara 2", matchId: `${groupKey}-m2` },
+        { label: "Gara 4 (Perdenti ➔ 3°/4° Pool)", l: losM0 || "Perdente Gara 1", r: losM1 || "Perdente Gara 2", matchId: `${groupKey}-m3` },
+      ];
+    }
 
     return [
       { label: `Gara 1 (${isGold ? '1°A vs 2°B' : '3°A vs 4°B'})`, l: t0, r: t1, matchId: `${groupKey}-m0` },
@@ -271,6 +282,20 @@ function TabelloneContent() {
   };
 
   const getIntermediateGroupStats = (groupKey) => {
+    if (subPhaseType === "custom_18" && groupKey.startsWith("pool-gold-")) {
+      const winM2 = resolveWinner(`${groupKey}-m2`);
+      const losM2 = resolveLoser(`${groupKey}-m2`);
+      const winM3 = resolveWinner(`${groupKey}-m3`);
+      const losM3 = resolveLoser(`${groupKey}-m3`);
+
+      return [
+        { nome: winM2 || `1° ${groupKey}`, note: "Qualificata in Semifinale 🏆", pos: 1 },
+        { nome: losM2 || `2° ${groupKey}`, note: "Qualificata in Semifinale ⚽", pos: 2 },
+        { nome: winM3 || `3° ${groupKey}`, note: "3° Posto Pool 🥉", pos: 3 },
+        { nome: losM3 || `4° ${groupKey}`, note: "4° Posto Pool ❌", pos: 4 },
+      ];
+    }
+
     if (subPhaseType === "pool_stepladder") {
       const winM2 = resolveWinner(`${groupKey}-m2`);
       const winM4 = resolveWinner(`${groupKey}-m4`);
@@ -532,6 +557,24 @@ function TabelloneContent() {
           update("gold-s2-L", getRankedInt(gA_rank, 1, "2° Gold"));
           update("gold-s2-R", getRankedInt(gA_rank, 2, "3° Gold"));
         }
+      } else if (subPhaseType === "custom_18") {
+        // Custom 18 squadre Gold:
+        // 1. Popola i 2 gironi POOL Gold con i primi (1°) e secondi (2°) dei gironi Gold A, B, C, D
+        update("pool-gold-1-0", getRankedInt(gA_rank, 0, "1° Gold A"));
+        update("pool-gold-1-1", getRankedInt(gB_rank, 1, "2° Gold B"));
+        update("pool-gold-1-2", getRankedInt(gC_rank, 0, "1° Gold C"));
+        update("pool-gold-1-3", getRankedInt(gD_rank, 1, "2° Gold D"));
+
+        update("pool-gold-2-0", getRankedInt(gB_rank, 0, "1° Gold B"));
+        update("pool-gold-2-1", getRankedInt(gA_rank, 1, "2° Gold A"));
+        update("pool-gold-2-2", getRankedInt(gD_rank, 0, "1° Gold D"));
+        update("pool-gold-2-3", getRankedInt(gC_rank, 1, "2° Gold C"));
+
+        // 2. Semifinali Gold (1° Pool Gold 1 vs 2° Pool Gold 2 | 1° Pool Gold 2 vs 2° Pool Gold 1)
+        update("gold-s1-L", resolveWinner("pool-gold-1-m2") || "1° Pool Gold 1");
+        update("gold-s1-R", resolveLoser("pool-gold-2-m2") || "2° Pool Gold 2");
+        update("gold-s2-L", resolveWinner("pool-gold-2-m2") || "1° Pool Gold 2");
+        update("gold-s2-R", resolveLoser("pool-gold-1-m2") || "2° Pool Gold 1");
       } else {
         // Standard Intermediate Groups (1° e 2° vanno in Semifinale)
         if (currentNumGoldGironi === 4) {
@@ -749,22 +792,33 @@ function TabelloneContent() {
         newAssignments["silver-B-1"] = getRanked('D', 2);
         newAssignments["silver-B-2"] = getRanked('F', 2);
 
-        // Gold: 12 teams (1° and 2° of A, B, C, D, E, F)
-        newAssignments["gold-A-0"] = getRanked('A', 0);
-        newAssignments["gold-A-1"] = getRanked('B', 1);
-        newAssignments["gold-A-2"] = getRanked('C', 0);
+        // Classifica Avulsa Iniziale tra le 1° e tra le 2° dei gironi iniziali
+        const firstsList = [];
+        const secondsList = [];
+        for (let i = 0; i < numGironi; i++) {
+          const gid = String.fromCharCode(65 + i);
+          const r1 = getRanked(gid, 0);
+          const r2 = getRanked(gid, 1);
+          if (r1) firstsList.push(r1);
+          if (r2) secondsList.push(r2);
+        }
 
-        newAssignments["gold-B-0"] = getRanked('B', 0);
-        newAssignments["gold-B-1"] = getRanked('A', 1);
-        newAssignments["gold-B-2"] = getRanked('D', 0);
+        // Distribuzione a Serpente per i 4 Gironi Gold
+        newAssignments["gold-A-0"] = firstsList[0] || getRanked('A', 0);
+        newAssignments["gold-A-1"] = secondsList[1] || getRanked('B', 1);
+        newAssignments["gold-A-2"] = secondsList[2] || getRanked('C', 1);
 
-        newAssignments["gold-C-0"] = getRanked('C', 1);
-        newAssignments["gold-C-1"] = getRanked('D', 1);
-        newAssignments["gold-C-2"] = getRanked('E', 0);
+        newAssignments["gold-B-0"] = firstsList[1] || getRanked('B', 0);
+        newAssignments["gold-B-1"] = secondsList[0] || getRanked('A', 1);
+        newAssignments["gold-B-2"] = secondsList[3] || getRanked('D', 1);
 
-        newAssignments["gold-D-0"] = getRanked('E', 1);
-        newAssignments["gold-D-1"] = getRanked('F', 0);
-        newAssignments["gold-D-2"] = getRanked('F', 1);
+        newAssignments["gold-C-0"] = firstsList[2] || getRanked('C', 0);
+        newAssignments["gold-C-1"] = firstsList[5] || getRanked('F', 0);
+        newAssignments["gold-C-2"] = secondsList[4] || getRanked('E', 1);
+
+        newAssignments["gold-D-0"] = firstsList[3] || getRanked('D', 0);
+        newAssignments["gold-D-1"] = firstsList[4] || getRanked('E', 0);
+        newAssignments["gold-D-2"] = secondsList[5] || getRanked('F', 1);
       } else {
         // Calculate dynamically the target groups count
         let currentGoldSlots = 0;
@@ -1514,15 +1568,19 @@ function TabelloneContent() {
         {/* Turno 3: Semifinali */}
         <div className="mb-8 max-w-4xl">
           <h4 className="text-[10px] font-black text-purple-500 mb-2 uppercase tracking-widest">
-            {isStepladder ? "Semifinali (1° Classificati vs Vincenti Quarti)" : "Semifinali"}
+            {isStepladder ? "Semifinali (1° Classificati vs Vincenti Quarti)" : subPhaseType === "custom_18" ? "Semifinali GOLD (1° Pool vs 2° Pool Opposto)" : "Semifinali"}
           </h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
             <div>
-              <span className="text-[10px] font-bold text-gray-400 block mb-1">{isStepladder ? "Semifinale 1 (1° Pool 1 vs Vincente Quarto 2)" : "Semifinale 1"}</span>
+              <span className="text-[10px] font-bold text-gray-400 block mb-1">
+                {isStepladder ? "Semifinale 1 (1° Pool 1 vs Vincente Quarto 2)" : subPhaseType === "custom_18" ? "Semifinale 1 (1° Pool Gold 1 vs 2° Pool Gold 2)" : "Semifinale 1"}
+              </span>
               {renderMatch(`${p}-s1`, 'SF1', color)}
             </div>
             <div>
-              <span className="text-[10px] font-bold text-gray-400 block mb-1">{isStepladder ? "Semifinale 2 (1° Pool 2 vs Vincente Quarto 1)" : "Semifinale 2"}</span>
+              <span className="text-[10px] font-bold text-gray-400 block mb-1">
+                {isStepladder ? "Semifinale 2 (1° Pool 2 vs Vincente Quarto 1)" : subPhaseType === "custom_18" ? "Semifinale 2 (1° Pool Gold 2 vs 2° Pool Gold 1)" : "Semifinale 2"}
+              </span>
               {renderMatch(`${p}-s2`, 'SF2', color)}
             </div>
           </div>
@@ -1850,6 +1908,15 @@ function TabelloneContent() {
                       </div>
                     );
                   })}
+                  
+                  {subPhaseType === "custom_18" && (
+                    <div className="mt-12 space-y-12">
+                      <h2 className="text-2xl md:text-3xl font-black text-amber-600 uppercase tracking-tighter border-t border-amber-100 pt-8">🔥 Gironi POOL GOLD (Prime e Seconde dei Gironi Intermedi)</h2>
+                      {renderIntermediateGroup("pool-gold-1", "Girone POOL Gold 1", "gold")}
+                      {renderIntermediateGroup("pool-gold-2", "Girone POOL Gold 2", "gold")}
+                    </div>
+                  )}
+
                   {renderFinalsForGroups("gold", "Fasi Finali GOLD 🏆", "gold")}
                 </section>
 
