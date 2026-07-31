@@ -303,6 +303,46 @@ export default function StaffGironi() {
     alert(`Configurazione salvata per "${selectedTorneo}"! 🏐`);
   };
 
+  const handleSyncNamesFromIscrizioni = () => {
+    if (!selectedTorneo || !tutteLeIscrizioni.length) return;
+    const approved = tutteLeIscrizioni.filter(i => 
+      (i.torneo || "").toLowerCase().trim() === selectedTorneo.toLowerCase().trim() && 
+      i.stato === "Approvata"
+    );
+
+    let updatedCount = 0;
+    const newAssignments = JSON.parse(JSON.stringify(gironeAssignments));
+
+    Object.keys(newAssignments).forEach(gId => {
+      const slotsMap = newAssignments[gId] || {};
+      Object.keys(slotsMap).forEach(slotIdx => {
+        const currentName = slotsMap[slotIdx];
+        if (!currentName || currentName === "—" || currentName === "Slot Libero") return;
+
+        const cleanCur = currentName.toLowerCase().trim();
+        const words = cleanCur.split(/[^a-z0-9]+/).filter(w => w.length > 2);
+
+        const match = approved.find(i => {
+          const gLower = (i.giocatori || "").toLowerCase().trim();
+          if (gLower === cleanCur) return true;
+          return words.length > 0 && words.every(w => gLower.includes(w));
+        });
+
+        if (match && match.giocatori !== currentName) {
+          slotsMap[slotIdx] = match.giocatori;
+          updatedCount++;
+        }
+      });
+    });
+
+    if (updatedCount > 0) {
+      setGironeAssignments(newAssignments);
+      alert(`Sincronizzati ${updatedCount} nomi squadra dalle iscrizioni! 🔄 Ricordati di fare clic su SALVA TUTTO.`);
+    } else {
+      alert("Tutti i nomi squadra nei gironi sono già aggiornati con le iscrizioni! 👍");
+    }
+  };
+
   const handleRandomizeGironi = () => {
     if (giocatoriFiltrati.length === 0) {
       alert("Nessun iscritto approvato per questo torneo!");
@@ -500,6 +540,14 @@ export default function StaffGironi() {
                         <option>Nessun torneo attivo</option>
                     )}
                 </select>
+                <button 
+                    onClick={handleSyncNamesFromIscrizioni}
+                    disabled={!selectedTorneo}
+                    className="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all disabled:opacity-50"
+                    title="Aggiorna i nomi delle squadre nei gironi con quelli attuali delle iscrizioni"
+                >
+                    🔄 Sincronizza Nomi
+                </button>
                 <button 
                     onClick={handleRandomizeGironi}
                     disabled={!selectedTorneo}
