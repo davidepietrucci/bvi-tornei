@@ -210,9 +210,29 @@ function TabelloneContent() {
     return list;
   };
 
+  const getMatchTeams = (matchId) => {
+    let left = bracketAssignments[`${matchId}-L`];
+    let right = bracketAssignments[`${matchId}-R`];
+
+    if (!left || !right) {
+      const poolM0Match = matchId.match(/^([a-z]+-[A-Z])-m0$/);
+      if (poolM0Match) {
+        const groupKey = poolM0Match[1];
+        left = left || bracketAssignments[`${groupKey}-0`];
+        right = right || bracketAssignments[`${groupKey}-1`];
+      }
+      const poolM1Match = matchId.match(/^([a-z]+-[A-Z])-m1$/);
+      if (poolM1Match) {
+        const groupKey = poolM1Match[1];
+        left = left || bracketAssignments[`${groupKey}-2`];
+        right = right || bracketAssignments[`${groupKey}-3`];
+      }
+    }
+    return { left, right };
+  };
+
   const resolveWinner = (matchId) => {
-    const left = bracketAssignments[`${matchId}-L`];
-    const right = bracketAssignments[`${matchId}-R`];
+    const { left, right } = getMatchTeams(matchId);
 
     if (left === "—" && right && right !== "—") return right;
     if (right === "—" && left && left !== "—") return left;
@@ -225,8 +245,7 @@ function TabelloneContent() {
   };
 
   const resolveLoser = (matchId) => {
-    const left = bracketAssignments[`${matchId}-L`];
-    const right = bracketAssignments[`${matchId}-R`];
+    const { left, right } = getMatchTeams(matchId);
 
     if (left === "—" && right && right !== "—") return "—";
     if (right === "—" && left && left !== "—") return "—";
