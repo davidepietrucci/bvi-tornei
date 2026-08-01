@@ -1342,12 +1342,7 @@ function TabelloneContent() {
     const meta = bracketMetadata[matchId] || {};
     const borderClass = color === "gold" ? "hover:border-yellow-500" : color === "silver" ? "hover:border-gray-400" : "hover:border-blue-600";
     
-    const isMultiSetMatch = subPhaseType !== "custom_18" &&
-      (matchId.startsWith("gold-") || matchId.startsWith("silver-")) && (
-      matchId.endsWith("-q1") || matchId.endsWith("-q2") || matchId.endsWith("-q3") || matchId.endsWith("-q4") ||
-      matchId.endsWith("-s1") || matchId.endsWith("-s2") ||
-      matchId.endsWith("-f1") || matchId.endsWith("-f3")
-    );
+    const isMultiSetMatch = false;
 
     return (
       <div className={`bg-white border-2 border-gray-100 rounded-2xl p-4 shadow-sm group ${borderClass} transition-all min-w-[200px]`}>

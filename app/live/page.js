@@ -894,12 +894,8 @@ export default function PortaleLiveMobile() {
     const s2R = parseInt(meta?.s2R || 0);
     const s3L = parseInt(meta?.s3L || 0);
     const s3R = parseInt(meta?.s3R || 0);
-    const isThreeSets = gironeId ? config?.gironeSets?.[gironeId] === "3 set" : false;
-
-    const isMultiSetPlayoff = isPlayoffMatch && (bracketConfig?.phaseType === "gold_silver" || bracketConfig?.phaseType === "single") && (
-      (matchLabel && (matchLabel.startsWith("Quarto") || matchLabel.startsWith("Semifinale") || matchLabel.startsWith("Finale"))) ||
-      (matchKeyPrefix && (matchKeyPrefix.includes("Semifinali") || matchKeyPrefix.includes("Finali") || matchKeyPrefix.includes("Quarti")))
-    );
+    const isThreeSets = false;
+    const isMultiSetPlayoff = false;
 
     let isWinnerL = false;
     let isWinnerR = false;

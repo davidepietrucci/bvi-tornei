@@ -965,11 +965,7 @@ export default function AtletaGironi() {
 
                       const highlightedMatch = isMe(m.left) || isMe(m.right);
                       
-                      const isMultiSetMatch = (bracketConfig?.phaseType === "gold_silver" || bracketConfig?.phaseType === "single") && (
-                        m.id.endsWith("-q1") || m.id.endsWith("-q2") || m.id.endsWith("-q3") || m.id.endsWith("-q4") ||
-                        m.id.endsWith("-s1") || m.id.endsWith("-s2") ||
-                        m.id.endsWith("-f1") || m.id.endsWith("-f3")
-                      );
+                      const isMultiSetMatch = false;
 
                       return (
                         <div key={idx} className={`bg-white rounded-2xl p-4 shadow-sm border ${highlightedMatch ? 'border-[#FFD700] ring-4 ring-[#FFD700]/5' : 'border-gray-100'}`}>
