@@ -51,7 +51,7 @@ export default function SponsorBanner({ customSponsors = null, title = "Partner 
           <div className="animate-marquee items-center gap-8 sm:gap-12">
             {doubleSponsors.map((sp, idx) => {
               const content = (
-                <div className="flex items-center justify-center h-12 w-32 grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all duration-200 cursor-pointer">
+                <div className="flex items-center justify-center h-12 w-32 opacity-100 hover:scale-105 transition-all duration-200 cursor-pointer">
                   <img
                     src={sp.logoUrl}
                     alt={sp.nome || "Sponsor"}
