@@ -184,3 +184,11 @@ export async function getStaff() {
 export async function saveStaff(list) {
   await saveConfigDoc("staff", list);
 }
+
+export async function getSponsors() {
+  return getConfigDoc("sponsors");
+}
+export async function saveSponsors(list) {
+  await saveConfigDoc("sponsors", list);
+}
+

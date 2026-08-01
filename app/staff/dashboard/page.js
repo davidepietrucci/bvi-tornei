@@ -273,7 +273,7 @@ export default function StaffDashboard() {
         <div className="mt-10 bg-white p-6 md:p-10 rounded-[2.5rem] shadow-2xl border border-white relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50 rounded-full -mr-16 -mt-16"></div>
           <h3 className="text-xl md:text-2xl font-black mb-6 uppercase tracking-tight text-[#0a1628] relative z-10">Azioni Rapide ⚡</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 relative z-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 relative z-10">
             <button onClick={() => router.push('/staff/tornei/nuovo')} className="flex items-center justify-between p-5 bg-gray-50 hover:bg-[#0a1628] hover:text-white text-[#0a1628] rounded-2xl font-black text-sm uppercase tracking-widest transition-all group shadow-sm">
               Crea Torneo <span className="text-xl group-hover:translate-x-2 transition-transform">➕</span>
             </button>
@@ -282,6 +282,9 @@ export default function StaffDashboard() {
             </button>
             <button onClick={() => router.push('/staff/pagamenti')} className="flex items-center justify-between p-5 bg-gray-50 hover:bg-[#0a1628] hover:text-white text-[#0a1628] rounded-2xl font-black text-sm uppercase tracking-widest transition-all group shadow-sm">
               Pagamenti <span className="text-xl group-hover:translate-x-2 transition-transform">💰</span>
+            </button>
+            <button onClick={() => router.push('/staff/sponsors')} className="flex items-center justify-between p-5 bg-gray-50 hover:bg-[#0a1628] hover:text-white text-[#0a1628] rounded-2xl font-black text-sm uppercase tracking-widest transition-all group shadow-sm">
+              Gestione Sponsor <span className="text-xl group-hover:translate-x-2 transition-transform">🤝</span>
             </button>
           </div>
         </div>

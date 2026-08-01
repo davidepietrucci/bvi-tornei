@@ -52,6 +52,7 @@ export default function StaffHeader() {
     { name: "Tabellone", path: "/staff/tabellone" },
     { name: "Classifica", path: "/staff/classifica" },
     { name: "Pagamenti", path: "/staff/pagamenti" },
+    { name: "Sponsor", path: "/staff/sponsors" },
   ];
 
   const filteredMenuItems = menuItems.filter(item => {

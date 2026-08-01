@@ -8,7 +8,8 @@ import {
   getGironi, saveGironi,
   getBracket, saveBracket,
   getNotifiche, saveNotifiche,
-  getStaff, saveStaff
+  getStaff, saveStaff,
+  getSponsors, saveSponsors
 } from "@/app/utils/db";
 
 export const dynamic = "force-dynamic";
@@ -56,6 +57,7 @@ export async function GET(req) {
     else if (type === "gironi") data = await getGironi(slug);
     else if (type === "bracket") data = await getBracket(slug);
     else if (type === "notifiche") data = await getNotifiche();
+    else if (type === "sponsors") data = await getSponsors();
     else {
       return NextResponse.json({ error: "Tipo database non valido" }, { status: 400 });
     }
@@ -96,13 +98,15 @@ export async function POST(req) {
       if (type === "moduli") await saveModuli(data);
       if (type === "staff") await saveStaff(data);
     }
-    else if (type === "tornei" || type === "gironi" || type === "bracket" || type === "iscrizioni" || type === "notifiche") {
+    else if (type === "tornei" || type === "gironi" || type === "bracket" || type === "iscrizioni" || type === "notifiche" || type === "sponsors") {
       if (role !== "admin" && role !== "staff") {
         return NextResponse.json({ error: "Accesso negato: richiesto ruolo Staff" }, { status: 403 });
       }
       if (type === "tornei") await saveTornei(data);
       if (type === "gironi") await saveGironi(slug, data);
       if (type === "bracket") await saveBracket(slug, data);
+      if (type === "sponsors") await saveSponsors(data);
+
       if (type === "iscrizioni") {
         const existing = await getIscrizioni();
         const existingMap = new Map(existing.map(i => [String(i.id), i]));

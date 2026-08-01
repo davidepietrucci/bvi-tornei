@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useState, useEffect } from "react";
 import { getTornei, getGironi, getBracket } from "@/app/utils/db";
 import { calculateUnifiedRanking, getSchedule as getScheduleShared } from "@/app/utils/ranking";
+import SponsorBanner from "@/app/components/SponsorBanner";
 
 const capitalizeWord = (word) => {
   if (!word) return "";
@@ -944,44 +945,46 @@ export default function PortaleLiveMobile() {
         />
       )}
       <div className="relative z-10">
-      {/* Header Mobile Premium */}
+      {/* Header Mobile Premium con Info Torneo */}
       <header
         style={{ backgroundColor: "#0a1628" }}
-        className="text-white py-4 px-5 flex justify-between items-center shadow-md border-b-4 border-[#FFD700] sticky top-0 z-50"
+        className="text-white py-3 px-4 flex justify-between items-center shadow-md border-b-4 border-[#FFD700] sticky top-0 z-50 gap-3"
       >
-        <div className="flex items-center gap-2.5">
-          <Image src="/logo.png" alt="BVI Logo" width={32} height={32} />
-          <div>
-            <h1 className="text-sm font-black tracking-tight uppercase leading-none">BVI Live</h1>
+        <div className="flex items-center gap-2.5 overflow-hidden">
+          <Image src="/logo.png" alt="BVI Logo" width={34} height={34} className="rounded-full shrink-0" />
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-sm font-black tracking-tight uppercase leading-tight text-[#FFD700] truncate">
+                {selectedTorneo || "Nessun Torneo"}
+              </h1>
+              {isConcluso ? (
+                <span className="px-2 py-0.5 rounded-full text-[8px] font-black bg-gray-700 text-gray-300 uppercase tracking-wider shrink-0">
+                  Concluso 🏁
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 rounded-full text-[8px] font-black bg-green-500/20 text-green-400 border border-green-500/30 uppercase tracking-wider shrink-0 animate-pulse">
+                  Torneo Attivo 🟢
+                </span>
+              )}
+            </div>
+            {(selectedTorneoObj?.categoria || selectedTorneoObj?.data) && (
+              <p className="text-[9px] text-gray-300 font-bold uppercase tracking-wider leading-none mt-0.5 truncate">
+                {[selectedTorneoObj?.categoria, selectedTorneoObj?.data].filter(Boolean).join(" · ")}
+              </p>
+            )}
           </div>
         </div>
         <a
           href="/"
-          className="text-[9px] font-black bg-[#FFD700] text-[#0a1628] px-4 py-1.5 rounded-xl transition-transform active:scale-95 shadow-sm uppercase tracking-wider"
+          className="text-[9px] font-black bg-[#FFD700] text-[#0a1628] px-3.5 py-1.5 rounded-xl transition-transform active:scale-95 shadow-sm uppercase tracking-wider shrink-0"
         >
           Home
         </a>
       </header>
 
-      <div className="max-w-md mx-auto px-4 pt-5 space-y-4">
-        {/* Torneo Info Title Card */}
-        <div className="relative bg-white rounded-3xl p-5 border border-gray-100 shadow-sm overflow-hidden text-center">
-          {isConcluso ? (
-            <span className="inline-block px-3 py-1 rounded-full text-[8px] font-black bg-gray-100 text-gray-600 uppercase tracking-widest mb-2">
-              Concluso 🏁
-            </span>
-          ) : (
-            <span className="inline-block px-3 py-1 rounded-full text-[8px] font-black bg-green-100 text-green-700 uppercase tracking-widest mb-2 animate-pulse">
-              Torneo Attivo 🟢
-            </span>
-          )}
-          <h2 className="text-xl font-black text-[#0a1628] uppercase tracking-tighter leading-tight">
-            {selectedTorneo || "Nessun Torneo"}
-          </h2>
-          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-1.5">
-            {selectedTorneoObj?.categoria} · {selectedTorneoObj?.data}
-          </p>
-        </div>
+      <div className="max-w-md mx-auto px-4 pt-2 space-y-4">
+        {/* Banner Sponsor */}
+        <SponsorBanner />
 
         {/* Controllo Pubblicazione */}
         {isPublished ? (

@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { getTornei, getIscrizioni } from "@/app/utils/db";
+import SponsorBanner from "@/app/components/SponsorBanner";
+
 
 export default function Home() {
   const router = useRouter();
@@ -345,8 +347,12 @@ export default function Home() {
         </div>
       )}
 
+      {/* Sponsor Banner */}
+      <SponsorBanner />
+
       {/* Footer */}
       <footer className="text-white py-12 px-8 mt-auto border-t-4" style={{ borderColor: "#FFD700", backgroundColor: "#0a1628" }}>
+
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="flex items-center gap-3">
             <Image src="/logo.png" alt="BVI Logo" width={50} height={50} className="rounded-full bg-white p-0.5" />

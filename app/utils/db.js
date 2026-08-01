@@ -357,3 +357,31 @@ export async function saveStaff(list) {
   localStorage.setItem("bvi_staff", JSON.stringify(list));
   await saveToServerDb("staff", list);
 }
+
+// 9. Sponsors
+export async function getSponsors() {
+  if (typeof window === "undefined") {
+    const { getSponsors } = await import("./db-server");
+    return await getSponsors();
+  }
+
+  const serverData = await fetchFromServerDb("sponsors");
+  if (serverData !== null) {
+    localStorage.setItem("bvi_sponsors", JSON.stringify(serverData));
+    return serverData;
+  }
+  const saved = localStorage.getItem("bvi_sponsors");
+  return safeJsonParse(saved, []);
+}
+
+export async function saveSponsors(list) {
+  if (typeof window === "undefined") {
+    const { saveSponsors } = await import("./db-server");
+    await saveSponsors(list);
+    return;
+  }
+
+  localStorage.setItem("bvi_sponsors", JSON.stringify(list));
+  await saveToServerDb("sponsors", list);
+}
+
