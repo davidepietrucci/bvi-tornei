@@ -287,9 +287,8 @@ function TabelloneContent() {
     return [
       { label: `Gara 1 (${isGold ? '1°A vs 2°B' : '3°A vs 4°B'})`, l: t0, r: t1, matchId: `${groupKey}-m0` },
       { label: `Gara 2 (${isGold ? '1°C vs 2°D' : '3°C vs 4°D'})`, l: t2, r: t3, matchId: `${groupKey}-m1` },
-      { label: "Gara 3 (Vincenti ➔ 1° in Semifinale)", l: winM0 || "Vincente Gara 1", r: winM1 || "Vincente Gara 2", matchId: `${groupKey}-m2` },
-      { label: "Gara 4 (Perdenti ➔ 4° Eliminato)", l: losM0 || "Perdente Gara 1", r: losM1 || "Perdente Gara 2", matchId: `${groupKey}-m3` },
-      { label: "Gara 5 (Spareggio ➔ 2° ai Quarti, 3° agli Ottavi)", l: losM2 || "Perdente Gara 3", r: winM3 || "Vincente Gara 4", matchId: `${groupKey}-m4` },
+      { label: "Gara 3 (Vincenti ➔ 1°/2° Pool)", l: winM0 || "Vincente Gara 1", r: winM1 || "Vincente Gara 2", matchId: `${groupKey}-m2` },
+      { label: "Gara 4 (Perdenti ➔ 3°/4° Pool)", l: losM0 || "Perdente Gara 1", r: losM1 || "Perdente Gara 2", matchId: `${groupKey}-m3` },
     ];
   };
 
@@ -310,19 +309,14 @@ function TabelloneContent() {
 
     if (subPhaseType === "pool_stepladder") {
       const winM2 = resolveWinner(`${groupKey}-m2`);
-      const winM4 = resolveWinner(`${groupKey}-m4`);
-      const losM4 = resolveLoser(`${groupKey}-m4`);
+      const losM2 = resolveLoser(`${groupKey}-m2`);
+      const winM3 = resolveWinner(`${groupKey}-m3`);
       const losM3 = resolveLoser(`${groupKey}-m3`);
-
-      const t0 = bracketAssignments[`${groupKey}-0`];
-      const t1 = bracketAssignments[`${groupKey}-1`];
-      const t2 = bracketAssignments[`${groupKey}-2`];
-      const t3 = bracketAssignments[`${groupKey}-3`];
 
       const res = [
         { nome: winM2 || `1° ${groupKey}`, note: "Qualificata in Semifinale 🏆", pos: 1 },
-        { nome: winM4 || `2° ${groupKey}`, note: "Qualificata ai Quarti ⚽", pos: 2 },
-        { nome: losM4 || `3° ${groupKey}`, note: "Qualificata agli Ottavi 🥊", pos: 3 },
+        { nome: losM2 || `2° ${groupKey}`, note: "Qualificata ai Quarti ⚽", pos: 2 },
+        { nome: winM3 || `3° ${groupKey}`, note: "Qualificata ai Quarti 🥊", pos: 3 },
         { nome: losM3 || `4° ${groupKey}`, note: "Eliminata ❌", pos: 4 },
       ];
 
@@ -384,14 +378,14 @@ function TabelloneContent() {
     const getIntermediateRanking = (groupKey) => {
       if (subPhaseType === "pool_stepladder") {
         const winM2 = resolveWinner(`${groupKey}-m2`);
-        const winM4 = resolveWinner(`${groupKey}-m4`);
-        const losM4 = resolveLoser(`${groupKey}-m4`);
+        const losM2 = resolveLoser(`${groupKey}-m2`);
+        const winM3 = resolveWinner(`${groupKey}-m3`);
         const losM3 = resolveLoser(`${groupKey}-m3`);
 
         return [
           winM2 || `1° ${groupKey}`,
-          winM4 || `2° ${groupKey}`,
-          losM4 || `3° ${groupKey}`,
+          losM2 || `2° ${groupKey}`,
+          winM3 || `3° ${groupKey}`,
           losM3 || `4° ${groupKey}`
         ];
       }

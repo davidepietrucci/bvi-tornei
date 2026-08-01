@@ -436,9 +436,8 @@ export default function PortaleLiveMobile() {
         poolPairs = [
           { label: `Gara 1 (${isGold ? '1°A vs 2°B' : '3°A vs 4°B'})`, l: t0, r: t1, matchId: `${groupKey}-m0` },
           { label: `Gara 2 (${isGold ? '1°C vs 2°D' : '3°C vs 4°D'})`, l: t2, r: t3, matchId: `${groupKey}-m1` },
-          { label: "Gara 3 (Vincenti ➔ 1° in Semifinale)", l: winM0 || "Vincente Gara 1", r: winM1 || "Vincente Gara 2", matchId: `${groupKey}-m2` },
-          { label: "Gara 4 (Perdenti ➔ 4° Eliminato)", l: losM0 || "Perdente Gara 1", r: losM1 || "Perdente Gara 2", matchId: `${groupKey}-m3` },
-          { label: "Gara 5 (Spareggio ➔ 2° ai Quarti, 3° agli Ottavi)", l: losM2 || "Perdente Gara 3", r: winM3 || "Vincente Gara 4", matchId: `${groupKey}-m4` },
+          { label: "Gara 3 (Vincenti ➔ 1°/2° Pool)", l: winM0 || "Vincente Gara 1", r: winM1 || "Vincente Gara 2", matchId: `${groupKey}-m2` },
+          { label: "Gara 4 (Perdenti ➔ 3°/4° Pool)", l: losM0 || "Perdente Gara 1", r: losM1 || "Perdente Gara 2", matchId: `${groupKey}-m3` },
         ];
       }
 
