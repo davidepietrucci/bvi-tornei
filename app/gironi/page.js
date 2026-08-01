@@ -335,24 +335,58 @@ export default function GironiPubblici() {
     const assignments = bracketConfig.bracketAssignments;
     const metadata = bracketConfig.bracketMetadata || {};
 
+    const getMatchTeams = (matchId) => {
+      let left = assignments[`${matchId}-L`];
+      let right = assignments[`${matchId}-R`];
+
+      if (!left || !right) {
+        const poolMatch = matchId.match(/^([a-z]+-[A-Z0-9]+)-m([0-4])$/);
+        if (poolMatch) {
+          const gKey = poolMatch[1];
+          const mNum = parseInt(poolMatch[2]);
+          if (mNum === 0) {
+            left = left || assignments[`${gKey}-0`];
+            right = right || assignments[`${gKey}-1`];
+          } else if (mNum === 1) {
+            left = left || assignments[`${gKey}-2`];
+            right = right || assignments[`${gKey}-3`];
+          } else if (mNum === 2) {
+            left = left || resolveWinner(`${gKey}-m0`);
+            right = right || resolveWinner(`${gKey}-m1`);
+          } else if (mNum === 3) {
+            left = left || resolveLoser(`${gKey}-m0`);
+            right = right || resolveLoser(`${gKey}-m1`);
+          } else if (mNum === 4) {
+            left = left || resolveLoser(`${gKey}-m2`);
+            right = right || resolveWinner(`${gKey}-m3`);
+          }
+        }
+      }
+      return { left, right };
+    };
+
     const resolveWinner = (matchId) => {
+      const { left, right } = getMatchTeams(matchId);
+      if (!left && !right) return null;
+      if (left === "—" && right && right !== "—") return right;
+      if (right === "—" && left && left !== "—") return left;
       const meta = metadata[matchId] || {};
       const scoreL = parseInt(meta.scoreL || 0);
       const scoreR = parseInt(meta.scoreR || 0);
       if (scoreL === 0 && scoreR === 0) return null;
-      if (scoreL > scoreR) return assignments[`${matchId}-L`] || null;
-      if (scoreR > scoreL) return assignments[`${matchId}-R`] || null;
-      return null;
+      return scoreL > scoreR ? left : right;
     };
 
     const resolveLoser = (matchId) => {
+      const { left, right } = getMatchTeams(matchId);
+      if (!left && !right) return null;
+      if (left === "—" && right && right !== "—") return "—";
+      if (right === "—" && left && left !== "—") return "—";
       const meta = metadata[matchId] || {};
       const scoreL = parseInt(meta.scoreL || 0);
       const scoreR = parseInt(meta.scoreR || 0);
       if (scoreL === 0 && scoreR === 0) return null;
-      if (scoreL > scoreR) return assignments[`${matchId}-R`] || null;
-      if (scoreR > scoreL) return assignments[`${matchId}-L`] || null;
-      return null;
+      return scoreL > scoreR ? right : left;
     };
 
     if (bracketConfig.subPhaseType === "pool_stepladder" || groupKey.startsWith("pool-gold-")) {

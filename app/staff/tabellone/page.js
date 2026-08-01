@@ -193,17 +193,26 @@ function TabelloneContent() {
     let right = bracketAssignments[`${matchId}-R`];
 
     if (!left || !right) {
-      const poolM0Match = matchId.match(/^([a-z]+-[A-Z])-m0$/);
-      if (poolM0Match) {
-        const groupKey = poolM0Match[1];
-        left = left || bracketAssignments[`${groupKey}-0`];
-        right = right || bracketAssignments[`${groupKey}-1`];
-      }
-      const poolM1Match = matchId.match(/^([a-z]+-[A-Z])-m1$/);
-      if (poolM1Match) {
-        const groupKey = poolM1Match[1];
-        left = left || bracketAssignments[`${groupKey}-2`];
-        right = right || bracketAssignments[`${groupKey}-3`];
+      const poolMatch = matchId.match(/^([a-z]+-[A-Z0-9]+)-m([0-4])$/);
+      if (poolMatch) {
+        const groupKey = poolMatch[1];
+        const mNum = parseInt(poolMatch[2]);
+        if (mNum === 0) {
+          left = left || bracketAssignments[`${groupKey}-0`];
+          right = right || bracketAssignments[`${groupKey}-1`];
+        } else if (mNum === 1) {
+          left = left || bracketAssignments[`${groupKey}-2`];
+          right = right || bracketAssignments[`${groupKey}-3`];
+        } else if (mNum === 2) {
+          left = left || resolveWinner(`${groupKey}-m0`);
+          right = right || resolveWinner(`${groupKey}-m1`);
+        } else if (mNum === 3) {
+          left = left || resolveLoser(`${groupKey}-m0`);
+          right = right || resolveLoser(`${groupKey}-m1`);
+        } else if (mNum === 4) {
+          left = left || resolveLoser(`${groupKey}-m2`);
+          right = right || resolveWinner(`${groupKey}-m3`);
+        }
       }
     }
     return { left, right };
