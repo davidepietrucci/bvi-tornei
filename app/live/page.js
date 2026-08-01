@@ -917,10 +917,19 @@ export default function PortaleLiveMobile() {
     );
   };
 
-  const isFemminile = (selectedTorneoObj?.categoria || "").toLowerCase().includes("femminile") || (selectedTorneo || "").toLowerCase().includes("femminile") || selectedTorneo === "Prova";
-  const bgImage = isFemminile
-    ? (selectedTorneoObj?.sfondo || "/images/femminile-bg.jpg")
-    : (selectedTorneoObj?.sfondo || null);
+  const getTournamentBgImage = (torneoObj, torneoNome) => {
+    if (torneoObj?.sfondo) return torneoObj.sfondo;
+    const cat = (torneoObj?.categoria || "").toLowerCase();
+    const nome = (torneoNome || "").toLowerCase();
+    if (cat.includes("femminile") || nome.includes("femminile") || nome === "prova") {
+      return "/images/femminile-bg.jpg";
+    }
+    if (cat.includes("maschile") || nome.includes("maschile")) {
+      return "/images/maschile-bg.jpg";
+    }
+    return null;
+  };
+  const bgImage = getTournamentBgImage(selectedTorneoObj, selectedTorneo);
 
   return (
     <main className="min-h-screen bg-[#f0f4ff] pb-24 relative">
