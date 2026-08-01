@@ -295,12 +295,42 @@ export default function AtletaGironi() {
       return true;
     };
 
+    const isRealTeamName = (nameStr) => {
+      if (!nameStr) return false;
+      const s = String(nameStr).trim().toLowerCase();
+      if (
+        s === "" ||
+        s === "—" ||
+        s === "tbd" ||
+        s === "slot libero" ||
+        s.startsWith("tbd") ||
+        s.startsWith("vincente") ||
+        s.startsWith("perdente") ||
+        /^[0-9]+[°a-z]/.test(s) ||
+        s.includes("gold-") ||
+        s.includes("silver-") ||
+        s.includes("quarto") ||
+        s.includes("ottavo") ||
+        s.includes("semifinale")
+      ) {
+        return false;
+      }
+      return true;
+    };
+
+    const hasRealNames = (matchIds) => {
+      return matchIds.some(id => isRealTeamName(assignments[`${id}-L`]) || isRealTeamName(assignments[`${id}-R`]));
+    };
+
     // Filtra quali ID partita sono attualmente visibili
     const visibleMatchIds = [];
     if (bracketConfig.phaseType === "gold_silver" || bracketConfig.phaseType === "single") {
-      const isGroups = bracketConfig.phaseType === "gold_silver" && bracketConfig.subPhaseType === "groups";
+      const isGroups = bracketConfig.phaseType === "gold_silver" && (
+        bracketConfig.subPhaseType === "groups" || 
+        bracketConfig.subPhaseType === "pool_stepladder" || 
+        bracketConfig.subPhaseType === "custom_18"
+      );
       if (isGroups) {
-        // --- GROUPS FLOW ---
         let goldSlots = 0;
         let silverSlots = 0;
         if (config && config.numGironi) {
@@ -314,26 +344,47 @@ export default function AtletaGironi() {
         const autoNumGoldGironi = goldSlots > 4 ? 2 : 1;
         const autoNumSilverGironi = silverSlots > 4 ? 2 : 1;
 
-        const numGoldGironi = bracketConfig.numGoldGironi !== undefined && bracketConfig.numGoldGironi !== 0 ? bracketConfig.numGoldGironi : autoNumGoldGironi;
-        const numSilverGironi = bracketConfig.numSilverGironi !== undefined && bracketConfig.numSilverGironi !== 0 ? bracketConfig.numSilverGironi : autoNumSilverGironi;
-        const teamsPerGoldGirone = bracketConfig.teamsPerGoldGirone || 4;
-        const teamsPerSilverGirone = bracketConfig.teamsPerSilverGirone || 4;
+        const numGoldGironi = bracketConfig.subPhaseType === "custom_18" ? 4 : (bracketConfig.numGoldGironi !== undefined && bracketConfig.numGoldGironi !== 0 ? bracketConfig.numGoldGironi : autoNumGoldGironi);
+        const numSilverGironi = bracketConfig.subPhaseType === "custom_18" ? 2 : (bracketConfig.numSilverGironi !== undefined && bracketConfig.numSilverGironi !== 0 ? bracketConfig.numSilverGironi : autoNumSilverGironi);
+        const teamsPerGoldGirone = bracketConfig.subPhaseType === "custom_18" ? 3 : (bracketConfig.teamsPerGoldGirone || 4);
+        const teamsPerSilverGirone = bracketConfig.subPhaseType === "custom_18" ? 3 : (bracketConfig.teamsPerSilverGirone || 4);
+
+        const isStepladder = bracketConfig.subPhaseType === "pool_stepladder";
 
         const goldGroupsDone = areIntermediateGroupsCompleted("gold", numGoldGironi, teamsPerGoldGirone);
+        const goldQuartiDone = isRoundCompleted(isStepladder ? ["gold-q1", "gold-q2"] : ["gold-q1", "gold-q2", "gold-q3", "gold-q4"]);
         const goldSemifinalsDone = isRoundCompleted(["gold-s1", "gold-s2"]);
 
         const silverGroupsDone = areIntermediateGroupsCompleted("silver", numSilverGironi, teamsPerSilverGirone);
+        const silverQuartiDone = isRoundCompleted(isStepladder ? ["silver-q1", "silver-q2"] : ["silver-q1", "silver-q2", "silver-q3", "silver-q4"]);
         const silverSemifinalsDone = isRoundCompleted(["silver-s1", "silver-s2"]);
 
-        if (goldGroupsDone) visibleMatchIds.push("gold-s1", "gold-s2");
-        if (goldGroupsDone && goldSemifinalsDone) visibleMatchIds.push("gold-f3", "gold-f1");
-        if (silverGroupsDone) visibleMatchIds.push("silver-s1", "silver-s2");
-        if (silverGroupsDone && silverSemifinalsDone) visibleMatchIds.push("silver-f3", "silver-f1");
+        if (isStepladder) {
+          if (goldGroupsDone || hasRealNames(["gold-o1"])) visibleMatchIds.push("gold-o1");
+          if (goldGroupsDone || hasRealNames(["gold-q1", "gold-q2"])) visibleMatchIds.push("gold-q1", "gold-q2");
+          if (silverGroupsDone || hasRealNames(["silver-o1"])) visibleMatchIds.push("silver-o1");
+          if (silverGroupsDone || hasRealNames(["silver-q1", "silver-q2"])) visibleMatchIds.push("silver-q1", "silver-q2");
+        }
+
+        if (goldGroupsDone || goldQuartiDone || hasRealNames(["gold-s1", "gold-s2"])) {
+          visibleMatchIds.push("gold-s1", "gold-s2");
+        }
+        if (goldSemifinalsDone || hasRealNames(["gold-f3", "gold-f1"])) {
+          visibleMatchIds.push("gold-f3", "gold-f1");
+        }
+
+        if (bracketConfig.subPhaseType !== "custom_18") {
+          if (silverGroupsDone || silverQuartiDone || hasRealNames(["silver-s1", "silver-s2"])) {
+            visibleMatchIds.push("silver-s1", "silver-s2");
+          }
+        }
+        if (silverSemifinalsDone || hasRealNames(["silver-f3", "silver-f1"])) {
+          visibleMatchIds.push("silver-f3", "silver-f1");
+        }
       } else {
         const tToGold = bracketConfig.phaseType === "single" ? (bracketConfig.bracketSize || 8) : (bracketConfig.teamsToGold || 8);
         const tToSilver = bracketConfig.teamsToSilver || 8;
 
-        // Gold
         const goldOttavi = tToGold === 16 
           ? ["gold-o1", "gold-o2", "gold-o3", "gold-o4", "gold-o5", "gold-o6", "gold-o7", "gold-o8"]
           : tToGold === 12 
@@ -348,9 +399,9 @@ export default function AtletaGironi() {
         const goldSemifinaliDone = isRoundCompleted(goldSemifinali);
 
         if (tToGold === 12 || tToGold === 16) visibleMatchIds.push(...goldOttavi);
-        if (tToGold >= 8 && goldOttaviDone) visibleMatchIds.push(...goldQuarti);
-        if (tToGold === 4 || (tToGold >= 8 && goldOttaviDone && goldQuartiDone)) visibleMatchIds.push(...goldSemifinali);
-        if ((tToGold === 4 && goldSemifinaliDone) || (tToGold >= 8 && goldOttaviDone && goldQuartiDone && goldSemifinaliDone)) visibleMatchIds.push(...goldFinali);
+        if (tToGold >= 8 && (goldOttaviDone || hasRealNames(goldQuarti))) visibleMatchIds.push(...goldQuarti);
+        if (tToGold >= 4 && ((tToGold === 4) || (goldOttaviDone && goldQuartiDone) || hasRealNames(goldSemifinali))) visibleMatchIds.push(...goldSemifinali);
+        if (goldSemifinaliDone || hasRealNames(goldFinali)) visibleMatchIds.push(...goldFinali);
 
         // Silver
         if (bracketConfig.phaseType !== "single") {
@@ -368,9 +419,9 @@ export default function AtletaGironi() {
           const silverSemifinaliDone = isRoundCompleted(silverSemifinali);
 
           if (tToSilver === 12 || tToSilver === 16) visibleMatchIds.push(...silverOttavi);
-          if (tToSilver >= 8 && silverOttaviDone) visibleMatchIds.push(...silverQuarti);
-          if (tToSilver === 4 || (tToSilver >= 8 && silverOttaviDone && silverQuartiDone)) visibleMatchIds.push(...silverSemifinali);
-          if ((tToSilver === 4 && silverSemifinaliDone) || (tToSilver >= 8 && silverOttaviDone && silverQuartiDone && silverSemifinaliDone)) visibleMatchIds.push(...silverFinali);
+          if (tToSilver >= 8 && (silverOttaviDone || hasRealNames(silverQuarti))) visibleMatchIds.push(...silverQuarti);
+          if (tToSilver >= 4 && ((tToSilver === 4) || (silverOttaviDone && silverQuartiDone) || hasRealNames(silverSemifinali))) visibleMatchIds.push(...silverSemifinali);
+          if (silverSemifinaliDone || hasRealNames(silverFinali)) visibleMatchIds.push(...silverFinali);
         }
       }
     } else {
