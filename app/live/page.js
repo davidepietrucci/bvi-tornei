@@ -351,6 +351,71 @@ export default function PortaleLiveMobile() {
     const assignments = bracketConfig.bracketAssignments;
     const metadata = bracketConfig.bracketMetadata || {};
 
+    const resolveWinner = (matchId) => {
+      const meta = metadata[matchId] || {};
+      const scoreL = parseInt(meta.scoreL || 0);
+      const scoreR = parseInt(meta.scoreR || 0);
+      if (scoreL === 0 && scoreR === 0) return null;
+      if (scoreL > scoreR) return assignments[`${matchId}-L`] || null;
+      if (scoreR > scoreL) return assignments[`${matchId}-R`] || null;
+      return null;
+    };
+
+    const resolveLoser = (matchId) => {
+      const meta = metadata[matchId] || {};
+      const scoreL = parseInt(meta.scoreL || 0);
+      const scoreR = parseInt(meta.scoreR || 0);
+      if (scoreL === 0 && scoreR === 0) return null;
+      if (scoreL > scoreR) return assignments[`${matchId}-R`] || null;
+      if (scoreR > scoreL) return assignments[`${matchId}-L`] || null;
+      return null;
+    };
+
+    if (bracketConfig.subPhaseType === "pool_stepladder" || groupKey.startsWith("pool-gold-")) {
+      const t0 = assignments[`${groupKey}-0`];
+      const t1 = assignments[`${groupKey}-1`];
+      const t2 = assignments[`${groupKey}-2`];
+      const t3 = assignments[`${groupKey}-3`];
+
+      const isGold = groupKey.startsWith("gold");
+
+      const winM0 = resolveWinner(`${groupKey}-m0`);
+      const winM1 = resolveWinner(`${groupKey}-m1`);
+      const losM0 = resolveLoser(`${groupKey}-m0`);
+      const losM1 = resolveLoser(`${groupKey}-m1`);
+
+      const winM2 = resolveWinner(`${groupKey}-m2`);
+      const losM2 = resolveLoser(`${groupKey}-m2`);
+      const winM3 = resolveWinner(`${groupKey}-m3`);
+      const losM3 = resolveLoser(`${groupKey}-m3`);
+
+      let poolPairs = [];
+      if (groupKey.startsWith("pool-gold-")) {
+        const isPool1 = groupKey.endsWith("-1");
+        poolPairs = [
+          { label: `Gara 1 (${isPool1 ? '1°A vs 2°B' : '1°B vs 2°A'})`, l: t0, r: t1, matchId: `${groupKey}-m0` },
+          { label: `Gara 2 (${isPool1 ? '1°C vs 2°D' : '1°D vs 2°C'})`, l: t2, r: t3, matchId: `${groupKey}-m1` },
+          { label: "Gara 3 (Vincenti ➔ 1°/2° Pool)", l: winM0 || "Vincente Gara 1", r: winM1 || "Vincente Gara 2", matchId: `${groupKey}-m2` },
+          { label: "Gara 4 (Perdenti ➔ 3°/4° Pool)", l: losM0 || "Perdente Gara 1", r: losM1 || "Perdente Gara 2", matchId: `${groupKey}-m3` },
+        ];
+      } else {
+        poolPairs = [
+          { label: `Gara 1 (${isGold ? '1°A vs 2°B' : '3°A vs 4°B'})`, l: t0, r: t1, matchId: `${groupKey}-m0` },
+          { label: `Gara 2 (${isGold ? '1°C vs 2°D' : '3°C vs 4°D'})`, l: t2, r: t3, matchId: `${groupKey}-m1` },
+          { label: "Gara 3 (Vincenti ➔ 1° in Semifinale)", l: winM0 || "Vincente Gara 1", r: winM1 || "Vincente Gara 2", matchId: `${groupKey}-m2` },
+          { label: "Gara 4 (Perdenti ➔ 4° Eliminato)", l: losM0 || "Perdente Gara 1", r: losM1 || "Perdente Gara 2", matchId: `${groupKey}-m3` },
+          { label: "Gara 5 (Spareggio ➔ 2° ai Quarti, 3° agli Ottavi)", l: losM2 || "Perdente Gara 3", r: winM3 || "Vincente Gara 4", matchId: `${groupKey}-m4` },
+        ];
+      }
+
+      return poolPairs.map((p) => ({
+        label: p.label,
+        left: p.l,
+        right: p.r,
+        meta: metadata[p.matchId] || {},
+      }));
+    }
+
     const isGold = groupKey.startsWith("gold");
     const numTeams = isGold 
       ? (bracketConfig.teamsPerGoldGirone || 4) 
@@ -1424,7 +1489,8 @@ export default function PortaleLiveMobile() {
                                 m.meta,
                                 idx,
                                 `match-${group.id}`,
-                                group.id
+                                group.id,
+                                m.label
                               )
                             )}
                             {groupMatches.length === 0 && (
