@@ -360,9 +360,9 @@ export default function AtletaGironi() {
         const silverSemifinalsDone = isRoundCompleted(["silver-s1", "silver-s2"]);
 
         if (isStepladder) {
-          if (goldGroupsDone || hasRealNames(["gold-o1"])) visibleMatchIds.push("gold-o1");
+          if (numGoldGironi >= 4 && (goldGroupsDone || hasRealNames(["gold-o1"]))) visibleMatchIds.push("gold-o1");
           if (goldGroupsDone || hasRealNames(["gold-q1", "gold-q2"])) visibleMatchIds.push("gold-q1", "gold-q2");
-          if (silverGroupsDone || hasRealNames(["silver-o1"])) visibleMatchIds.push("silver-o1");
+          if (numSilverGironi >= 4 && (silverGroupsDone || hasRealNames(["silver-o1"]))) visibleMatchIds.push("silver-o1");
           if (silverGroupsDone || hasRealNames(["silver-q1", "silver-q2"])) visibleMatchIds.push("silver-q1", "silver-q2");
         }
 
@@ -398,7 +398,7 @@ export default function AtletaGironi() {
         const goldQuartiDone = isRoundCompleted(goldQuarti);
         const goldSemifinaliDone = isRoundCompleted(goldSemifinali);
 
-        if (tToGold === 12 || tToGold === 16) visibleMatchIds.push(...goldOttavi);
+        if ((tToGold === 12 || tToGold === 16) && hasRealNames(goldOttavi)) visibleMatchIds.push(...goldOttavi);
         if (tToGold >= 8 && (goldOttaviDone || hasRealNames(goldQuarti))) visibleMatchIds.push(...goldQuarti);
         if (tToGold >= 4 && ((tToGold === 4) || (goldOttaviDone && goldQuartiDone) || hasRealNames(goldSemifinali))) visibleMatchIds.push(...goldSemifinali);
         if (goldSemifinaliDone || hasRealNames(goldFinali)) visibleMatchIds.push(...goldFinali);
@@ -418,7 +418,7 @@ export default function AtletaGironi() {
           const silverQuartiDone = isRoundCompleted(silverQuarti);
           const silverSemifinaliDone = isRoundCompleted(silverSemifinali);
 
-          if (tToSilver === 12 || tToSilver === 16) visibleMatchIds.push(...silverOttavi);
+          if ((tToSilver === 12 || tToSilver === 16) && hasRealNames(silverOttavi)) visibleMatchIds.push(...silverOttavi);
           if (tToSilver >= 8 && (silverOttaviDone || hasRealNames(silverQuarti))) visibleMatchIds.push(...silverQuarti);
           if (tToSilver >= 4 && ((tToSilver === 4) || (silverOttaviDone && silverQuartiDone) || hasRealNames(silverSemifinali))) visibleMatchIds.push(...silverSemifinali);
           if (silverSemifinaliDone || hasRealNames(silverFinali)) visibleMatchIds.push(...silverFinali);

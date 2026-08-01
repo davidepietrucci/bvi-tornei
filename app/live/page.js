@@ -525,12 +525,18 @@ export default function PortaleLiveMobile() {
         // Gold rounds
         if (isStepladder) {
           const oMatches = [getMatchData("gold-o1", "Incontro Ottavo (3° Pool 1 vs 3° Pool 2)")];
-          if (goldGroupsDone || hasRealNames(oMatches)) {
+          if (numGoldGironi >= 4 && (goldGroupsDone || hasRealNames(oMatches))) {
             list.push({ title: "Ottavi Gold (3° Classificati) 🏆", matches: oMatches });
           }
-          const qMatches = [getMatchData("gold-q1", "Quarto 1"), getMatchData("gold-q2", "Quarto 2")];
+          const qMatches = [
+            getMatchData("gold-q1", numGoldGironi >= 4 ? "Quarto 1" : "Quarto 1 (2° Girone A vs 3° Girone B)"),
+            getMatchData("gold-q2", numGoldGironi >= 4 ? "Quarto 2" : "Quarto 2 (2° Girone B vs 3° Girone A)")
+          ];
           if (goldGroupsDone || hasRealNames(qMatches)) {
-            list.push({ title: "Quarti Gold (2° Classificati) 🏆", matches: qMatches });
+            list.push({ 
+              title: numGoldGironi >= 4 ? "Quarti Gold (2° Classificati) 🏆" : "Quarti Gold (2° vs 3° a Croce) 🏆", 
+              matches: qMatches 
+            });
           }
         }
 
@@ -547,12 +553,18 @@ export default function PortaleLiveMobile() {
         // Silver rounds
         if (isStepladder) {
           const sOMatches = [getMatchData("silver-o1", "Incontro Ottavo (3° Pool 1 vs 3° Pool 2)")];
-          if (silverGroupsDone || hasRealNames(sOMatches)) {
+          if (numSilverGironi >= 4 && (silverGroupsDone || hasRealNames(sOMatches))) {
             list.push({ title: "Ottavi Silver (3° Classificati) 🥈", matches: sOMatches });
           }
-          const sQMatches = [getMatchData("silver-q1", "Quarto 1"), getMatchData("silver-q2", "Quarto 2")];
+          const sQMatches = [
+            getMatchData("silver-q1", numSilverGironi >= 4 ? "Quarto 1" : "Quarto 1 (2° Girone A vs 3° Girone B)"),
+            getMatchData("silver-q2", numSilverGironi >= 4 ? "Quarto 2" : "Quarto 2 (2° Girone B vs 3° Girone A)")
+          ];
           if (silverGroupsDone || hasRealNames(sQMatches)) {
-            list.push({ title: "Quarti Silver (2° Classificati) 🥈", matches: sQMatches });
+            list.push({ 
+              title: numSilverGironi >= 4 ? "Quarti Silver (2° Classificati) 🥈" : "Quarti Silver (2° vs 3° a Croce) 🥈", 
+              matches: sQMatches 
+            });
           }
           const sSMatches = [getMatchData("silver-s1", "Semifinale 1"), getMatchData("silver-s2", "Semifinale 2")];
           if (silverGroupsDone || silverQuartiDone || hasRealNames(sSMatches)) {
@@ -638,7 +650,9 @@ export default function PortaleLiveMobile() {
                 getMatchData("gold-o1", "Ottavo 1"), getMatchData("gold-o2", "Ottavo 2"),
                 getMatchData("gold-o3", "Ottavo 3"), getMatchData("gold-o4", "Ottavo 4")
               ];
-          list.push({ title: bracketConfig.phaseType === "single" ? "Ottavi di Finale 🏆" : "Ottavi Gold 🏆", matches: oMatches });
+          if (hasRealNames(oMatches)) {
+            list.push({ title: bracketConfig.phaseType === "single" ? "Ottavi di Finale 🏆" : "Ottavi Gold 🏆", matches: oMatches });
+          }
         }
 
         if (tToGold >= 8) {
@@ -677,7 +691,9 @@ export default function PortaleLiveMobile() {
                   getMatchData("silver-o1", "Ottavo 1"), getMatchData("silver-o2", "Ottavo 2"),
                   getMatchData("silver-o3", "Ottavo 3"), getMatchData("silver-o4", "Ottavo 4")
                 ];
-            list.push({ title: "Ottavi Silver 🥈", matches: sOMatches });
+            if (hasRealNames(sOMatches)) {
+              list.push({ title: "Ottavi Silver 🥈", matches: sOMatches });
+            }
           }
 
           if (tToSilver >= 8) {
