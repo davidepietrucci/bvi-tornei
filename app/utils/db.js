@@ -33,8 +33,25 @@ function safeJsonParse(str, fallback) {
   }
 }
 
-// Helper per eseguire chiamate HTTP sicure dal Client verso l'API del Server
+// Helper per eseguire chiamate HTTP sicure dal Client verso l'API del Server o direttamente su Firestore Client
 async function fetchFromServerDb(type, slug = null) {
+  if (db && typeof window !== "undefined") {
+    try {
+      const docId = slug ? `${type}_${slug}` : type;
+      const docRef = doc(db, "config", docId);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const snapData = docSnap.data();
+        const result = snapData?.list !== undefined ? snapData.list : snapData?.data;
+        if (result !== undefined && result !== null) {
+          return result;
+        }
+      }
+    } catch (e) {
+      console.warn(`Firestore Client read failed for ${type}, falling back to Server API:`, e);
+    }
+  }
+
   let url = `/api/db?type=${type}`;
   if (slug) url += `&slug=${slug}`;
   try {
@@ -114,6 +131,16 @@ export function syncAssignmentsWithIscrizioni(assignments, iscrizioniList) {
 }
 
 async function saveToServerDb(type, data, slug = null) {
+  if (db && typeof window !== "undefined") {
+    try {
+      const docId = slug ? `${type}_${slug}` : type;
+      const docRef = doc(db, "config", docId);
+      await setDoc(docRef, { list: data, data: data, updatedAt: Date.now() });
+    } catch (e) {
+      console.warn(`Firestore Client write failed for ${type}:`, e);
+    }
+  }
+
   let url = `/api/db`;
   try {
     const res = await fetch(url, {
