@@ -77,17 +77,20 @@ async function getConfigDoc(docId, fallback = []) {
       const docRef = db.collection("config").doc(docId);
       const docSnap = await docRef.get();
       if (docSnap.exists) {
-        return docSnap.data().list || fallback;
+        const list = docSnap.data()?.list;
+        if (list !== undefined && list !== null) {
+          return list;
+        }
       }
     } catch (e) {
       console.error(`Firestore read config/${docId} error:`, e);
     }
-    return fallback;
   }
   return getLocalFileDb(docId, null, fallback);
 }
 
 async function saveConfigDoc(docId, list) {
+  saveLocalFileDb(docId, list);
   if (db) {
     try {
       const docRef = db.collection("config").doc(docId);
@@ -95,9 +98,7 @@ async function saveConfigDoc(docId, list) {
     } catch (e) {
       console.error(`Firestore write config/${docId} error:`, e);
     }
-    return;
   }
-  saveLocalFileDb(docId, list);
 }
 
 async function getSpecificDoc(collectionId, docId, fallback = null) {
@@ -106,17 +107,20 @@ async function getSpecificDoc(collectionId, docId, fallback = null) {
       const docRef = db.collection(collectionId).doc(docId);
       const docSnap = await docRef.get();
       if (docSnap.exists) {
-        return docSnap.data().data || fallback;
+        const data = docSnap.data()?.data;
+        if (data !== undefined && data !== null) {
+          return data;
+        }
       }
     } catch (e) {
       console.error(`Firestore read ${collectionId}/${docId} error:`, e);
     }
-    return fallback;
   }
   return getLocalFileDb(collectionId, docId, fallback);
 }
 
 async function saveSpecificDoc(collectionId, docId, data) {
+  saveLocalFileDb(collectionId, data, docId);
   if (db) {
     try {
       const docRef = db.collection(collectionId).doc(docId);
@@ -124,9 +128,7 @@ async function saveSpecificDoc(collectionId, docId, data) {
     } catch (e) {
       console.error(`Firestore write ${collectionId}/${docId} error:`, e);
     }
-    return;
   }
-  saveLocalFileDb(collectionId, data, docId);
 }
 
 export async function getTornei() {

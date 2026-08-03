@@ -150,12 +150,20 @@ export async function getTornei() {
   }
 
   const serverData = await fetchFromServerDb("tornei");
-  if (serverData !== null) {
+  if (serverData !== null && Array.isArray(serverData) && serverData.length > 0) {
     localStorage.setItem("bvi_tornei", JSON.stringify(serverData));
     return serverData;
   }
   const saved = localStorage.getItem("bvi_tornei");
-  return safeJsonParse(saved, []);
+  const parsed = safeJsonParse(saved, null);
+  if (parsed !== null && Array.isArray(parsed) && parsed.length > 0) {
+    return parsed;
+  }
+  if (serverData !== null) {
+    localStorage.setItem("bvi_tornei", JSON.stringify(serverData));
+    return serverData;
+  }
+  return [];
 }
 
 export async function saveTornei(list) {
@@ -177,12 +185,20 @@ export async function getIscrizioni() {
   }
 
   const serverData = await fetchFromServerDb("iscrizioni");
-  if (serverData !== null) {
+  if (serverData !== null && Array.isArray(serverData) && serverData.length > 0) {
     localStorage.setItem("bvi_iscrizioni", JSON.stringify(serverData));
     return serverData;
   }
   const saved = localStorage.getItem("bvi_iscrizioni");
-  return safeJsonParse(saved, []);
+  const parsed = safeJsonParse(saved, null);
+  if (parsed !== null && Array.isArray(parsed) && parsed.length > 0) {
+    return parsed;
+  }
+  if (serverData !== null) {
+    localStorage.setItem("bvi_iscrizioni", JSON.stringify(serverData));
+    return serverData;
+  }
+  return [];
 }
 
 export async function saveIscrizioni(list) {
@@ -205,12 +221,14 @@ export async function getGironi(slug) {
   }
 
   const serverData = await fetchFromServerDb("gironi", slug);
-  if (serverData !== null) {
-    if (serverData) localStorage.setItem(key, JSON.stringify(serverData));
+  if (serverData !== null && serverData) {
+    localStorage.setItem(key, JSON.stringify(serverData));
     return serverData;
   }
   const saved = localStorage.getItem(key);
-  return safeJsonParse(saved, null);
+  const parsed = safeJsonParse(saved, null);
+  if (parsed !== null) return parsed;
+  return serverData;
 }
 
 export async function saveGironi(slug, data) {
@@ -234,12 +252,14 @@ export async function getBracket(slug) {
   }
 
   const serverData = await fetchFromServerDb("bracket", slug);
-  if (serverData !== null) {
-    if (serverData) localStorage.setItem(key, JSON.stringify(serverData));
+  if (serverData !== null && serverData) {
+    localStorage.setItem(key, JSON.stringify(serverData));
     return serverData;
   }
   const saved = localStorage.getItem(key);
-  return safeJsonParse(saved, null);
+  const parsed = safeJsonParse(saved, null);
+  if (parsed !== null) return parsed;
+  return serverData;
 }
 
 export async function saveBracket(slug, data) {
@@ -262,12 +282,20 @@ export async function getUsers() {
   }
 
   const serverData = await fetchFromServerDb("users");
-  if (serverData !== null) {
+  if (serverData !== null && Array.isArray(serverData) && serverData.length > 0) {
     localStorage.setItem("bvi_users", JSON.stringify(serverData));
     return serverData;
   }
   const saved = localStorage.getItem("bvi_users");
-  return safeJsonParse(saved, []);
+  const parsed = safeJsonParse(saved, null);
+  if (parsed !== null && Array.isArray(parsed) && parsed.length > 0) {
+    return parsed;
+  }
+  if (serverData !== null) {
+    localStorage.setItem("bvi_users", JSON.stringify(serverData));
+    return serverData;
+  }
+  return [];
 }
 
 export async function saveUsers(list) {
@@ -289,12 +317,20 @@ export async function getModuli() {
   }
 
   const serverData = await fetchFromServerDb("moduli");
-  if (serverData !== null) {
+  if (serverData !== null && Array.isArray(serverData) && serverData.length > 0) {
     localStorage.setItem("bvi_moduli", JSON.stringify(serverData));
     return serverData;
   }
   const saved = localStorage.getItem("bvi_moduli");
-  return safeJsonParse(saved, []);
+  const parsed = safeJsonParse(saved, null);
+  if (parsed !== null && Array.isArray(parsed) && parsed.length > 0) {
+    return parsed;
+  }
+  if (serverData !== null) {
+    localStorage.setItem("bvi_moduli", JSON.stringify(serverData));
+    return serverData;
+  }
+  return [];
 }
 
 export async function saveModuli(list) {
@@ -316,12 +352,20 @@ export async function getNotifiche() {
   }
 
   const serverData = await fetchFromServerDb("notifiche");
-  if (serverData !== null) {
+  if (serverData !== null && Array.isArray(serverData) && serverData.length > 0) {
     localStorage.setItem("bvi_notifiche", JSON.stringify(serverData));
     return serverData;
   }
   const saved = localStorage.getItem("bvi_notifiche");
-  return safeJsonParse(saved, []);
+  const parsed = safeJsonParse(saved, null);
+  if (parsed !== null && Array.isArray(parsed) && parsed.length > 0) {
+    return parsed;
+  }
+  if (serverData !== null) {
+    localStorage.setItem("bvi_notifiche", JSON.stringify(serverData));
+    return serverData;
+  }
+  return [];
 }
 
 export async function saveNotifiche(list) {
@@ -343,12 +387,20 @@ export async function getStaff() {
   }
 
   const serverData = await fetchFromServerDb("staff");
-  if (serverData !== null) {
+  if (serverData !== null && Array.isArray(serverData) && serverData.length > 0) {
     localStorage.setItem("bvi_staff", JSON.stringify(serverData));
     return serverData;
   }
   const saved = localStorage.getItem("bvi_staff");
-  return safeJsonParse(saved, []);
+  const parsed = safeJsonParse(saved, null);
+  if (parsed !== null && Array.isArray(parsed) && parsed.length > 0) {
+    return parsed;
+  }
+  if (serverData !== null) {
+    localStorage.setItem("bvi_staff", JSON.stringify(serverData));
+    return serverData;
+  }
+  return [];
 }
 
 export async function saveStaff(list) {
@@ -370,12 +422,20 @@ export async function getSponsors() {
   }
 
   const serverData = await fetchFromServerDb("sponsors");
-  if (serverData !== null) {
+  if (serverData !== null && Array.isArray(serverData) && serverData.length > 0) {
     localStorage.setItem("bvi_sponsors", JSON.stringify(serverData));
     return serverData;
   }
   const saved = localStorage.getItem("bvi_sponsors");
-  return safeJsonParse(saved, []);
+  const parsed = safeJsonParse(saved, null);
+  if (parsed !== null && Array.isArray(parsed) && parsed.length > 0) {
+    return parsed;
+  }
+  if (serverData !== null) {
+    localStorage.setItem("bvi_sponsors", JSON.stringify(serverData));
+    return serverData;
+  }
+  return [];
 }
 
 export async function saveSponsors(list) {
