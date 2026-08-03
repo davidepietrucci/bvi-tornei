@@ -899,8 +899,8 @@ function TabelloneContent() {
           currentGoldSlots += Math.min(2, count);
           currentSilverSlots += Math.min(2, Math.max(0, count - 2));
         }
-        const autoNumGoldGironi = currentGoldSlots > 4 ? 2 : 1;
-        const autoNumSilverGironi = currentSilverSlots > 4 ? 2 : 1;
+        const autoNumGoldGironi = currentGoldSlots >= 12 ? 4 : (currentGoldSlots > 4 ? 2 : 1);
+        const autoNumSilverGironi = currentSilverSlots >= 12 ? 4 : (currentSilverSlots > 4 ? 2 : 1);
 
         const currentNumGoldGironi = numGoldGironiOpt > 0 ? numGoldGironiOpt : autoNumGoldGironi;
         const currentNumSilverGironi = numSilverGironiOpt > 0 ? numSilverGironiOpt : autoNumSilverGironi;
@@ -913,7 +913,7 @@ function TabelloneContent() {
           return splitNames(s.nome).map(formatPlayerName).join(" - ");
         });
 
-        // 1. Gold Assignments
+        // 1. Gold Assignments (Snake Draft)
         const goldFilled = Array(currentNumGoldGironi).fill(0);
         const totalGoldTeamsNeeded = currentNumGoldGironi * currentTeamsPerGoldGirone;
         for (let idx = 0; idx < totalGoldTeamsNeeded; idx++) {
@@ -929,7 +929,7 @@ function TabelloneContent() {
           }
         }
 
-        // 2. Silver Assignments
+        // 2. Silver Assignments (Snake Draft)
         const silverFilled = Array(currentNumSilverGironi).fill(0);
         const totalSilverTeamsNeeded = currentNumSilverGironi * currentTeamsPerSilverGirone;
         for (let idx = 0; idx < totalSilverTeamsNeeded; idx++) {
@@ -946,7 +946,7 @@ function TabelloneContent() {
           }
         }
       } else {
-        // 1. Gold Assignments
+        // 1. Gold Assignments (True Snake Draft)
         const goldFilled = Array(currentNumGoldGironi).fill(0);
         for (let rank = 0; rank < 2; rank++) {
           for (let gIdx = 0; gIdx < numGironi; gIdx++) {
@@ -954,7 +954,8 @@ function TabelloneContent() {
             const count = gConfig.teamCounts[gid] || 0;
             if (rank < count) {
               const team = getRanked(gid, rank);
-              const targetGroupIdx = (gIdx + rank) % currentNumGoldGironi;
+              const effectiveGIdx = gIdx % currentNumGoldGironi;
+              const targetGroupIdx = (rank % 2 === 0) ? effectiveGIdx : (currentNumGoldGironi - 1 - effectiveGIdx);
               const targetLetter = String.fromCharCode(65 + targetGroupIdx);
               const slotIdx = goldFilled[targetGroupIdx];
               if (slotIdx < currentTeamsPerGoldGirone) {
@@ -965,7 +966,7 @@ function TabelloneContent() {
           }
         }
 
-        // 2. Silver Assignments
+        // 2. Silver Assignments (True Snake Draft)
         const silverFilled = Array(currentNumSilverGironi).fill(0);
         let maxTeams = 0;
         for (let i = 0; i < numGironi; i++) {
@@ -978,7 +979,9 @@ function TabelloneContent() {
             const count = gConfig.teamCounts[gid] || 0;
             if (rank < count) {
               const team = getRanked(gid, rank);
-              const targetGroupIdx = (gIdx + rank) % currentNumSilverGironi;
+              const effectiveGIdx = gIdx % currentNumSilverGironi;
+              const relativeRank = rank - 2;
+              const targetGroupIdx = (relativeRank % 2 === 0) ? effectiveGIdx : (currentNumSilverGironi - 1 - effectiveGIdx);
               const targetLetter = String.fromCharCode(65 + targetGroupIdx);
               const slotIdx = silverFilled[targetGroupIdx];
               if (slotIdx < currentTeamsPerSilverGirone) {
@@ -988,6 +991,7 @@ function TabelloneContent() {
             }
           }
         }
+      }
 
         // Pad remainder with "—" up to limit
         for (let targetGroupIdx = 0; targetGroupIdx < currentNumGoldGironi; targetGroupIdx++) {
@@ -1002,7 +1006,6 @@ function TabelloneContent() {
             newAssignments[`silver-${targetLetter}-${slotIdx}`] = "—";
           }
         }
-      }
       }
     } else {
       let totalSlots = 0;
