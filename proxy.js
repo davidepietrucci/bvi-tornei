@@ -50,11 +50,10 @@ export default clerkMiddleware(async (auth, request) => {
   }
 
   // 3. Role-based protection (only if logged in)
-  const role = sessionClaims?.metadata?.role || "atleta";
+  const userRole = sessionClaims?.metadata?.role || sessionClaims?.publicMetadata?.role;
 
-  // Prevent athletes from accessing staff pages
-  if (pathname.startsWith('/staff') && role !== 'admin' && role !== 'staff') {
-    // Redirect athletes attempting to access staff area to athlete dashboard
+  // Only redirect if explicitly marked as 'atleta'
+  if (pathname.startsWith('/staff') && userRole === 'atleta') {
     return NextResponse.redirect(new URL('/atleta/dashboard', request.url));
   }
 
