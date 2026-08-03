@@ -64,7 +64,16 @@ export default function StaffPagamenti() {
     caricaDati();
     const handleFocus = () => caricaDati();
     window.addEventListener("focus", handleFocus);
-    return () => window.removeEventListener("focus", handleFocus);
+
+    // Poll every 4 seconds for instant real-time sync across devices
+    const interval = setInterval(() => {
+      caricaDati();
+    }, 4000);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      clearInterval(interval);
+    };
   }, []);
 
   const salvaModifiche = async (newData) => {

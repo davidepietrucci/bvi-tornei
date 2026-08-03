@@ -109,17 +109,33 @@ export default function StaffIscrizioni() {
     alert("Iscrizione modificata e sincronizzata con successo! 💾");
   };
 
-  useEffect(() => {
-    getIscrizioni().then(data => {
-      setIscrizioni(data);
-    });
-
-    getTornei().then(parsed => {
-      setTornei(parsed);
-      if (parsed.length > 0) {
+  const caricaDati = async () => {
+    try {
+      const data = await getIscrizioni();
+      setIscrizioni(data || []);
+      const parsed = await getTornei();
+      setTornei(parsed || []);
+      if (parsed && parsed.length > 0 && !selectedTorneoImport) {
         setSelectedTorneoImport(parsed[0].nome);
       }
-    });
+    } catch (err) {
+      console.error("Errore ricaricamento iscrizioni:", err);
+    }
+  };
+
+  useEffect(() => {
+    caricaDati();
+    const handleFocus = () => caricaDati();
+    window.addEventListener("focus", handleFocus);
+
+    const interval = setInterval(() => {
+      caricaDati();
+    }, 4000);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      clearInterval(interval);
+    };
   }, []);
 
   const handleApprove = async (id) => {
