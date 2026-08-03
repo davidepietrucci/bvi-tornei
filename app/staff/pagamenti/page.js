@@ -65,7 +65,7 @@ export default function StaffPagamenti() {
 
   const segnaSaldato = (id) => {
     const newData = iscrizioni.map(isc => 
-      isc.id === id 
+      String(isc.id) === String(id) 
         ? { ...isc, quotaPagata: isc.quotaTotale, pagatoPlayer1: true, pagatoPlayer2: true } 
         : isc
     );
@@ -74,7 +74,7 @@ export default function StaffPagamenti() {
 
   const registraAcconto = (id, importo) => {
     const newData = iscrizioni.map(isc => {
-      if (isc.id === id) {
+      if (String(isc.id) === String(id)) {
         const players = (isc.giocatori || "").split("-").map(p => p.trim()).filter(Boolean);
         const numPlayers = players.length;
 
@@ -115,7 +115,7 @@ export default function StaffPagamenti() {
 
   const togglePlayerPayment = (id, playerIndex) => {
     const newData = iscrizioni.map(isc => {
-      if (isc.id === id) {
+      if (String(isc.id) === String(id)) {
         const players = (isc.giocatori || "").split("-").map(p => p.trim()).filter(Boolean);
         const numPlayers = players.length;
 
@@ -151,7 +151,7 @@ export default function StaffPagamenti() {
 
   const azzeraPagamento = (id) => {
     const newData = iscrizioni.map(isc => 
-      isc.id === id 
+      String(isc.id) === String(id) 
         ? { ...isc, quotaPagata: 0, pagatoPlayer1: false, pagatoPlayer2: false } 
         : isc
     );

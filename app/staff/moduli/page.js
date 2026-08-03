@@ -73,7 +73,7 @@ export default function ModuliPage() {
     if (!window.confirm("Sei sicuro di voler eliminare questo modulo? Tutti i tornei collegati torneranno al modulo standard.")) {
       return;
     }
-    const updated = moduli.filter(m => m.id !== id);
+    const updated = moduli.filter(m => String(m.id) !== String(id));
     setModuli(updated);
     await saveModuli(updated);
   };
@@ -206,8 +206,8 @@ export default function ModuliPage() {
       campi: forcedCampi
     };
 
-    const updatedModuli = moduli.some(m => m.id === formToSave.id)
-      ? moduli.map(m => m.id === formToSave.id ? formToSave : m)
+    const updatedModuli = moduli.some(m => String(m.id) === String(formToSave.id))
+      ? moduli.map(m => String(m.id) === String(formToSave.id) ? formToSave : m)
       : [...moduli, formToSave];
 
     setModuli(updatedModuli);
@@ -259,7 +259,7 @@ export default function ModuliPage() {
 
             {/* Lista Moduli Custom */}
             {moduli.map(m => {
-              const collegati = tornei.filter(t => t.moduloIscrizioneId === m.id);
+              const collegati = tornei.filter(t => String(t.moduloIscrizioneId) === String(m.id));
               return (
                 <div key={m.id} className="bg-white rounded-3xl p-6 border border-gray-100 shadow-md relative overflow-hidden flex flex-col justify-between min-h-[200px] hover:shadow-lg transition-all">
                   <div className="absolute top-0 left-0 right-0 h-2 bg-indigo-500"></div>

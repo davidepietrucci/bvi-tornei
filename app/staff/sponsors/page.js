@@ -64,12 +64,9 @@ export default function StaffSponsorsPage() {
   };
 
   const handleRemoveSponsor = async (id) => {
-    if (typeof window !== "undefined" && !window.confirm("Sei sicuro di voler eliminare questo sponsor?")) {
-      return;
-    }
-
+    if (!confirm("Sei sicuro di voler eliminare questo sponsor?")) return;
     setIsSaving(true);
-    const updatedSponsors = sponsorsList.filter((sp) => sp.id !== id);
+    const updatedSponsors = sponsorsList.filter((sp) => String(sp.id) !== String(id));
     setSponsorsList(updatedSponsors);
 
     try {

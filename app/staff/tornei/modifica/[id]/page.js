@@ -51,7 +51,7 @@ export default function ModificaTorneo() {
   const handleDelete = async () => {
     if (confirm("Sei sicuro di voler eliminare definitivamente questo torneo?")) {
       const tornei = await getTornei();
-      const updated = tornei.filter(t => t.id !== torneoId);
+      const updated = tornei.filter(t => String(t.id) !== String(torneoId));
       await saveTornei(updated);
       router.push("/staff/tornei");
     }
