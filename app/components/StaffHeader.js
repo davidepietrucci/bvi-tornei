@@ -113,7 +113,7 @@ export default function StaffHeader() {
       {/* Mobile Sidebar Overlay */}
       {isMenuOpen && (
         <div className="fixed inset-0 bg-black/50 z-[110] xl:hidden" onClick={() => setIsMenuOpen(false)}>
-          <div className="absolute right-0 top-0 h-full w-72 bg-white shadow-2xl p-6 flex flex-col gap-6 animate-in slide-in-from-right" onClick={e => e.stopPropagation()}>
+          <div className="absolute right-0 top-0 h-full w-72 max-h-screen overflow-y-auto bg-white shadow-2xl p-6 flex flex-col gap-6 animate-in slide-in-from-right" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center border-b pb-4">
                 <span className="font-black text-[#0a1628]">MENU STAFF</span>
                 <button onClick={() => setIsMenuOpen(false)} className="text-2xl">✕</button>

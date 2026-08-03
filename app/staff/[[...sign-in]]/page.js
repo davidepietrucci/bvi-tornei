@@ -35,8 +35,17 @@ export default function StaffLogin() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center px-4" style={{backgroundColor: "#f0f4ff"}}>
-      <div className="my-8">
+    <main className="min-h-screen flex flex-col items-center justify-center px-4 py-8" style={{backgroundColor: "#f0f4ff"}}>
+      <a
+        href="/"
+        className="mb-4 inline-flex items-center gap-2 px-5 py-2.5 bg-white text-[#0a1628] rounded-xl font-black text-xs uppercase tracking-widest shadow-md border border-gray-200 hover:bg-gray-50 hover:scale-105 active:scale-95 transition-all"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+        </svg>
+        Torna alla Home
+      </a>
+      <div className="my-4">
         <SignIn
           appearance={{
             elements: {

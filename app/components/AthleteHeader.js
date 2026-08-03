@@ -117,7 +117,7 @@ export default function AthleteHeader() {
           onClick={() => setIsMenuOpen(false)}
         >
           <div
-            className="absolute right-0 top-0 h-full w-[80vw] max-w-[18rem] bg-white shadow-2xl flex flex-col"
+            className="absolute right-0 top-0 h-full w-[80vw] max-w-[18rem] max-h-screen overflow-y-auto bg-white shadow-2xl flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Sidebar header */}
