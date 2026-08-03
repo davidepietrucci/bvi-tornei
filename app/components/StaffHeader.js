@@ -11,13 +11,31 @@ export default function StaffHeader() {
   const router = useRouter();
   const pathname = usePathname();
   const { user, isLoaded } = useUser();
-  const { signOut } = useClerk();
   const [role, setRole] = useState("admin");
   const [username, setUsername] = useState("");
   const [dbConnected, setDbConnected] = useState(false);
+  const [dbStatusText, setDbStatusText] = useState("Verifica Database...");
 
   useEffect(() => {
-    setDbConnected(isUsingFirebase());
+    fetch(`/api/db?type=status&_t=${Date.now()}`)
+      .then(res => res.json())
+      .then(json => {
+        const st = json.status;
+        if (st && st.isConnected) {
+          setDbConnected(true);
+          setDbStatusText("Database: Cloud ☁️");
+        } else if (st && st.missing && st.missing.length > 0) {
+          setDbConnected(false);
+          setDbStatusText(`Database: Locale ⚠️ (Mancano su Vercel: ${st.missing.join(", ")})`);
+        } else {
+          setDbConnected(isUsingFirebase());
+          setDbStatusText(isUsingFirebase() ? "Database: Cloud ☁️" : "Database: Locale ⚠️");
+        }
+      })
+      .catch(() => {
+        setDbConnected(isUsingFirebase());
+        setDbStatusText(isUsingFirebase() ? "Database: Cloud ☁️" : "Database: Locale ⚠️");
+      });
     
     if (isLoaded && !user) {
       router.push("/staff");
@@ -69,7 +87,7 @@ export default function StaffHeader() {
         <div className="flex flex-col">
           <h1 className="text-xl font-black uppercase tracking-tighter leading-none" style={{color: "#0a1628"}}>BVI Staff</h1>
           <span className={`text-[8px] font-black uppercase tracking-widest mt-1 ${dbConnected ? 'text-green-600' : 'text-amber-600'}`}>
-            {dbConnected ? "Database: Cloud ☁️" : "Database: Locale ⚠️"}
+            {dbStatusText}
           </span>
         </div>
       </div>

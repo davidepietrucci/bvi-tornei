@@ -3,12 +3,23 @@ import { getFirestore } from "firebase-admin/firestore";
 import fs from "fs";
 import path from "path";
 
-const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-const clientEmail = process.env.FIREBASE_CLIENT_EMAIL || process.env.NEXT_PUBLIC_FIREBASE_CLIENT_EMAIL;
-const rawPrivateKey = process.env.FIREBASE_PRIVATE_KEY || process.env.NEXT_PUBLIC_FIREBASE_PRIVATE_KEY;
+let parsedServiceAccount = null;
+const jsonEnv = process.env.FIREBASE_SERVICE_ACCOUNT || process.env.FIREBASE_CONFIG_JSON || process.env.FIREBASE_CREDENTIALS;
+if (jsonEnv) {
+  try {
+    parsedServiceAccount = typeof jsonEnv === "string" ? JSON.parse(jsonEnv) : jsonEnv;
+  } catch (e) {
+    console.warn("Could not parse FIREBASE_SERVICE_ACCOUNT JSON:", e.message);
+  }
+}
+
+const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || parsedServiceAccount?.project_id;
+const clientEmail = process.env.FIREBASE_CLIENT_EMAIL || process.env.NEXT_PUBLIC_FIREBASE_CLIENT_EMAIL || parsedServiceAccount?.client_email;
+const rawPrivateKey = process.env.FIREBASE_PRIVATE_KEY || process.env.NEXT_PUBLIC_FIREBASE_PRIVATE_KEY || parsedServiceAccount?.private_key;
+
 let privateKey = null;
 if (rawPrivateKey) {
-  let cleaned = rawPrivateKey.trim();
+  let cleaned = String(rawPrivateKey).trim();
   if ((cleaned.startsWith('"') && cleaned.endsWith('"')) || (cleaned.startsWith("'") && cleaned.endsWith("'"))) {
     cleaned = cleaned.slice(1, -1);
   }
@@ -35,6 +46,21 @@ if (isFirebaseAdminConfigured) {
   }
 } else {
   console.warn("Firebase Admin SDK is not fully configured (missing projectId, clientEmail, or privateKey).");
+}
+
+export function getDbStatus() {
+  return {
+    isConfigured: isFirebaseAdminConfigured,
+    isConnected: !!db,
+    hasProjectId: !!projectId,
+    hasClientEmail: !!clientEmail,
+    hasPrivateKey: !!privateKey,
+    missing: [
+      !projectId && "FIREBASE_PROJECT_ID",
+      !clientEmail && "FIREBASE_CLIENT_EMAIL",
+      !privateKey && "FIREBASE_PRIVATE_KEY"
+    ].filter(Boolean)
+  };
 }
 
 // Helpers per il salvataggio su file JSON locali (solo lato Server)

@@ -9,7 +9,8 @@ import {
   getBracket, saveBracket,
   getNotifiche, saveNotifiche,
   getStaff, saveStaff,
-  getSponsors, saveSponsors
+  getSponsors, saveSponsors,
+  getDbStatus
 } from "@/app/utils/db-server";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +36,10 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const type = searchParams.get("type");
     const slug = searchParams.get("slug");
+
+    if (type === "status") {
+      return NextResponse.json({ status: getDbStatus() });
+    }
 
     // Controlliamo l'autenticazione per le letture sensibili
     const { userId, sessionClaims } = await auth();
