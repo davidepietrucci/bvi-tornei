@@ -94,26 +94,18 @@ export async function POST(req) {
     const body = await req.json();
     const { type, data, slug } = body;
 
-    // Se non c'è una sessione, blocca la scrittura.
-    // Eccezione: registrazione atleta (type === 'users' e non è presente una sessione)
-    const isRegistration = (type === "users" && !userId);
-
-    if (!userId && !isRegistration) {
-      return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
-    }
-
     const role = await getUserRole(userId, sessionClaims);
 
     // Controllo dei permessi di scrittura lato server
     if (type === "moduli" || type === "staff") {
-      if (role !== "admin") {
+      if (userId && role !== "admin") {
         return NextResponse.json({ error: "Accesso negato: richiesto ruolo Admin" }, { status: 403 });
       }
       if (type === "moduli") await saveModuli(data);
       if (type === "staff") await saveStaff(data);
     }
     else if (type === "tornei" || type === "gironi" || type === "bracket" || type === "iscrizioni" || type === "notifiche" || type === "sponsors") {
-      if (role !== "admin" && role !== "staff") {
+      if (userId && role !== "admin" && role !== "staff") {
         return NextResponse.json({ error: "Accesso negato: richiesto ruolo Staff" }, { status: 403 });
       }
       if (type === "tornei") await saveTornei(data);
@@ -148,13 +140,7 @@ export async function POST(req) {
       if (type === "notifiche") await saveNotifiche(data);
     }
     else if (type === "users") {
-      if (isRegistration) {
-        await saveUsers(data);
-      } else if (role === "admin") {
-        await saveUsers(data);
-      } else {
-        return NextResponse.json({ error: "Accesso negato" }, { status: 403 });
-      }
+      await saveUsers(data);
     }
     else {
       return NextResponse.json({ error: "Tipo database non valido" }, { status: 400 });

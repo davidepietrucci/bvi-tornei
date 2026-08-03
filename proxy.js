@@ -9,8 +9,8 @@ const isPublicRoute = createRouteMatcher([
   '/gironi(.*)',
   '/live(.*)',
   '/iscrizioni(.*)',
+  '/iscritti(.*)',
   '/api/iscrizioni(.*)',
-  '/api/db(.*)',
   // Login and Registration routes
   '/staff',
   '/atleta',
@@ -19,6 +19,11 @@ const isPublicRoute = createRouteMatcher([
 
 export default clerkMiddleware(async (auth, request) => {
   const pathname = request.nextUrl.pathname;
+
+  // Per le API di /api/db lasciamo che Clerk Middleware proceda con il popolamento del contesto auth senza reindirizzamenti
+  if (pathname.startsWith('/api/db')) {
+    return;
+  }
 
   // 1. If it's a public route, let it pass
   if (isPublicRoute(request)) {
