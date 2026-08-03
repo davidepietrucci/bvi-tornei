@@ -543,16 +543,16 @@ function TabelloneContent() {
           update("gold-s2-R", resolveWinner("gold-q1") || "Vincente Quarto 1");
         } else if (currentNumGoldGironi === 2) {
           // Nessun ottavo: quarti a croce (2°A vs 3°B, 2°B vs 3°A)
-          // 1° di ogni girone va diretto in semifinale
+          // 1° di ogni girone va diretto in semifinale incrociato con il vincente del quarto opposto
           update("gold-q1-L", getRankedInt(gA_rank, 1, "2° Gold A"));
           update("gold-q1-R", getRankedInt(gB_rank, 2, "3° Gold B"));
           update("gold-q2-L", getRankedInt(gB_rank, 1, "2° Gold B"));
           update("gold-q2-R", getRankedInt(gA_rank, 2, "3° Gold A"));
 
           update("gold-s1-L", getRankedInt(gA_rank, 0, "1° Gold A"));
-          update("gold-s1-R", resolveWinner("gold-q1") || "Vincente Quarto 1");
+          update("gold-s1-R", resolveWinner("gold-q2") || "Vincente Quarto 2");
           update("gold-s2-L", getRankedInt(gB_rank, 0, "1° Gold B"));
-          update("gold-s2-R", resolveWinner("gold-q2") || "Vincente Quarto 2");
+          update("gold-s2-R", resolveWinner("gold-q1") || "Vincente Quarto 1");
         } else if (currentNumGoldGironi === 1) {
           update("gold-s1-L", getRankedInt(gA_rank, 0, "1° Gold"));
           update("gold-s1-R", getRankedInt(gA_rank, 3, "4° Gold"));
@@ -624,16 +624,16 @@ function TabelloneContent() {
           update("silver-s2-R", resolveWinner("silver-q1") || "Vincente Quarto 1");
         } else if (currentNumSilverGironi === 2) {
           // Nessun ottavo: quarti a croce (2°A vs 3°B, 2°B vs 3°A)
-          // 1° di ogni girone va diretto in semifinale
+          // 1° di ogni girone va diretto in semifinale incrociato con il vincente del quarto opposto
           update("silver-q1-L", getRankedInt(sA_rank, 1, "2° Silver A"));
           update("silver-q1-R", getRankedInt(sB_rank, 2, "3° Silver B"));
           update("silver-q2-L", getRankedInt(sB_rank, 1, "2° Silver B"));
           update("silver-q2-R", getRankedInt(sA_rank, 2, "3° Silver A"));
 
           update("silver-s1-L", getRankedInt(sA_rank, 0, "1° Silver A"));
-          update("silver-s1-R", resolveWinner("silver-q1") || "Vincente Quarto 1");
+          update("silver-s1-R", resolveWinner("silver-q2") || "Vincente Quarto 2");
           update("silver-s2-L", getRankedInt(sB_rank, 0, "1° Silver B"));
-          update("silver-s2-R", resolveWinner("silver-q2") || "Vincente Quarto 2");
+          update("silver-s2-R", resolveWinner("silver-q1") || "Vincente Quarto 1");
         } else if (currentNumSilverGironi === 1) {
           update("silver-s1-L", getRankedInt(sA_rank, 0, "1° Silver"));
           update("silver-s1-R", getRankedInt(sA_rank, 3, "4° Silver"));
