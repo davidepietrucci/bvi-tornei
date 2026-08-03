@@ -6,7 +6,14 @@ import path from "path";
 const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 const clientEmail = process.env.FIREBASE_CLIENT_EMAIL || process.env.NEXT_PUBLIC_FIREBASE_CLIENT_EMAIL;
 const rawPrivateKey = process.env.FIREBASE_PRIVATE_KEY || process.env.NEXT_PUBLIC_FIREBASE_PRIVATE_KEY;
-const privateKey = rawPrivateKey ? rawPrivateKey.replace(/\\n/g, "\n") : null;
+let privateKey = null;
+if (rawPrivateKey) {
+  let cleaned = rawPrivateKey.trim();
+  if ((cleaned.startsWith('"') && cleaned.endsWith('"')) || (cleaned.startsWith("'") && cleaned.endsWith("'"))) {
+    cleaned = cleaned.slice(1, -1);
+  }
+  privateKey = cleaned.replace(/\\n/g, "\n");
+}
 
 const isFirebaseAdminConfigured = !!(projectId && clientEmail && privateKey);
 

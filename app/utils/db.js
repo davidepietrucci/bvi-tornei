@@ -52,7 +52,7 @@ async function fetchFromServerDb(type, slug = null) {
     }
   }
 
-  let url = `/api/db?type=${type}`;
+  let url = `/api/db?type=${type}&_t=${Date.now()}`;
   if (slug) url += `&slug=${slug}`;
   try {
     const res = await fetch(url, {

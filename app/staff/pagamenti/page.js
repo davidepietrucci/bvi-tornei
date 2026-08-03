@@ -12,10 +12,11 @@ export default function StaffPagamenti() {
   const [filtroTorneo, setFiltroTorneo] = useState("Tutti");
   const [cercaTeam, setCercaTeam] = useState("");
 
-  useEffect(() => {
-    Promise.all([getIscrizioni(), getTornei()]).then(([iscrizioniList, torneiList]) => {
+  const caricaDati = async () => {
+    try {
+      const [iscrizioniList, torneiList] = await Promise.all([getIscrizioni(), getTornei()]);
       setTornei(torneiList || []);
-      const data = iscrizioniList.map(isc => {
+      const data = (iscrizioniList || []).map(isc => {
         const torneoInfo = (torneiList || []).find(t => (isc.torneo || "").toLowerCase().trim() === t.nome.toLowerCase().trim()) || (torneiList || []).find(t => isc.torneo && t.nome && isc.torneo.toLowerCase().includes(t.nome.toLowerCase()));
         const quotaTorneo = torneoInfo?.quota !== undefined ? torneoInfo.quota : 40;
 
@@ -25,7 +26,6 @@ export default function StaffPagamenti() {
         let pagatoPlayer1 = isc.pagatoPlayer1;
         let pagatoPlayer2 = isc.pagatoPlayer2;
 
-        // Dynamic initialization from quotaPagata if not explicitly defined in the DB
         if (pagatoPlayer1 === undefined && pagatoPlayer2 === undefined) {
           if (numPlayers <= 1) {
             pagatoPlayer1 = (isc.quotaPagata || 0) >= quotaTorneo;
@@ -55,7 +55,16 @@ export default function StaffPagamenti() {
         };
       });
       setIscrizioni(data);
-    });
+    } catch (err) {
+      console.error("Errore nel caricamento dei dati pagamenti:", err);
+    }
+  };
+
+  useEffect(() => {
+    caricaDati();
+    const handleFocus = () => caricaDati();
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
   }, []);
 
   const salvaModifiche = async (newData) => {
@@ -184,9 +193,18 @@ export default function StaffPagamenti() {
 
       <div className="max-w-6xl mx-auto mt-6 md:mt-10 px-4">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
-            <div>
-                <h2 className="text-3xl md:text-5xl font-black text-[#0a1628] uppercase tracking-tighter leading-none">Pagamenti 💰</h2>
-                <p className="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-widest mt-2">Gestione Incassi e Saldi</p>
+            <div className="flex items-center justify-between w-full md:w-auto gap-4">
+                <div>
+                    <h2 className="text-3xl md:text-5xl font-black text-[#0a1628] uppercase tracking-tighter leading-none">Pagamenti 💰</h2>
+                    <p className="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-widest mt-2">Gestione Incassi e Saldi</p>
+                </div>
+                <button
+                    onClick={caricaDati}
+                    className="px-4 py-2.5 bg-white text-[#0a1628] border border-gray-200 hover:bg-gray-50 rounded-xl text-xs font-black uppercase tracking-wider shadow-sm hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+                    title="Forza aggiornamento dal server"
+                >
+                    🔄 Sincronizza
+                </button>
             </div>
             
             <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
