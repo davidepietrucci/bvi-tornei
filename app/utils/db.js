@@ -149,25 +149,13 @@ export async function getTornei() {
     return await getTornei();
   }
 
-  const saved = localStorage.getItem("bvi_tornei");
-  const localList = safeJsonParse(saved, []);
-
   const serverData = await fetchFromServerDb("tornei");
   if (serverData !== null && Array.isArray(serverData)) {
-    const serverMap = new Map(serverData.map(i => [String(i.id), i]));
-    const merged = [...serverData];
-    
-    localList.forEach(lItem => {
-      if (lItem && lItem.id && !serverMap.has(String(lItem.id))) {
-        merged.push(lItem);
-      }
-    });
-
-    localStorage.setItem("bvi_tornei", JSON.stringify(merged));
-    return merged;
+    localStorage.setItem("bvi_tornei", JSON.stringify(serverData));
+    return serverData;
   }
-
-  return localList;
+  const saved = localStorage.getItem("bvi_tornei");
+  return safeJsonParse(saved, []);
 }
 
 export async function saveTornei(list) {
@@ -188,44 +176,13 @@ export async function getIscrizioni() {
     return await getIscrizioni();
   }
 
-  const saved = localStorage.getItem("bvi_iscrizioni");
-  const localList = safeJsonParse(saved, []);
-
   const serverData = await fetchFromServerDb("iscrizioni");
   if (serverData !== null && Array.isArray(serverData)) {
-    const localMap = new Map(localList.map(i => [String(i.id), i]));
-    
-    // Merge server items with local updates (preserving "Approvata" status and payment fields)
-    const merged = serverData.map(sItem => {
-      const lItem = localMap.get(String(sItem.id));
-      if (!lItem) return sItem;
-
-      const isLocalApproved = lItem.stato === "Approvata" || lItem.stato === "Confermata";
-      const finalStato = isLocalApproved ? lItem.stato : (sItem.stato || lItem.stato);
-
-      return {
-        ...sItem,
-        ...lItem,
-        stato: finalStato,
-        quotaPagata: lItem.quotaPagata !== undefined ? Math.max(lItem.quotaPagata, sItem.quotaPagata || 0) : (sItem.quotaPagata || 0),
-        pagatoPlayer1: lItem.pagatoPlayer1 !== undefined ? lItem.pagatoPlayer1 : sItem.pagatoPlayer1,
-        pagatoPlayer2: lItem.pagatoPlayer2 !== undefined ? lItem.pagatoPlayer2 : sItem.pagatoPlayer2
-      };
-    });
-
-    // Add local items that do not exist on the server yet
-    const serverMap = new Map(serverData.map(i => [String(i.id), i]));
-    localList.forEach(lItem => {
-      if (lItem && lItem.id && !serverMap.has(String(lItem.id))) {
-        merged.push(lItem);
-      }
-    });
-
-    localStorage.setItem("bvi_iscrizioni", JSON.stringify(merged));
-    return merged;
+    localStorage.setItem("bvi_iscrizioni", JSON.stringify(serverData));
+    return serverData;
   }
-
-  return localList;
+  const saved = localStorage.getItem("bvi_iscrizioni");
+  return safeJsonParse(saved, []);
 }
 
 export async function saveIscrizioni(list) {
@@ -247,15 +204,13 @@ export async function getGironi(slug) {
     return await getGironi(slug);
   }
 
-  const saved = localStorage.getItem(key);
-  const localData = safeJsonParse(saved, null);
-
   const serverData = await fetchFromServerDb("gironi", slug);
   if (serverData !== null && serverData) {
     localStorage.setItem(key, JSON.stringify(serverData));
     return serverData;
   }
-  return localData || serverData;
+  const saved = localStorage.getItem(key);
+  return safeJsonParse(saved, null);
 }
 
 export async function saveGironi(slug, data) {
@@ -278,15 +233,13 @@ export async function getBracket(slug) {
     return await getBracket(slug);
   }
 
-  const saved = localStorage.getItem(key);
-  const localData = safeJsonParse(saved, null);
-
   const serverData = await fetchFromServerDb("bracket", slug);
   if (serverData !== null && serverData) {
     localStorage.setItem(key, JSON.stringify(serverData));
     return serverData;
   }
-  return localData || serverData;
+  const saved = localStorage.getItem(key);
+  return safeJsonParse(saved, null);
 }
 
 export async function saveBracket(slug, data) {
@@ -308,25 +261,13 @@ export async function getUsers() {
     return await getUsers();
   }
 
-  const saved = localStorage.getItem("bvi_users");
-  const localList = safeJsonParse(saved, []);
-
   const serverData = await fetchFromServerDb("users");
   if (serverData !== null && Array.isArray(serverData)) {
-    const serverMap = new Map(serverData.map(i => [String(i.id), i]));
-    const merged = [...serverData];
-
-    localList.forEach(lItem => {
-      if (lItem && lItem.id && !serverMap.has(String(lItem.id))) {
-        merged.push(lItem);
-      }
-    });
-
-    localStorage.setItem("bvi_users", JSON.stringify(merged));
-    return merged;
+    localStorage.setItem("bvi_users", JSON.stringify(serverData));
+    return serverData;
   }
-
-  return localList;
+  const saved = localStorage.getItem("bvi_users");
+  return safeJsonParse(saved, []);
 }
 
 export async function saveUsers(list) {
@@ -347,25 +288,13 @@ export async function getModuli() {
     return await getModuli();
   }
 
-  const saved = localStorage.getItem("bvi_moduli");
-  const localList = safeJsonParse(saved, []);
-
   const serverData = await fetchFromServerDb("moduli");
   if (serverData !== null && Array.isArray(serverData)) {
-    const serverMap = new Map(serverData.map(i => [String(i.id), i]));
-    const merged = [...serverData];
-
-    localList.forEach(lItem => {
-      if (lItem && lItem.id && !serverMap.has(String(lItem.id))) {
-        merged.push(lItem);
-      }
-    });
-
-    localStorage.setItem("bvi_moduli", JSON.stringify(merged));
-    return merged;
+    localStorage.setItem("bvi_moduli", JSON.stringify(serverData));
+    return serverData;
   }
-
-  return localList;
+  const saved = localStorage.getItem("bvi_moduli");
+  return safeJsonParse(saved, []);
 }
 
 export async function saveModuli(list) {
@@ -386,25 +315,13 @@ export async function getNotifiche() {
     return await getNotifiche();
   }
 
-  const saved = localStorage.getItem("bvi_notifiche");
-  const localList = safeJsonParse(saved, []);
-
   const serverData = await fetchFromServerDb("notifiche");
   if (serverData !== null && Array.isArray(serverData)) {
-    const serverMap = new Map(serverData.map(i => [String(i.id), i]));
-    const merged = [...serverData];
-
-    localList.forEach(lItem => {
-      if (lItem && lItem.id && !serverMap.has(String(lItem.id))) {
-        merged.push(lItem);
-      }
-    });
-
-    localStorage.setItem("bvi_notifiche", JSON.stringify(merged));
-    return merged;
+    localStorage.setItem("bvi_notifiche", JSON.stringify(serverData));
+    return serverData;
   }
-
-  return localList;
+  const saved = localStorage.getItem("bvi_notifiche");
+  return safeJsonParse(saved, []);
 }
 
 export async function saveNotifiche(list) {
@@ -425,25 +342,13 @@ export async function getStaff() {
     return await getStaff();
   }
 
-  const saved = localStorage.getItem("bvi_staff");
-  const localList = safeJsonParse(saved, []);
-
   const serverData = await fetchFromServerDb("staff");
   if (serverData !== null && Array.isArray(serverData)) {
-    const serverMap = new Map(serverData.map(i => [String(i.id), i]));
-    const merged = [...serverData];
-
-    localList.forEach(lItem => {
-      if (lItem && lItem.id && !serverMap.has(String(lItem.id))) {
-        merged.push(lItem);
-      }
-    });
-
-    localStorage.setItem("bvi_staff", JSON.stringify(merged));
-    return merged;
+    localStorage.setItem("bvi_staff", JSON.stringify(serverData));
+    return serverData;
   }
-
-  return localList;
+  const saved = localStorage.getItem("bvi_staff");
+  return safeJsonParse(saved, []);
 }
 
 export async function saveStaff(list) {
@@ -464,25 +369,13 @@ export async function getSponsors() {
     return await getSponsors();
   }
 
-  const saved = localStorage.getItem("bvi_sponsors");
-  const localList = safeJsonParse(saved, []);
-
   const serverData = await fetchFromServerDb("sponsors");
   if (serverData !== null && Array.isArray(serverData)) {
-    const serverMap = new Map(serverData.map(i => [String(i.id), i]));
-    const merged = [...serverData];
-
-    localList.forEach(lItem => {
-      if (lItem && lItem.id && !serverMap.has(String(lItem.id))) {
-        merged.push(lItem);
-      }
-    });
-
-    localStorage.setItem("bvi_sponsors", JSON.stringify(merged));
-    return merged;
+    localStorage.setItem("bvi_sponsors", JSON.stringify(serverData));
+    return serverData;
   }
-
-  return localList;
+  const saved = localStorage.getItem("bvi_sponsors");
+  return safeJsonParse(saved, []);
 }
 
 export async function saveSponsors(list) {
