@@ -8,13 +8,15 @@ import { getTornei, getIscrizioni, saveIscrizioni } from "@/app/utils/db";
 export default function StaffPagamenti() {
   const router = useRouter();
   const [iscrizioni, setIscrizioni] = useState([]);
+  const [tornei, setTornei] = useState([]);
   const [filtroTorneo, setFiltroTorneo] = useState("Tutti");
   const [cercaTeam, setCercaTeam] = useState("");
 
   useEffect(() => {
     Promise.all([getIscrizioni(), getTornei()]).then(([iscrizioniList, torneiList]) => {
+      setTornei(torneiList || []);
       const data = iscrizioniList.map(isc => {
-        const torneoInfo = torneiList.find(t => (isc.torneo || "").toLowerCase().trim() === t.nome.toLowerCase().trim()) || torneiList.find(t => isc.torneo && t.nome && isc.torneo.toLowerCase().includes(t.nome.toLowerCase()));
+        const torneoInfo = (torneiList || []).find(t => (isc.torneo || "").toLowerCase().trim() === t.nome.toLowerCase().trim()) || (torneiList || []).find(t => isc.torneo && t.nome && isc.torneo.toLowerCase().includes(t.nome.toLowerCase()));
         const quotaTorneo = torneoInfo?.quota !== undefined ? torneoInfo.quota : 40;
 
         const players = (isc.giocatori || "").split("-").map(p => p.trim()).filter(Boolean);
@@ -156,10 +158,15 @@ export default function StaffPagamenti() {
     salvaModifiche(newData);
   };
 
-  const torneiDisponibili = ["Tutti", ...new Set(iscrizioni.map(i => i.torneo))];
+  const torneiDisponibili = ["Tutti", ...tornei.map(t => t.nome)];
+  const validTorneiLower = tornei.map(t => (t.nome || "").toLowerCase().trim());
 
   const iscrizioniFiltrate = iscrizioni.filter(isc => {
-    const matchesTorneo = filtroTorneo === "Tutti" || (isc.torneo || "").toLowerCase().trim() === filtroTorneo.toLowerCase().trim();
+    const tNomeLower = (isc.torneo || "").toLowerCase().trim();
+    const isTorneoValido = validTorneiLower.length === 0 || validTorneiLower.includes(tNomeLower);
+    if (!isTorneoValido) return false;
+
+    const matchesTorneo = filtroTorneo === "Tutti" || tNomeLower === filtroTorneo.toLowerCase().trim();
     const matchesCerca = !cercaTeam.trim() ||
       (isc.giocatori || "").toLowerCase().includes(cercaTeam.toLowerCase()) ||
       (isc.id && String(isc.id).includes(cercaTeam)) ||
