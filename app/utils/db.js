@@ -121,7 +121,11 @@ async function saveToServerDb(type, data, slug = null) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type, data, slug })
     });
-    if (!res.ok) throw new Error(`Salvataggio fallito: ${res.statusText}`);
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error(`Salvataggio fallito per ${type} (${res.status}): ${errText}`);
+      throw new Error(`Salvataggio fallito status ${res.status}`);
+    }
     const json = await res.json();
     return json.success;
   } catch (e) {

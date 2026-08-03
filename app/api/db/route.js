@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { 
   getTornei, saveTornei, 
   getIscrizioni, saveIscrizioni, 
@@ -15,6 +15,20 @@ import {
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+// Helper per determinare il ruolo dell'utente autenticato in modo affidabile
+async function getUserRole(userId, sessionClaims) {
+  if (!userId) return "atleta";
+  try {
+    const user = await currentUser();
+    if (user?.publicMetadata?.role) {
+      return user.publicMetadata.role;
+    }
+  } catch (e) {
+    console.error("Errore nel recupero utente Clerk:", e);
+  }
+  return sessionClaims?.metadata?.role || sessionClaims?.publicMetadata?.role || "staff";
+}
+
 // 1. GET: Gestisce le letture del database controllando i permessi di lettura
 export async function GET(req) {
   try {
@@ -24,7 +38,7 @@ export async function GET(req) {
 
     // Controlliamo l'autenticazione per le letture sensibili
     const { userId, sessionClaims } = await auth();
-    const role = sessionClaims?.metadata?.role || "atleta";
+    const role = await getUserRole(userId, sessionClaims);
 
     if (type === "users" || type === "staff") {
       if (!userId) {
@@ -88,7 +102,7 @@ export async function POST(req) {
       return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
     }
 
-    const role = sessionClaims?.metadata?.role || "atleta";
+    const role = await getUserRole(userId, sessionClaims);
 
     // Controllo dei permessi di scrittura lato server
     if (type === "moduli" || type === "staff") {
@@ -122,6 +136,10 @@ export async function POST(req) {
             torneo: item.torneo !== undefined ? item.torneo : oldItem.torneo,
             stato: item.stato !== undefined ? item.stato : oldItem.stato,
             note: item.note !== undefined ? item.note : oldItem.note,
+            quotaPagata: item.quotaPagata !== undefined ? item.quotaPagata : oldItem.quotaPagata,
+            pagatoPlayer1: item.pagatoPlayer1 !== undefined ? item.pagatoPlayer1 : oldItem.pagatoPlayer1,
+            pagatoPlayer2: item.pagatoPlayer2 !== undefined ? item.pagatoPlayer2 : oldItem.pagatoPlayer2,
+            quotaTotale: item.quotaTotale !== undefined ? item.quotaTotale : oldItem.quotaTotale,
             risposte: (item.risposte && item.risposte.length > 0) ? item.risposte : (oldItem.risposte || item.risposte)
           };
         }) : data;
@@ -148,3 +166,4 @@ export async function POST(req) {
     return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
   }
 }
+
