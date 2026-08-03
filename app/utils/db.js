@@ -200,25 +200,10 @@ export async function getIscrizioni() {
       return localList;
     }
 
-    const localMap = new Map(localList.map(i => [String(i.id), i]));
-    const merged = serverData.map(sItem => {
-      const lItem = localMap.get(String(sItem.id));
-      if (!lItem) return sItem;
-
-      const isLocalApproved = lItem.stato === "Approvata" || lItem.stato === "Confermata";
-      const finalStato = isLocalApproved ? lItem.stato : (sItem.stato || lItem.stato);
-
-      return {
-        ...sItem,
-        ...lItem,
-        stato: finalStato,
-        quotaPagata: lItem.quotaPagata !== undefined ? Math.max(lItem.quotaPagata, sItem.quotaPagata || 0) : (sItem.quotaPagata || 0),
-        pagatoPlayer1: lItem.pagatoPlayer1 !== undefined ? lItem.pagatoPlayer1 : sItem.pagatoPlayer1,
-        pagatoPlayer2: lItem.pagatoPlayer2 !== undefined ? lItem.pagatoPlayer2 : sItem.pagatoPlayer2
-      };
-    });
-
     const serverMap = new Map(serverData.map(i => [String(i.id), i]));
+    const merged = [...serverData];
+
+    // Preserve local-only registrations that have not synced to server yet
     localList.forEach(lItem => {
       if (lItem && lItem.id && !serverMap.has(String(lItem.id))) {
         merged.push(lItem);
