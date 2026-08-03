@@ -10,7 +10,7 @@ import {
   getNotifiche, saveNotifiche,
   getStaff, saveStaff,
   getSponsors, saveSponsors
-} from "@/app/utils/db";
+} from "@/app/utils/db-server";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;

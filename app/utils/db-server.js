@@ -3,7 +3,12 @@ import { getFirestore } from "firebase-admin/firestore";
 import fs from "fs";
 import path from "path";
 
-const isFirebaseAdminConfigured = !!process.env.FIREBASE_PROJECT_ID;
+const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+const clientEmail = process.env.FIREBASE_CLIENT_EMAIL || process.env.NEXT_PUBLIC_FIREBASE_CLIENT_EMAIL;
+const rawPrivateKey = process.env.FIREBASE_PRIVATE_KEY || process.env.NEXT_PUBLIC_FIREBASE_PRIVATE_KEY;
+const privateKey = rawPrivateKey ? rawPrivateKey.replace(/\\n/g, "\n") : null;
+
+const isFirebaseAdminConfigured = !!(projectId && clientEmail && privateKey);
 
 let db = null;
 if (isFirebaseAdminConfigured) {
@@ -11,9 +16,9 @@ if (isFirebaseAdminConfigured) {
     if (getApps().length === 0) {
       initializeApp({
         credential: cert({
-          projectId: process.env.FIREBASE_PROJECT_ID,
-          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n")
+          projectId,
+          clientEmail,
+          privateKey
         })
       });
     }
@@ -22,7 +27,7 @@ if (isFirebaseAdminConfigured) {
     console.error("Firebase Admin SDK init error:", error);
   }
 } else {
-  console.warn("Firebase Admin SDK is not configured. Falling back to local JSON database.");
+  console.warn("Firebase Admin SDK is not fully configured (missing projectId, clientEmail, or privateKey).");
 }
 
 // Helpers per il salvataggio su file JSON locali (solo lato Server)
