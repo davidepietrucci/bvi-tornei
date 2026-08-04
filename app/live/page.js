@@ -356,7 +356,7 @@ export default function PortaleLiveMobile() {
       let right = assignments[`${matchId}-R`];
 
       if (!left || !right) {
-        const poolMatch = matchId.match(/^([a-z]+-[A-Z0-9]+)-m([0-4])$/);
+        const poolMatch = matchId.match(/^(.+)-m([0-4])$/);
         if (poolMatch) {
           const gKey = poolMatch[1];
           const mNum = parseInt(poolMatch[2]);
@@ -450,9 +450,10 @@ export default function PortaleLiveMobile() {
     }
 
     const isGold = groupKey.startsWith("gold");
-    const numTeams = isGold 
-      ? (bracketConfig.teamsPerGoldGirone || 4) 
-      : (bracketConfig.teamsPerSilverGirone || 4);
+    const isCustom18Pool = bracketConfig.subPhaseType === "custom_18" && groupKey.startsWith("pool-gold-");
+    const numTeams = isCustom18Pool ? 4 : isGold
+      ? (bracketConfig.subPhaseType === "custom_18" ? 3 : (bracketConfig.teamsPerGoldGirone || 4))
+      : (bracketConfig.subPhaseType === "custom_18" ? 3 : (bracketConfig.teamsPerSilverGirone || 4));
 
     const teams = [];
     for (let i = 0; i < numTeams; i++) {

@@ -500,9 +500,10 @@ export default function AtletaGironi() {
     const stats = {};
 
     const isGold = groupKey.startsWith("gold");
-    const numTeams = isGold 
-      ? (bracketConfig.teamsPerGoldGirone || 4) 
-      : (bracketConfig.teamsPerSilverGirone || 4);
+    const isCustom18Pool = bracketConfig.subPhaseType === "custom_18" && groupKey.startsWith("pool-gold-");
+    const numTeams = isCustom18Pool ? 4 : isGold
+      ? (bracketConfig.subPhaseType === "custom_18" ? 3 : (bracketConfig.teamsPerGoldGirone || 4))
+      : (bracketConfig.subPhaseType === "custom_18" ? 3 : (bracketConfig.teamsPerSilverGirone || 4));
 
     const teams = [];
     for (let i = 0; i < numTeams; i++) {
@@ -571,9 +572,10 @@ export default function AtletaGironi() {
     const metadata = bracketConfig.bracketMetadata || {};
     
     const isGold = groupKey.startsWith("gold");
-    const numTeams = isGold 
-      ? (bracketConfig.teamsPerGoldGirone || 4) 
-      : (bracketConfig.teamsPerSilverGirone || 4);
+    const isCustom18Pool = bracketConfig.subPhaseType === "custom_18" && groupKey.startsWith("pool-gold-");
+    const numTeams = isCustom18Pool ? 4 : isGold
+      ? (bracketConfig.subPhaseType === "custom_18" ? 3 : (bracketConfig.teamsPerGoldGirone || 4))
+      : (bracketConfig.subPhaseType === "custom_18" ? 3 : (bracketConfig.teamsPerSilverGirone || 4));
 
     const teams = [];
     for (let i = 0; i < numTeams; i++) {
@@ -591,7 +593,28 @@ export default function AtletaGironi() {
       return pairs;
     };
 
-    const matchPairs = getRoundRobinPairs(numTeams);
+    if (isCustom18Pool) {
+      const outcome = (id, wantWinner) => {
+        const meta = metadata[id] || {};
+        if (meta.scoreL === undefined || meta.scoreL === "" || meta.scoreR === undefined || meta.scoreR === "") return null;
+        const baseIndex = id.endsWith("-m0") ? 0 : 2;
+        const left = assignments[`${groupKey}-${baseIndex}`];
+        const right = assignments[`${groupKey}-${baseIndex + 1}`];
+        const leftWon = parseInt(meta.scoreL || 0) > parseInt(meta.scoreR || 0);
+        return wantWinner ? (leftWon ? left : right) : (leftWon ? right : left);
+      };
+      teams[4] = outcome(`${groupKey}-m0`, true) || "Vincente Gara 1";
+      teams[5] = outcome(`${groupKey}-m1`, true) || "Vincente Gara 2";
+      teams[6] = outcome(`${groupKey}-m0`, false) || "Perdente Gara 1";
+      teams[7] = outcome(`${groupKey}-m1`, false) || "Perdente Gara 2";
+    }
+
+    const matchPairs = isCustom18Pool ? [
+      { l: 0, r: 1, label: "Gara 1" },
+      { l: 2, r: 3, label: "Gara 2" },
+      { l: 4, r: 5, label: "Gara 3 (Vincenti)" },
+      { l: 6, r: 7, label: "Gara 4 (Perdenti)" },
+    ] : getRoundRobinPairs(numTeams);
 
     return matchPairs
       .map((pair, idx) => {
@@ -905,7 +928,7 @@ export default function AtletaGironi() {
             )}
 
             {/* Gironi Intermedi */}
-            {activeTab === "intermedi" && bracketConfig?.phaseType === "gold_silver" && bracketConfig?.subPhaseType === "groups" && (() => {
+            {activeTab === "intermedi" && bracketConfig?.phaseType === "gold_silver" && (bracketConfig?.subPhaseType === "groups" || bracketConfig?.subPhaseType === "custom_18") && (() => {
               let goldSlots = 0;
               let silverSlots = 0;
               if (config && config.numGironi) {
@@ -919,13 +942,18 @@ export default function AtletaGironi() {
               const autoNumGoldGironi = goldSlots > 4 ? 2 : 1;
               const autoNumSilverGironi = silverSlots > 4 ? 2 : 1;
 
-              const numGoldGironi = bracketConfig.numGoldGironi !== undefined ? bracketConfig.numGoldGironi : autoNumGoldGironi;
-              const numSilverGironi = bracketConfig.numSilverGironi !== undefined ? bracketConfig.numSilverGironi : autoNumSilverGironi;
+              const numGoldGironi = bracketConfig.subPhaseType === "custom_18" ? 4 : (bracketConfig.numGoldGironi !== undefined ? bracketConfig.numGoldGironi : autoNumGoldGironi);
+              const numSilverGironi = bracketConfig.subPhaseType === "custom_18" ? 2 : (bracketConfig.numSilverGironi !== undefined ? bracketConfig.numSilverGironi : autoNumSilverGironi);
 
               const goldGroups = [];
               for (let i = 0; i < numGoldGironi; i++) {
                 const letter = String.fromCharCode(65 + i);
                 goldGroups.push({ id: `gold-${letter}`, label: `Girone Gold ${letter}` });
+              }
+
+              if (bracketConfig.subPhaseType === "custom_18") {
+                goldGroups.push({ id: "pool-gold-1", label: "POOL Gold 1" });
+                goldGroups.push({ id: "pool-gold-2", label: "POOL Gold 2" });
               }
 
               const silverGroups = [];

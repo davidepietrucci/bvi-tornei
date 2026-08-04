@@ -172,11 +172,11 @@ function TabelloneContent() {
 
 
   const getTeamsCountForGroup = (groupKey) => {
+    if (subPhaseType === "custom_18" && groupKey.startsWith("pool-gold-")) return 4;
     if (groupKey.startsWith("gold-")) {
-      return teamsPerGoldGirone || 4;
-    } else {
-      return teamsPerSilverGirone || 4;
+      return subPhaseType === "custom_18" ? 3 : (teamsPerGoldGirone || 4);
     }
+    return subPhaseType === "custom_18" ? 3 : (teamsPerSilverGirone || 4);
   };
 
   const getIntermediateGroupTeamsList = (groupKey) => {
@@ -193,7 +193,7 @@ function TabelloneContent() {
     let right = bracketAssignments[`${matchId}-R`];
 
     if (!left || !right) {
-      const poolMatch = matchId.match(/^([a-z]+-[A-Z0-9]+)-m([0-4])$/);
+      const poolMatch = matchId.match(/^(.+)-m([0-4])$/);
       if (poolMatch) {
         const groupKey = poolMatch[1];
         const mNum = parseInt(poolMatch[2]);
@@ -746,18 +746,10 @@ function TabelloneContent() {
       if (ranked[1]) secondsList.push({ ...ranked[1], girone: gLabel, pos: "2°" });
     }
 
-    // Ordina le prime per punti/quoziente, poi le seconde
-    const sort = (list) => list.sort((a, b) => {
-      if (b.punti !== a.punti) return b.punti - a.punti;
-      const qA = a.ps === 0 ? a.pf : a.pf / a.ps;
-      const qB = b.ps === 0 ? b.pf : b.pf / b.ps;
-      return qB - qA;
-    });
-
-    return [
-      ...sort(firstsList).map((t, idx) => ({ ...t, rank: idx + 1 })),
-      ...sort(secondsList).map((t, idx) => ({ ...t, rank: firstsList.length + idx + 1 }))
-    ];
+    const qualifiedNames = new Set([...firstsList, ...secondsList].map(t => t.nome));
+    return calculateUnifiedRanking(gConfig)
+      .filter(t => qualifiedNames.has(t.nome))
+      .map((t, idx) => ({ ...t, girone: `Girone ${t.girone}`, pos: "Gold", rank: idx + 1 }));
   };
 
   const handleAutoFill = async () => {
@@ -873,22 +865,19 @@ function TabelloneContent() {
           if (r2) secondsList.push(r2);
         }
 
-        // Distribuzione a Serpente per i 4 Gironi Gold
-        newAssignments["gold-A-0"] = firstsList[0] || getRanked('A', 0);
-        newAssignments["gold-A-1"] = secondsList[1] || getRanked('B', 1);
-        newAssignments["gold-A-2"] = secondsList[2] || getRanked('C', 1);
-
-        newAssignments["gold-B-0"] = firstsList[1] || getRanked('B', 0);
-        newAssignments["gold-B-1"] = secondsList[0] || getRanked('A', 1);
-        newAssignments["gold-B-2"] = secondsList[3] || getRanked('D', 1);
-
-        newAssignments["gold-C-0"] = firstsList[2] || getRanked('C', 0);
-        newAssignments["gold-C-1"] = firstsList[5] || getRanked('F', 0);
-        newAssignments["gold-C-2"] = secondsList[4] || getRanked('E', 1);
-
-        newAssignments["gold-D-0"] = firstsList[3] || getRanked('D', 0);
-        newAssignments["gold-D-1"] = firstsList[4] || getRanked('E', 0);
-        newAssignments["gold-D-2"] = secondsList[5] || getRanked('F', 1);
+        // Classifica avulsa globale dei 12 qualificati Gold, poi distribuzione a serpentina.
+        const qualifiedNames = new Set(Object.values(rankings).flatMap(list => list.slice(0, 2)));
+        const goldSeeds = calculateUnifiedRanking(gConfig)
+          .filter(team => qualifiedNames.has(team.nome))
+          .map(team => splitNames(team.nome).map(formatPlayerName).join(" - "));
+        const groupLetters = ["A", "B", "C", "D"];
+        goldSeeds.forEach((team, seedIndex) => {
+          const row = Math.floor(seedIndex / 4);
+          const column = seedIndex % 4;
+          const groupIndex = row % 2 === 0 ? column : 3 - column;
+          const slot = row;
+          newAssignments[`gold-${groupLetters[groupIndex]}-${slot}`] = team;
+        });
       } else {
         // Calculate dynamically the target groups count
         let currentGoldSlots = 0;
@@ -1464,7 +1453,7 @@ function TabelloneContent() {
   };
 
   const renderIntermediateGroup = (groupKey, title, color) => {
-    const isPoolMode = subPhaseType === "pool_stepladder";
+    const isPoolMode = subPhaseType === "pool_stepladder" || (subPhaseType === "custom_18" && groupKey.startsWith("pool-gold-"));
     const stats = getIntermediateGroupStats(groupKey);
     const numTeams = getTeamsCountForGroup(groupKey);
     const teams = getIntermediateGroupTeamsList(groupKey);
