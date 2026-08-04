@@ -8,6 +8,7 @@ export default function StaffIscrizioni() {
   const [iscrizioni, setIscrizioni] = useState([]);
   const [tornei, setTornei] = useState([]);
   const isSavingRef = useRef(false);
+  const loadVersionRef = useRef(0);
   
   // Import Modal States
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -119,12 +120,13 @@ export default function StaffIscrizioni() {
 
   const caricaDati = async () => {
     if (isSavingRef.current) return;
+    const loadVersion = loadVersionRef.current;
     try {
       const data = await getIscrizioni();
-      if (isSavingRef.current) return;
+      if (isSavingRef.current || loadVersion !== loadVersionRef.current) return;
       setIscrizioni(data || []);
       const parsed = await getTornei();
-      if (isSavingRef.current) return;
+      if (isSavingRef.current || loadVersion !== loadVersionRef.current) return;
       setTornei(parsed || []);
       if (parsed && parsed.length > 0 && !selectedTorneoImport) {
         setSelectedTorneoImport(parsed[0].nome);
@@ -150,6 +152,7 @@ export default function StaffIscrizioni() {
   }, []);
 
   const handleApprove = async (id) => {
+    loadVersionRef.current += 1;
     isSavingRef.current = true;
     try {
       const updated = iscrizioni.map((isc) => 
@@ -167,6 +170,7 @@ export default function StaffIscrizioni() {
   const handleDelete = async (id) => {
     if (typeof window !== "undefined" && window.confirm("Sei sicuro di voler eliminare definitivamente questa iscrizione?")) {
       isSavingRef.current = true;
+      loadVersionRef.current += 1;
       try {
         const deletedIsc = iscrizioni.find((isc) => String(isc.id) === String(id));
         const updated = iscrizioni.filter((isc) => String(isc.id) !== String(id));

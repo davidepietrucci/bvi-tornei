@@ -12,12 +12,14 @@ export default function StaffPagamenti() {
   const [filtroTorneo, setFiltroTorneo] = useState("Tutti");
   const [cercaTeam, setCercaTeam] = useState("");
   const isSavingRef = useRef(false);
+  const loadVersionRef = useRef(0);
 
   const caricaDati = async () => {
     if (isSavingRef.current) return;
+    const loadVersion = loadVersionRef.current;
     try {
       const [iscrizioniList, torneiList] = await Promise.all([getIscrizioni(), getTornei()]);
-      if (isSavingRef.current) return;
+      if (isSavingRef.current || loadVersion !== loadVersionRef.current) return;
       setTornei(torneiList || []);
       const data = (iscrizioniList || []).map(isc => {
         const torneoInfo = (torneiList || []).find(t => (isc.torneo || "").toLowerCase().trim() === t.nome.toLowerCase().trim()) || (torneiList || []).find(t => isc.torneo && t.nome && isc.torneo.toLowerCase().includes(t.nome.toLowerCase()));
@@ -80,6 +82,7 @@ export default function StaffPagamenti() {
   }, []);
 
   const salvaModifiche = async (newData) => {
+    loadVersionRef.current += 1;
     isSavingRef.current = true;
     try {
       setIscrizioni(newData);

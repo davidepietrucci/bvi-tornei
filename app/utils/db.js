@@ -157,7 +157,10 @@ async function saveArrayEntity(key, type, list) {
   } catch (e) {
     console.warn(`Could not set localStorage key ${key}:`, e);
   }
-  await saveToServerDb(type, list);
+  const saved = await saveToServerDb(type, list);
+  if (!saved) {
+    throw new Error(`Salvataggio non confermato dal server per ${type}`);
+  }
 }
 
 // 1. Tornei
