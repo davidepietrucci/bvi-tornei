@@ -1261,7 +1261,17 @@ function TabelloneContent() {
             }
         } else if (numGironi === 4) {
             if (phaseType === "single") {
-                if (totalSlots <= 8) {
+                if (totalSlots <= 4) {
+                    setBracketSize(4);
+                    const usesTwoTeamsPerSide = (gConfig.teamCounts?.A || 0) >= 2 && (gConfig.teamCounts?.B || 0) >= 2;
+                    if (usesTwoTeamsPerSide) {
+                        newAssignments["gold-s1-L"] = getRanked("A", 0); newAssignments["gold-s1-R"] = getRanked("B", 1);
+                        newAssignments["gold-s2-L"] = getRanked("B", 0); newAssignments["gold-s2-R"] = getRanked("A", 1);
+                    } else {
+                        newAssignments["gold-s1-L"] = getRanked("A", 0); newAssignments["gold-s1-R"] = getRanked("B", 0);
+                        newAssignments["gold-s2-L"] = getRanked("C", 0); newAssignments["gold-s2-R"] = getRanked("D", 0);
+                    }
+                } else if (totalSlots <= 8) {
                     setBracketSize(8);
                     newAssignments["gold-q1-L"] = getRanked("A", 0); newAssignments["gold-q1-R"] = getRanked("B", 1);
                     newAssignments["gold-q2-L"] = getRanked("A", 1); newAssignments["gold-q2-R"] = getRanked("B", 0);
