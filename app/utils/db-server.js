@@ -7,7 +7,11 @@ let parsedServiceAccount = null;
 const jsonEnv = process.env.FIREBASE_SERVICE_ACCOUNT || process.env.FIREBASE_CONFIG_JSON || process.env.FIREBASE_CREDENTIALS;
 if (jsonEnv) {
   try {
-    parsedServiceAccount = typeof jsonEnv === "string" ? JSON.parse(jsonEnv) : jsonEnv;
+    let cleanJson = typeof jsonEnv === "string" ? jsonEnv.trim() : jsonEnv;
+    if (typeof cleanJson === "string" && ((cleanJson.startsWith("'") && cleanJson.endsWith("'")) || (cleanJson.startsWith('"') && cleanJson.endsWith('"')))) {
+      cleanJson = cleanJson.slice(1, -1).trim();
+    }
+    parsedServiceAccount = typeof cleanJson === "string" ? JSON.parse(cleanJson) : cleanJson;
   } catch (e) {
     console.warn("Could not parse FIREBASE_SERVICE_ACCOUNT JSON:", e.message);
   }
@@ -32,12 +36,15 @@ let db = null;
 if (isFirebaseAdminConfigured) {
   try {
     if (getApps().length === 0) {
+      const credentialConfig = parsedServiceAccount?.private_key
+        ? cert(parsedServiceAccount)
+        : cert({
+            projectId,
+            clientEmail,
+            privateKey
+          });
       initializeApp({
-        credential: cert({
-          projectId,
-          clientEmail,
-          privateKey
-        })
+        credential: credentialConfig
       });
     }
     db = getFirestore();
