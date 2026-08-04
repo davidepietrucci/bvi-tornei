@@ -895,8 +895,8 @@ export default function PortaleLiveMobile() {
     const s2R = parseInt(meta?.s2R || 0);
     const s3L = parseInt(meta?.s3L || 0);
     const s3R = parseInt(meta?.s3R || 0);
-    const isThreeSets = false;
-    const isMultiSetPlayoff = false;
+    const isThreeSets = isPlayoffMatch && bracketConfig?.subPhaseType !== "custom_18";
+    const isMultiSetPlayoff = isThreeSets;
 
     let isWinnerL = false;
     let isWinnerR = false;

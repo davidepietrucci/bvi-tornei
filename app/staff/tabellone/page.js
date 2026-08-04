@@ -1249,16 +1249,24 @@ function TabelloneContent() {
             }
         } else if (numGironi === 4) {
             if (phaseType === "single") {
-                setBracketSize(16);
-                // Ottavi incrociati: 1A-4B, 2A-3B, 1B-4A, 2B-3A, poi C-D.
-                newAssignments["gold-o1-L"] = getRanked("A", 0); newAssignments["gold-o1-R"] = getRanked("B", 3);
-                newAssignments["gold-o2-L"] = getRanked("A", 1); newAssignments["gold-o2-R"] = getRanked("B", 2);
-                newAssignments["gold-o3-L"] = getRanked("B", 0); newAssignments["gold-o3-R"] = getRanked("A", 3);
-                newAssignments["gold-o4-L"] = getRanked("B", 1); newAssignments["gold-o4-R"] = getRanked("A", 2);
-                newAssignments["gold-o5-L"] = getRanked("C", 0); newAssignments["gold-o5-R"] = getRanked("D", 3);
-                newAssignments["gold-o6-L"] = getRanked("C", 1); newAssignments["gold-o6-R"] = getRanked("D", 2);
-                newAssignments["gold-o7-L"] = getRanked("D", 0); newAssignments["gold-o7-R"] = getRanked("C", 3);
-                newAssignments["gold-o8-L"] = getRanked("D", 1); newAssignments["gold-o8-R"] = getRanked("C", 2);
+                if (totalSlots <= 8) {
+                    setBracketSize(8);
+                    newAssignments["gold-q1-L"] = getRanked("A", 0); newAssignments["gold-q1-R"] = getRanked("B", 1);
+                    newAssignments["gold-q2-L"] = getRanked("A", 1); newAssignments["gold-q2-R"] = getRanked("B", 0);
+                    newAssignments["gold-q3-L"] = getRanked("C", 0); newAssignments["gold-q3-R"] = getRanked("D", 1);
+                    newAssignments["gold-q4-L"] = getRanked("C", 1); newAssignments["gold-q4-R"] = getRanked("D", 0);
+                } else {
+                    setBracketSize(16);
+                    // Ottavi incrociati: 1A-4B, 2A-3B, 1B-4A, 2B-3A, poi C-D.
+                    newAssignments["gold-o1-L"] = getRanked("A", 0); newAssignments["gold-o1-R"] = getRanked("B", 3);
+                    newAssignments["gold-o2-L"] = getRanked("A", 1); newAssignments["gold-o2-R"] = getRanked("B", 2);
+                    newAssignments["gold-o3-L"] = getRanked("B", 0); newAssignments["gold-o3-R"] = getRanked("A", 3);
+                    newAssignments["gold-o4-L"] = getRanked("B", 1); newAssignments["gold-o4-R"] = getRanked("A", 2);
+                    newAssignments["gold-o5-L"] = getRanked("C", 0); newAssignments["gold-o5-R"] = getRanked("D", 3);
+                    newAssignments["gold-o6-L"] = getRanked("C", 1); newAssignments["gold-o6-R"] = getRanked("D", 2);
+                    newAssignments["gold-o7-L"] = getRanked("D", 0); newAssignments["gold-o7-R"] = getRanked("C", 3);
+                    newAssignments["gold-o8-L"] = getRanked("D", 1); newAssignments["gold-o8-R"] = getRanked("C", 2);
+                }
             } else {
                 setBracketSize(8);
                 const p = (phaseType === "gold_silver" || phaseType === "single") ? "gold" : "wb";
@@ -1368,7 +1376,7 @@ function TabelloneContent() {
     const meta = bracketMetadata[matchId] || {};
     const borderClass = color === "gold" ? "hover:border-yellow-500" : color === "silver" ? "hover:border-gray-400" : "hover:border-blue-600";
     
-    const isMultiSetMatch = false;
+    const isMultiSetMatch = subPhaseType !== "custom_18" && (matchId.startsWith("gold-") || matchId.startsWith("silver-")) && (matchId.endsWith("-q1") || matchId.endsWith("-q2") || matchId.endsWith("-q3") || matchId.endsWith("-q4") || matchId.endsWith("-s1") || matchId.endsWith("-s2") || matchId.endsWith("-f1") || matchId.endsWith("-f3"));
 
     return (
       <div className={`bg-white border-2 border-gray-100 rounded-2xl p-4 shadow-sm group ${borderClass} transition-all min-w-[200px]`}>
