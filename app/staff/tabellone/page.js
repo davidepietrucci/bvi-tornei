@@ -749,7 +749,15 @@ function TabelloneContent() {
     const qualifiedNames = new Set([...firstsList, ...secondsList].map(t => t.nome));
     return calculateUnifiedRanking(gConfig)
       .filter(t => qualifiedNames.has(t.nome))
-      .map((t, idx) => ({ ...t, girone: `Girone ${t.girone}`, pos: "Gold", rank: idx + 1 }));
+      .map((t, idx) => ({
+        ...t,
+        girone: `Girone ${t.girone}`,
+        pos: "Gold",
+        punti: t.score || 0,
+        pf: t.puntiFatti || 0,
+        ps: t.puntiSubiti || 0,
+        rank: idx + 1,
+      }));
   };
 
   const handleAutoFill = async () => {
