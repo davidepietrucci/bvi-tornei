@@ -2014,7 +2014,7 @@ function TabelloneContent() {
                                 // Determina il girone Gold assegnato basandosi sull'ordine
                                 const goldGironeMap = [
                                   "Gold A", "Gold B", "Gold C", "Gold D",
-                                  "Gold B", "Gold C", "Gold D", "Gold A",
+                                  "Gold D", "Gold C", "Gold B", "Gold A",
                                   "Gold A", "Gold B", "Gold C", "Gold D"
                                 ];
                                 const goldGirone = goldGironeMap[idx] || "—";
