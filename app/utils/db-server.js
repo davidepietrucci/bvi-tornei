@@ -51,6 +51,9 @@ if (isFirebaseAdminConfigured) {
       });
     }
     db = getFirestore();
+    try {
+      db.settings({ ignoreUndefinedProperties: true });
+    } catch (e) {}
   } catch (error) {
     console.error("Firebase Admin SDK init error:", error);
   }
@@ -71,6 +74,15 @@ export function getDbStatus() {
       !privateKey && "FIREBASE_PRIVATE_KEY"
     ].filter(Boolean)
   };
+}
+
+function sanitizeData(data) {
+  if (data === undefined) return null;
+  try {
+    return JSON.parse(JSON.stringify(data));
+  } catch (e) {
+    return data;
+  }
 }
 
 // Helpers per il salvataggio su file JSON locali (solo lato Server)
@@ -138,13 +150,15 @@ async function getConfigDoc(docId, fallback = []) {
 }
 
 async function saveConfigDoc(docId, list) {
-  saveLocalFileDb(docId, list);
+  const cleanList = sanitizeData(list) || [];
+  saveLocalFileDb(docId, cleanList);
   if (db) {
     try {
       const docRef = db.collection("config").doc(docId);
-      await docRef.set({ list });
+      await docRef.set({ list: cleanList });
     } catch (e) {
       console.error(`Firestore write config/${docId} error:`, e);
+      throw e;
     }
   }
 }
@@ -168,13 +182,15 @@ async function getSpecificDoc(collectionId, docId, fallback = null) {
 }
 
 async function saveSpecificDoc(collectionId, docId, data) {
-  saveLocalFileDb(collectionId, data, docId);
+  const cleanData = sanitizeData(data);
+  saveLocalFileDb(collectionId, cleanData, docId);
   if (db) {
     try {
       const docRef = db.collection(collectionId).doc(docId);
-      await docRef.set({ data });
+      await docRef.set({ data: cleanData });
     } catch (e) {
       console.error(`Firestore write ${collectionId}/${docId} error:`, e);
+      throw e;
     }
   }
 }
