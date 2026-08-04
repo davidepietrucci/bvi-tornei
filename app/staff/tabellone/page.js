@@ -402,6 +402,17 @@ function TabelloneContent() {
 
       const pairMaps = getRoundRobinPairs(numTeams);
 
+      if (subPhaseType === "groups") {
+        const complete = pairMaps.every((pair, idx) => {
+          const teamL = teams[pair.l];
+          const teamR = teams[pair.r];
+          if (!teamL || !teamR || teamL === "—" || teamR === "—" || teamL === "Slot Libero" || teamR === "Slot Libero") return false;
+          const meta = bracketMetadata[`${groupKey}-m${idx}`] || {};
+          return meta.scoreL !== undefined && meta.scoreL !== "" && meta.scoreR !== undefined && meta.scoreR !== "";
+        });
+        if (!complete) return [];
+      }
+
       pairMaps.forEach((pair, idx) => {
         const teamL = teams[pair.l];
         const teamR = teams[pair.r];
@@ -517,7 +528,7 @@ function TabelloneContent() {
       const sC_rank = currentNumSilverGironi >= 3 ? getIntermediateRanking("silver-C") : [];
       const sD_rank = currentNumSilverGironi >= 4 ? getIntermediateRanking("silver-D") : [];
 
-      const getRankedInt = (rankArr, pos, fallback) => rankArr?.[pos] || fallback;
+      const getRankedInt = (rankArr, pos, fallback) => subPhaseType === "groups" ? (rankArr?.[pos] || null) : (rankArr?.[pos] || fallback);
 
       const isStepladder = subPhaseType === "pool_stepladder";
 
@@ -840,7 +851,9 @@ function TabelloneContent() {
       Object.keys(newAssignments).forEach(key => {
         if (
           key.startsWith("gold-A-") || key.startsWith("gold-B-") || key.startsWith("gold-C-") || key.startsWith("gold-D-") ||
-          key.startsWith("silver-A-") || key.startsWith("silver-B-") || key.startsWith("silver-C-") || key.startsWith("silver-D-")
+          key.startsWith("silver-A-") || key.startsWith("silver-B-") || key.startsWith("silver-C-") || key.startsWith("silver-D-") ||
+          key.startsWith("gold-s1-") || key.startsWith("gold-s2-") || key.startsWith("gold-f1-") || key.startsWith("gold-f3-") ||
+          key.startsWith("silver-s1-") || key.startsWith("silver-s2-") || key.startsWith("silver-f1-") || key.startsWith("silver-f3-")
         ) {
           delete newAssignments[key];
         }
