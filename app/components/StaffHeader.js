@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
@@ -11,6 +12,7 @@ export default function StaffHeader() {
   const router = useRouter();
   const pathname = usePathname();
   const { user, isLoaded } = useUser();
+  const { signOut } = useClerk();
   const [role, setRole] = useState("admin");
   const [username, setUsername] = useState("");
   const [dbConnected, setDbConnected] = useState(false);
@@ -95,7 +97,7 @@ export default function StaffHeader() {
       {/* Desktop Navigation */}
       <nav className="hidden xl:flex gap-1 bg-gray-50 p-1 rounded-xl border border-gray-200">
         {filteredMenuItems.map((item) => (
-          <a
+          <Link
             key={item.path}
             href={item.path}
             className={`px-3 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
@@ -105,7 +107,7 @@ export default function StaffHeader() {
             }`}
           >
             {item.name}
-          </a>
+          </Link>
         ))}
       </nav>
 
@@ -132,7 +134,7 @@ export default function StaffHeader() {
             </div>
             <nav className="flex flex-col gap-2">
               {filteredMenuItems.map((item) => (
-                <a
+                <Link
                   key={item.path}
                   href={item.path}
                   className={`p-4 rounded-2xl text-sm font-bold transition-all ${
@@ -143,7 +145,7 @@ export default function StaffHeader() {
                   onClick={() => setIsMenuOpen(false)}
                 >
                   {item.name}
-                </a>
+                </Link>
               ))}
             </nav>
             <div className="mt-auto pt-6 border-t flex flex-col gap-2">
