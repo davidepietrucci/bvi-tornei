@@ -903,6 +903,8 @@ function TabelloneContent() {
         const currentNumSilverGironi = numSilverGironiOpt > 0 ? numSilverGironiOpt : autoNumSilverGironi;
         const currentTeamsPerGoldGirone = teamsPerGoldGirone || 4;
         const currentTeamsPerSilverGirone = teamsPerSilverGirone || 4;
+        const goldFilled = Array(currentNumGoldGironi).fill(0);
+        const silverFilled = Array(currentNumSilverGironi).fill(0);
 
       if (groupCompositionMethod === "classifica") {
         const rankingsUnified = calculateUnifiedRanking(gConfig).map(s => {
@@ -911,7 +913,7 @@ function TabelloneContent() {
         });
 
         // 1. Gold Assignments (Snake Draft)
-        const goldFilled = Array(currentNumGoldGironi).fill(0);
+        // Array condiviso con il completamento finale dei gironi
         const totalGoldTeamsNeeded = currentNumGoldGironi * currentTeamsPerGoldGirone;
         for (let idx = 0; idx < totalGoldTeamsNeeded; idx++) {
           const team = rankingsUnified[idx] || "—";
@@ -927,7 +929,7 @@ function TabelloneContent() {
         }
 
         // 2. Silver Assignments (Snake Draft)
-        const silverFilled = Array(currentNumSilverGironi).fill(0);
+        // Array condiviso con il completamento finale dei gironi
         const totalSilverTeamsNeeded = currentNumSilverGironi * currentTeamsPerSilverGirone;
         for (let idx = 0; idx < totalSilverTeamsNeeded; idx++) {
           const rankingIdx = totalGoldTeamsNeeded + idx;
@@ -944,7 +946,6 @@ function TabelloneContent() {
         }
       } else {
         // 1. Gold Assignments (True Snake Draft)
-        const goldFilled = Array(currentNumGoldGironi).fill(0);
         for (let rank = 0; rank < 2; rank++) {
           for (let gIdx = 0; gIdx < numGironi; gIdx++) {
             const gid = String.fromCharCode(65 + gIdx);
@@ -964,7 +965,6 @@ function TabelloneContent() {
         }
 
         // 2. Silver Assignments (True Snake Draft)
-        const silverFilled = Array(currentNumSilverGironi).fill(0);
         let maxTeams = 0;
         for (let i = 0; i < numGironi; i++) {
           const gid = String.fromCharCode(65 + i);
