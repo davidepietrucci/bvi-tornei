@@ -1248,17 +1248,30 @@ function TabelloneContent() {
                 newAssignments['silver-s2-L'] = getRanked('B', 2); newAssignments['silver-s2-R'] = getRanked('A', 3);
             }
         } else if (numGironi === 4) {
-            setBracketSize(8);
-            const p = (phaseType === "gold_silver" || phaseType === "single") ? "gold" : "wb";
-            newAssignments[`${p}-q1-L`] = getRanked('A', 0); newAssignments[`${p}-q1-R`] = getRanked('B', 1);
-            newAssignments[`${p}-q2-L`] = getRanked('C', 0); newAssignments[`${p}-q2-R`] = getRanked('D', 1);
-            newAssignments[`${p}-q3-L`] = getRanked('B', 0); newAssignments[`${p}-q3-R`] = getRanked('A', 1);
-            newAssignments[`${p}-q4-L`] = getRanked('D', 0); newAssignments[`${p}-q4-R`] = getRanked('C', 1);
-            if (phaseType === "gold_silver") {
-                newAssignments['silver-q1-L'] = getRanked('A', 2); newAssignments['silver-q1-R'] = getRanked('B', 3);
-                newAssignments['silver-q2-L'] = getRanked('C', 2); newAssignments['silver-q2-R'] = getRanked('D', 3);
-                newAssignments['silver-q3-L'] = getRanked('B', 2); newAssignments['silver-q3-R'] = getRanked('A', 3);
-                newAssignments['silver-q4-L'] = getRanked('D', 2); newAssignments['silver-q4-R'] = getRanked('C', 3);
+            if (phaseType === "single") {
+                setBracketSize(16);
+                // Ottavi incrociati: 1A-4B, 2A-3B, 1B-4A, 2B-3A, poi C-D.
+                newAssignments["gold-o1-L"] = getRanked("A", 0); newAssignments["gold-o1-R"] = getRanked("B", 3);
+                newAssignments["gold-o2-L"] = getRanked("A", 1); newAssignments["gold-o2-R"] = getRanked("B", 2);
+                newAssignments["gold-o3-L"] = getRanked("B", 0); newAssignments["gold-o3-R"] = getRanked("A", 3);
+                newAssignments["gold-o4-L"] = getRanked("B", 1); newAssignments["gold-o4-R"] = getRanked("A", 2);
+                newAssignments["gold-o5-L"] = getRanked("C", 0); newAssignments["gold-o5-R"] = getRanked("D", 3);
+                newAssignments["gold-o6-L"] = getRanked("C", 1); newAssignments["gold-o6-R"] = getRanked("D", 2);
+                newAssignments["gold-o7-L"] = getRanked("D", 0); newAssignments["gold-o7-R"] = getRanked("C", 3);
+                newAssignments["gold-o8-L"] = getRanked("D", 1); newAssignments["gold-o8-R"] = getRanked("C", 2);
+            } else {
+                setBracketSize(8);
+                const p = (phaseType === "gold_silver" || phaseType === "single") ? "gold" : "wb";
+                newAssignments[`${p}-q1-L`] = getRanked("A", 0); newAssignments[`${p}-q1-R`] = getRanked("B", 1);
+                newAssignments[`${p}-q2-L`] = getRanked("C", 0); newAssignments[`${p}-q2-R`] = getRanked("D", 1);
+                newAssignments[`${p}-q3-L`] = getRanked("B", 0); newAssignments[`${p}-q3-R`] = getRanked("A", 1);
+                newAssignments[`${p}-q4-L`] = getRanked("D", 0); newAssignments[`${p}-q4-R`] = getRanked("C", 1);
+                if (phaseType === "gold_silver") {
+                    newAssignments["silver-q1-L"] = getRanked("A", 2); newAssignments["silver-q1-R"] = getRanked("B", 3);
+                    newAssignments["silver-q2-L"] = getRanked("C", 2); newAssignments["silver-q2-R"] = getRanked("D", 3);
+                    newAssignments["silver-q3-L"] = getRanked("B", 2); newAssignments["silver-q3-R"] = getRanked("A", 3);
+                    newAssignments["silver-q4-L"] = getRanked("D", 2); newAssignments["silver-q4-R"] = getRanked("C", 3);
+                }
             }
         } else {
             alert(`Il metodo standard 'Classifica dei Gironi' supporta 1, 2 o 4 gironi. Avendo ${numGironi} gironi, seleziona il metodo 'Classifica Avulsa (Complessiva)' in fondo.`);
