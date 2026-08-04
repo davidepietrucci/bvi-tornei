@@ -49,14 +49,6 @@ export default clerkMiddleware(async (auth, request) => {
     }
   }
 
-  // 3. Role-based protection (only if logged in)
-  const userRole = sessionClaims?.metadata?.role || sessionClaims?.publicMetadata?.role;
-
-  // Only redirect if explicitly marked as 'atleta'
-  if (pathname.startsWith('/staff') && userRole === 'atleta') {
-    return NextResponse.redirect(new URL('/atleta/dashboard', request.url));
-  }
-
   // Proceed with Clerk request protection
   await auth.protect();
 });

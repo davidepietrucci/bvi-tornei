@@ -1,26 +1,4 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
-
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
-};
-
-const isFirebaseConfigured = !!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-
-let db = null;
-if (isFirebaseConfigured && typeof window !== "undefined") {
-  try {
-    const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-    db = getFirestore(app);
-  } catch (error) {
-    console.error("Firebase init error:", error);
-  }
-}
 
 // Safe JSON parse helper to prevent crashes
 function safeJsonParse(str, fallback) {
@@ -33,25 +11,8 @@ function safeJsonParse(str, fallback) {
   }
 }
 
-// Helper per eseguire chiamate HTTP sicure dal Client verso l'API del Server o direttamente su Firestore Client
+// Helper per eseguire chiamate HTTP sicure dal Client verso l'API del Server (Single Source of Truth)
 async function fetchFromServerDb(type, slug = null) {
-  if (db && typeof window !== "undefined") {
-    try {
-      const docId = slug ? `${type}_${slug}` : type;
-      const docRef = doc(db, "config", docId);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        const snapData = docSnap.data();
-        const result = snapData?.list !== undefined ? snapData.list : snapData?.data;
-        if (result !== undefined && result !== null) {
-          return result;
-        }
-      }
-    } catch (e) {
-      console.warn(`Firestore Client read failed for ${type}, falling back to Server API:`, e);
-    }
-  }
-
   let url = `/api/db?type=${type}&_t=${Date.now()}`;
   if (slug) url += `&slug=${slug}`;
   try {
@@ -66,6 +27,31 @@ async function fetchFromServerDb(type, slug = null) {
     console.error(`Errore nel caricamento dal server db (${type}):`, e);
     return null;
   }
+}
+
+async function saveToServerDb(type, data, slug = null) {
+  let url = `/api/db`;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type, data, slug })
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error(`Salvataggio fallito per ${type} (${res.status}): ${errText}`);
+      throw new Error(`Salvataggio fallito status ${res.status}`);
+    }
+    const json = await res.json();
+    return json.success;
+  } catch (e) {
+    console.error(`Errore nel salvataggio sul server db (${type}):`, e);
+    return false;
+  }
+}
+
+export function isUsingFirebase() {
+  return true;
 }
 
 // Sincronizza dinamicamente i nomi delle squadre nei gironi/tabellone con le iscrizioni aggiornate
@@ -130,128 +116,64 @@ export function syncAssignmentsWithIscrizioni(assignments, iscrizioniList) {
   return changed ? newAssignments : assignments;
 }
 
-async function saveToServerDb(type, data, slug = null) {
-  if (db && typeof window !== "undefined") {
-    try {
-      const docId = slug ? `${type}_${slug}` : type;
-      const docRef = doc(db, "config", docId);
-      await setDoc(docRef, { list: data, data: data, updatedAt: Date.now() });
-    } catch (e) {
-      console.warn(`Firestore Client write failed for ${type}:`, e);
+// Helper generico per le entità di tipo array (tornei, iscrizioni, users, moduli, notifiche, staff, sponsors)
+async function getArrayEntity(key, type) {
+  if (typeof window === "undefined") {
+    const dbServer = await import("./db-server");
+    const funcName = `get${type.charAt(0).toUpperCase() + type.slice(1)}`;
+    if (dbServer[funcName]) {
+      return await dbServer[funcName]();
     }
+    return [];
   }
 
-  let url = `/api/db`;
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type, data, slug })
-    });
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error(`Salvataggio fallito per ${type} (${res.status}): ${errText}`);
-      throw new Error(`Salvataggio fallito status ${res.status}`);
+  const serverData = await fetchFromServerDb(type);
+  if (serverData !== null && Array.isArray(serverData)) {
+    try {
+      localStorage.setItem(key, JSON.stringify(serverData));
+    } catch (e) {
+      console.warn(`Could not set localStorage key ${key}:`, e);
     }
-    const json = await res.json();
-    return json.success;
-  } catch (e) {
-    console.error(`Errore nel salvataggio sul server db (${type}):`, e);
-    return false;
+    return serverData;
   }
+
+  // Fallback offline a localStorage
+  const saved = localStorage.getItem(key);
+  return safeJsonParse(saved, []);
 }
 
-// Helper to check if using Firestore
-export function isUsingFirebase() {
+async function saveArrayEntity(key, type, list) {
   if (typeof window === "undefined") {
-    return !!process.env.FIREBASE_PROJECT_ID;
+    const dbServer = await import("./db-server");
+    const funcName = `save${type.charAt(0).toUpperCase() + type.slice(1)}`;
+    if (dbServer[funcName]) {
+      await dbServer[funcName](list);
+    }
+    return;
   }
-  return isFirebaseConfigured;
+
+  try {
+    localStorage.setItem(key, JSON.stringify(list));
+  } catch (e) {
+    console.warn(`Could not set localStorage key ${key}:`, e);
+  }
+  await saveToServerDb(type, list);
 }
 
 // 1. Tornei
 export async function getTornei() {
-  if (typeof window === "undefined") {
-    const { getTornei } = await import("./db-server");
-    return await getTornei();
-  }
-
-  const saved = localStorage.getItem("bvi_tornei");
-  const localList = safeJsonParse(saved, []);
-
-  const serverData = await fetchFromServerDb("tornei");
-  if (serverData !== null && Array.isArray(serverData)) {
-    if (serverData.length === 0 && localList.length > 0) {
-      saveToServerDb("tornei", localList);
-      return localList;
-    }
-    const serverMap = new Map(serverData.map(i => [String(i.id), i]));
-    const merged = [...serverData];
-    localList.forEach(lItem => {
-      if (lItem && lItem.id && !serverMap.has(String(lItem.id))) {
-        merged.push(lItem);
-      }
-    });
-
-    localStorage.setItem("bvi_tornei", JSON.stringify(merged));
-    return merged;
-  }
-  return localList;
+  return getArrayEntity("bvi_tornei", "tornei");
 }
-
 export async function saveTornei(list) {
-  if (typeof window === "undefined") {
-    const { saveTornei } = await import("./db-server");
-    await saveTornei(list);
-    return;
-  }
-
-  localStorage.setItem("bvi_tornei", JSON.stringify(list));
-  await saveToServerDb("tornei", list);
+  return saveArrayEntity("bvi_tornei", "tornei", list);
 }
 
 // 2. Iscrizioni
 export async function getIscrizioni() {
-  if (typeof window === "undefined") {
-    const { getIscrizioni } = await import("./db-server");
-    return await getIscrizioni();
-  }
-
-  const saved = localStorage.getItem("bvi_iscrizioni");
-  const localList = safeJsonParse(saved, []);
-
-  const serverData = await fetchFromServerDb("iscrizioni");
-  if (serverData !== null && Array.isArray(serverData)) {
-    if (serverData.length === 0 && localList.length > 0) {
-      saveToServerDb("iscrizioni", localList);
-      return localList;
-    }
-
-    const serverMap = new Map(serverData.map(i => [String(i.id), i]));
-    const merged = [...serverData];
-
-    // Preserve local-only registrations that have not synced to server yet
-    localList.forEach(lItem => {
-      if (lItem && lItem.id && !serverMap.has(String(lItem.id))) {
-        merged.push(lItem);
-      }
-    });
-
-    localStorage.setItem("bvi_iscrizioni", JSON.stringify(merged));
-    return merged;
-  }
-  return localList;
+  return getArrayEntity("bvi_iscrizioni", "iscrizioni");
 }
-
 export async function saveIscrizioni(list) {
-  if (typeof window === "undefined") {
-    const { saveIscrizioni } = await import("./db-server");
-    await saveIscrizioni(list);
-    return;
-  }
-
-  localStorage.setItem("bvi_iscrizioni", JSON.stringify(list));
-  await saveToServerDb("iscrizioni", list);
+  return saveArrayEntity("bvi_iscrizioni", "iscrizioni", list);
 }
 
 // 3. Gironi
@@ -262,15 +184,16 @@ export async function getGironi(slug) {
     return await getGironi(slug);
   }
 
-  const saved = localStorage.getItem(key);
-  const localData = safeJsonParse(saved, null);
-
   const serverData = await fetchFromServerDb("gironi", slug);
-  if (serverData !== null && serverData) {
-    localStorage.setItem(key, JSON.stringify(serverData));
+  if (serverData !== null && serverData !== undefined) {
+    try {
+      localStorage.setItem(key, JSON.stringify(serverData));
+    } catch (e) {}
     return serverData;
   }
-  return localData || serverData;
+
+  const saved = localStorage.getItem(key);
+  return safeJsonParse(saved, null);
 }
 
 export async function saveGironi(slug, data) {
@@ -281,7 +204,9 @@ export async function saveGironi(slug, data) {
     return;
   }
 
-  localStorage.setItem(key, JSON.stringify(data));
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (e) {}
   await saveToServerDb("gironi", data, slug);
 }
 
@@ -293,15 +218,16 @@ export async function getBracket(slug) {
     return await getBracket(slug);
   }
 
-  const saved = localStorage.getItem(key);
-  const localData = safeJsonParse(saved, null);
-
   const serverData = await fetchFromServerDb("bracket", slug);
-  if (serverData !== null && serverData) {
-    localStorage.setItem(key, JSON.stringify(serverData));
+  if (serverData !== null && serverData !== undefined) {
+    try {
+      localStorage.setItem(key, JSON.stringify(serverData));
+    } catch (e) {}
     return serverData;
   }
-  return localData || serverData;
+
+  const saved = localStorage.getItem(key);
+  return safeJsonParse(saved, null);
 }
 
 export async function saveBracket(slug, data) {
@@ -312,212 +238,48 @@ export async function saveBracket(slug, data) {
     return;
   }
 
-  localStorage.setItem(key, JSON.stringify(data));
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (e) {}
   await saveToServerDb("bracket", data, slug);
 }
 
 // 5. Users
 export async function getUsers() {
-  if (typeof window === "undefined") {
-    const { getUsers } = await import("./db-server");
-    return await getUsers();
-  }
-
-  const saved = localStorage.getItem("bvi_users");
-  const localList = safeJsonParse(saved, []);
-
-  const serverData = await fetchFromServerDb("users");
-  if (serverData !== null && Array.isArray(serverData)) {
-    if (serverData.length === 0 && localList.length > 0) {
-      saveToServerDb("users", localList);
-      return localList;
-    }
-    const serverMap = new Map(serverData.map(i => [String(i.id), i]));
-    const merged = [...serverData];
-    localList.forEach(lItem => {
-      if (lItem && lItem.id && !serverMap.has(String(lItem.id))) {
-        merged.push(lItem);
-      }
-    });
-
-    localStorage.setItem("bvi_users", JSON.stringify(merged));
-    return merged;
-  }
-  return localList;
+  return getArrayEntity("bvi_users", "users");
 }
-
 export async function saveUsers(list) {
-  if (typeof window === "undefined") {
-    const { saveUsers } = await import("./db-server");
-    await saveUsers(list);
-    return;
-  }
-
-  localStorage.setItem("bvi_users", JSON.stringify(list));
-  await saveToServerDb("users", list);
+  return saveArrayEntity("bvi_users", "users", list);
 }
 
 // 6. Moduli
 export async function getModuli() {
-  if (typeof window === "undefined") {
-    const { getModuli } = await import("./db-server");
-    return await getModuli();
-  }
-
-  const saved = localStorage.getItem("bvi_moduli");
-  const localList = safeJsonParse(saved, []);
-
-  const serverData = await fetchFromServerDb("moduli");
-  if (serverData !== null && Array.isArray(serverData)) {
-    if (serverData.length === 0 && localList.length > 0) {
-      saveToServerDb("moduli", localList);
-      return localList;
-    }
-    const serverMap = new Map(serverData.map(i => [String(i.id), i]));
-    const merged = [...serverData];
-    localList.forEach(lItem => {
-      if (lItem && lItem.id && !serverMap.has(String(lItem.id))) {
-        merged.push(lItem);
-      }
-    });
-
-    localStorage.setItem("bvi_moduli", JSON.stringify(merged));
-    return merged;
-  }
-  return localList;
+  return getArrayEntity("bvi_moduli", "moduli");
 }
-
 export async function saveModuli(list) {
-  if (typeof window === "undefined") {
-    const { saveModuli } = await import("./db-server");
-    await saveModuli(list);
-    return;
-  }
-
-  localStorage.setItem("bvi_moduli", JSON.stringify(list));
-  await saveToServerDb("moduli", list);
+  return saveArrayEntity("bvi_moduli", "moduli", list);
 }
 
 // 7. Notifiche
 export async function getNotifiche() {
-  if (typeof window === "undefined") {
-    const { getNotifiche } = await import("./db-server");
-    return await getNotifiche();
-  }
-
-  const saved = localStorage.getItem("bvi_notifiche");
-  const localList = safeJsonParse(saved, []);
-
-  const serverData = await fetchFromServerDb("notifiche");
-  if (serverData !== null && Array.isArray(serverData)) {
-    if (serverData.length === 0 && localList.length > 0) {
-      saveToServerDb("notifiche", localList);
-      return localList;
-    }
-    const serverMap = new Map(serverData.map(i => [String(i.id), i]));
-    const merged = [...serverData];
-    localList.forEach(lItem => {
-      if (lItem && lItem.id && !serverMap.has(String(lItem.id))) {
-        merged.push(lItem);
-      }
-    });
-
-    localStorage.setItem("bvi_notifiche", JSON.stringify(merged));
-    return merged;
-  }
-  return localList;
+  return getArrayEntity("bvi_notifiche", "notifiche");
 }
-
 export async function saveNotifiche(list) {
-  if (typeof window === "undefined") {
-    const { saveNotifiche } = await import("./db-server");
-    await saveNotifiche(list);
-    return;
-  }
-
-  localStorage.setItem("bvi_notifiche", JSON.stringify(list));
-  await saveToServerDb("notifiche", list);
+  return saveArrayEntity("bvi_notifiche", "notifiche", list);
 }
 
 // 8. Staff
 export async function getStaff() {
-  if (typeof window === "undefined") {
-    const { getStaff } = await import("./db-server");
-    return await getStaff();
-  }
-
-  const saved = localStorage.getItem("bvi_staff");
-  const localList = safeJsonParse(saved, []);
-
-  const serverData = await fetchFromServerDb("staff");
-  if (serverData !== null && Array.isArray(serverData)) {
-    if (serverData.length === 0 && localList.length > 0) {
-      saveToServerDb("staff", localList);
-      return localList;
-    }
-    const serverMap = new Map(serverData.map(i => [String(i.id), i]));
-    const merged = [...serverData];
-    localList.forEach(lItem => {
-      if (lItem && lItem.id && !serverMap.has(String(lItem.id))) {
-        merged.push(lItem);
-      }
-    });
-
-    localStorage.setItem("bvi_staff", JSON.stringify(merged));
-    return merged;
-  }
-  return localList;
+  return getArrayEntity("bvi_staff", "staff");
 }
-
 export async function saveStaff(list) {
-  if (typeof window === "undefined") {
-    const { saveStaff } = await import("./db-server");
-    await saveStaff(list);
-    return;
-  }
-
-  localStorage.setItem("bvi_staff", JSON.stringify(list));
-  await saveToServerDb("staff", list);
+  return saveArrayEntity("bvi_staff", "staff", list);
 }
 
 // 9. Sponsors
 export async function getSponsors() {
-  if (typeof window === "undefined") {
-    const { getSponsors } = await import("./db-server");
-    return await getSponsors();
-  }
-
-  const saved = localStorage.getItem("bvi_sponsors");
-  const localList = safeJsonParse(saved, []);
-
-  const serverData = await fetchFromServerDb("sponsors");
-  if (serverData !== null && Array.isArray(serverData)) {
-    if (serverData.length === 0 && localList.length > 0) {
-      saveToServerDb("sponsors", localList);
-      return localList;
-    }
-    const serverMap = new Map(serverData.map(i => [String(i.id), i]));
-    const merged = [...serverData];
-    localList.forEach(lItem => {
-      if (lItem && lItem.id && !serverMap.has(String(lItem.id))) {
-        merged.push(lItem);
-      }
-    });
-
-    localStorage.setItem("bvi_sponsors", JSON.stringify(merged));
-    return merged;
-  }
-  return localList;
+  return getArrayEntity("bvi_sponsors", "sponsors");
 }
-
 export async function saveSponsors(list) {
-  if (typeof window === "undefined") {
-    const { saveSponsors } = await import("./db-server");
-    await saveSponsors(list);
-    return;
-  }
-
-  localStorage.setItem("bvi_sponsors", JSON.stringify(list));
-  await saveToServerDb("sponsors", list);
+  return saveArrayEntity("bvi_sponsors", "sponsors", list);
 }
-

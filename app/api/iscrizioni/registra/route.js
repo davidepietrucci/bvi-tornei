@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getTornei, saveTornei, getIscrizioni, saveIscrizioni } from "@/app/utils/db";
+import { getTornei, saveTornei, getIscrizioni, saveIscrizioni } from "@/app/utils/db-server";
 import { sendConfirmationEmail } from "@/app/utils/email";
 
 export async function POST(request) {
