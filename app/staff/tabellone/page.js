@@ -1251,13 +1251,21 @@ function TabelloneContent() {
                 }
             }
         } else if (numGironi === 2) {
-            setBracketSize(4);
             const p = (phaseType === "gold_silver" || phaseType === "single") ? "gold" : "wb";
-            newAssignments[`${p}-s1-L`] = getRanked('A', 0); newAssignments[`${p}-s1-R`] = getRanked('B', 1);
-            newAssignments[`${p}-s2-L`] = getRanked('B', 0); newAssignments[`${p}-s2-R`] = getRanked('A', 1);
-            if (phaseType === "gold_silver") {
-                newAssignments['silver-s1-L'] = getRanked('A', 2); newAssignments['silver-s1-R'] = getRanked('B', 3);
-                newAssignments['silver-s2-L'] = getRanked('B', 2); newAssignments['silver-s2-R'] = getRanked('A', 3);
+            if (phaseType === "single" && totalSlots >= 8) {
+                setBracketSize(8);
+                newAssignments[`${p}-q1-L`] = getRanked("A", 0); newAssignments[`${p}-q1-R`] = getRanked("B", 3);
+                newAssignments[`${p}-q2-L`] = getRanked("A", 1); newAssignments[`${p}-q2-R`] = getRanked("B", 2);
+                newAssignments[`${p}-q3-L`] = getRanked("B", 0); newAssignments[`${p}-q3-R`] = getRanked("A", 3);
+                newAssignments[`${p}-q4-L`] = getRanked("B", 1); newAssignments[`${p}-q4-R`] = getRanked("A", 2);
+            } else {
+                setBracketSize(4);
+                newAssignments[`${p}-s1-L`] = getRanked("A", 0); newAssignments[`${p}-s1-R`] = getRanked("B", 1);
+                newAssignments[`${p}-s2-L`] = getRanked("B", 0); newAssignments[`${p}-s2-R`] = getRanked("A", 1);
+                if (phaseType === "gold_silver") {
+                    newAssignments["silver-s1-L"] = getRanked("A", 2); newAssignments["silver-s1-R"] = getRanked("B", 3);
+                    newAssignments["silver-s2-L"] = getRanked("B", 2); newAssignments["silver-s2-R"] = getRanked("A", 3);
+                }
             }
         } else if (numGironi === 4) {
             if (phaseType === "single") {
@@ -1771,7 +1779,7 @@ function TabelloneContent() {
 
         {hasQuarti && (
           <div className="mb-10">
-            {hasOttavi && <h4 className="text-[11px] font-black text-gray-400 mb-4 uppercase tracking-widest">Quarti di finale</h4>}
+            <h4 className="text-[11px] font-black text-gray-400 mb-4 uppercase tracking-widest">Quarti di finale</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 overflow-x-auto no-scrollbar">
               {renderMatch(`${p}-q1`,'Quarti 1',color)} {renderMatch(`${p}-q2`,'Quarti 2',color)} {renderMatch(`${p}-q3`,'Quarti 3',color)} {renderMatch(`${p}-q4`,'Quarti 4',color)}
             </div>
@@ -1779,14 +1787,14 @@ function TabelloneContent() {
         )}
 
         <div className="mb-10">
-          {hasOttavi && <h4 className="text-[11px] font-black text-gray-400 mb-4 uppercase tracking-widest">Semifinali</h4>}
+          <h4 className="text-[11px] font-black text-gray-400 mb-4 uppercase tracking-widest">Semifinali</h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-4xl">
             {renderMatch(`${p}-s1`,'S1',color)} {renderMatch(`${p}-s2`,'S2',color)}
           </div>
         </div>
 
         <div>
-          {hasOttavi && <h4 className="text-[11px] font-black text-gray-400 mb-4 uppercase tracking-widest">Finali</h4>}
+          <h4 className="text-[11px] font-black text-gray-400 mb-4 uppercase tracking-widest">Finali</h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-4xl">
             <div><h4 className="text-[10px] font-black text-red-400 mb-2 uppercase tracking-widest">Finale 3°/4°</h4>{renderMatch(`${p}-f3`,'BRONZO',color)}</div>
             <div><h4 className="text-[10px] font-black text-yellow-500 mb-2 uppercase tracking-widest">Finale 1°/2°</h4>{renderMatch(`${p}-f1`,'ORO',color)}</div>
