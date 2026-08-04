@@ -28,15 +28,15 @@ export default function StaffHeader() {
           setDbStatusText("Database: Cloud ☁️");
         } else if (st && st.missing && st.missing.length > 0) {
           setDbConnected(false);
-          setDbStatusText(`Database: Locale ⚠️ (Mancano su Vercel: ${st.missing.join(", ")})`);
+          setDbStatusText(`Database: Non Connesso ⚠️ (Mancano su Vercel: ${st.missing.join(", ")})`);
         } else {
-          setDbConnected(isUsingFirebase());
-          setDbStatusText(isUsingFirebase() ? "Database: Cloud ☁️" : "Database: Locale ⚠️");
+          setDbConnected(false);
+          setDbStatusText("Database: Offline ⚠️");
         }
       })
       .catch(() => {
-        setDbConnected(isUsingFirebase());
-        setDbStatusText(isUsingFirebase() ? "Database: Cloud ☁️" : "Database: Locale ⚠️");
+        setDbConnected(false);
+        setDbStatusText("Database: Errore Connessione ❌");
       });
     
     if (isLoaded && !user) {

@@ -12,6 +12,9 @@ if (jsonEnv) {
       cleanJson = cleanJson.slice(1, -1).trim();
     }
     parsedServiceAccount = typeof cleanJson === "string" ? JSON.parse(cleanJson) : cleanJson;
+    if (parsedServiceAccount && typeof parsedServiceAccount.private_key === "string") {
+      parsedServiceAccount.private_key = parsedServiceAccount.private_key.replace(/\\n/g, "\n");
+    }
   } catch (e) {
     console.warn("Could not parse FIREBASE_SERVICE_ACCOUNT JSON:", e.message);
   }
