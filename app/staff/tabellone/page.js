@@ -1018,6 +1018,18 @@ function TabelloneContent() {
         }
       }
     } else {
+      // Per i tabelloni diretti si parte da una configurazione pulita:
+      // eventuali semifinali/finali precedenti non devono sopravvivere alla rigenerazione.
+      if ((phaseType === "gold_silver" && subPhaseType === "direct") || phaseType === "single") {
+        const cleanedDirectMetadata = { ...bracketMetadata };
+        Object.keys(cleanedDirectMetadata).forEach(key => {
+          if (key.startsWith("gold-") || key.startsWith("silver-") || key.startsWith("wb-") || key.startsWith("lb-") || key.startsWith("grand-final-")) delete cleanedDirectMetadata[key];
+        });
+        setBracketMetadata(cleanedDirectMetadata);
+        Object.keys(newAssignments).forEach(key => {
+          if (key.startsWith("gold-") || key.startsWith("silver-") || key.startsWith("wb-") || key.startsWith("lb-") || key.startsWith("grand-final-")) delete newAssignments[key];
+        });
+      }
       let totalSlots = 0;
       for (let i = 0; i < numGironi; i++) {
         const gid = String.fromCharCode(65 + i);
