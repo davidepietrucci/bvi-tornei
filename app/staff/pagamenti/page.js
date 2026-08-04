@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import StaffHeader from "@/app/components/StaffHeader";
 import { getTornei, getIscrizioni, saveIscrizioni } from "@/app/utils/db";
@@ -11,10 +11,13 @@ export default function StaffPagamenti() {
   const [tornei, setTornei] = useState([]);
   const [filtroTorneo, setFiltroTorneo] = useState("Tutti");
   const [cercaTeam, setCercaTeam] = useState("");
+  const isSavingRef = useRef(false);
 
   const caricaDati = async () => {
+    if (isSavingRef.current) return;
     try {
       const [iscrizioniList, torneiList] = await Promise.all([getIscrizioni(), getTornei()]);
+      if (isSavingRef.current) return;
       setTornei(torneiList || []);
       const data = (iscrizioniList || []).map(isc => {
         const torneoInfo = (torneiList || []).find(t => (isc.torneo || "").toLowerCase().trim() === t.nome.toLowerCase().trim()) || (torneiList || []).find(t => isc.torneo && t.nome && isc.torneo.toLowerCase().includes(t.nome.toLowerCase()));
@@ -77,8 +80,15 @@ export default function StaffPagamenti() {
   }, []);
 
   const salvaModifiche = async (newData) => {
-    setIscrizioni(newData);
-    await saveIscrizioni(newData);
+    isSavingRef.current = true;
+    try {
+      setIscrizioni(newData);
+      await saveIscrizioni(newData);
+    } catch (e) {
+      console.error("Errore nel salvataggio dei pagamenti:", e);
+    } finally {
+      isSavingRef.current = false;
+    }
   };
 
   const segnaSaldato = (id) => {

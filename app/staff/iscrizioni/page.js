@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import StaffHeader from "@/app/components/StaffHeader";
 import { getTornei, getIscrizioni, saveIscrizioni, saveTornei, getGironi, saveGironi, getBracket, saveBracket, syncAssignmentsWithIscrizioni } from "@/app/utils/db";
 
 export default function StaffIscrizioni() {
   const [iscrizioni, setIscrizioni] = useState([]);
   const [tornei, setTornei] = useState([]);
+  const isSavingRef = useRef(false);
   
   // Import Modal States
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -57,63 +58,73 @@ export default function StaffIscrizioni() {
       alert("Il campo Giocatori non può essere vuoto.");
       return;
     }
-    const oldTeamName = editingIscrizione.giocatori;
-    const newTeamName = editFormData.giocatori.trim();
-    const tournamentName = editFormData.torneo || editingIscrizione.torneo;
+    isSavingRef.current = true;
+    try {
+      const oldTeamName = editingIscrizione.giocatori;
+      const newTeamName = editFormData.giocatori.trim();
+      const tournamentName = editFormData.torneo || editingIscrizione.torneo;
 
-    const updated = iscrizioni.map((isc) => 
-      String(isc.id) === String(editingIscrizione.id) 
-        ? { 
-            ...isc, 
-            giocatori: newTeamName,
-            tel: editFormData.tel.trim(),
-            email: editFormData.email.trim(),
-            torneo: tournamentName,
-            stato: editFormData.stato,
-            note: editFormData.note.trim()
-          } 
-        : isc
-    );
-    setIscrizioni(updated);
-    await saveIscrizioni(updated);
+      const updated = iscrizioni.map((isc) => 
+        String(isc.id) === String(editingIscrizione.id) 
+          ? { 
+              ...isc, 
+              giocatori: newTeamName,
+              tel: editFormData.tel.trim(),
+              email: editFormData.email.trim(),
+              torneo: tournamentName,
+              stato: editFormData.stato,
+              note: editFormData.note.trim()
+            } 
+          : isc
+      );
+      setIscrizioni(updated);
+      await saveIscrizioni(updated);
 
-    // Synchronize team name in gironi and bracket across all tournaments
-    const allTorneiList = tornei.length > 0 ? tornei : await getTornei();
-    for (const t of allTorneiList) {
-      const slug = t.nome.toLowerCase().trim().replace(/\s+/g, '_');
-      
-      // Update Gironi assignments
-      try {
-        const gConfig = await getGironi(slug);
-        if (gConfig && gConfig.gironeAssignments) {
-          const syncedAssignments = syncAssignmentsWithIscrizioni(gConfig.gironeAssignments, updated);
-          await saveGironi(slug, { ...gConfig, gironeAssignments: syncedAssignments });
+      // Synchronize team name in gironi and bracket across all tournaments
+      const allTorneiList = tornei.length > 0 ? tornei : await getTornei();
+      for (const t of allTorneiList) {
+        const slug = t.nome.toLowerCase().trim().replace(/\s+/g, '_');
+        
+        // Update Gironi assignments
+        try {
+          const gConfig = await getGironi(slug);
+          if (gConfig && gConfig.gironeAssignments) {
+            const syncedAssignments = syncAssignmentsWithIscrizioni(gConfig.gironeAssignments, updated);
+            await saveGironi(slug, { ...gConfig, gironeAssignments: syncedAssignments });
+          }
+        } catch (err) {
+          console.error("Errore aggiornamento gironi:", err);
         }
-      } catch (err) {
-        console.error("Errore aggiornamento gironi:", err);
+
+        // Update Bracket assignments
+        try {
+          const bConfig = await getBracket(slug);
+          if (bConfig && bConfig.bracketAssignments) {
+            const syncedAssignments = syncAssignmentsWithIscrizioni(bConfig.bracketAssignments, updated);
+            await saveBracket(slug, { ...bConfig, bracketAssignments: syncedAssignments });
+          }
+        } catch (err) {
+          console.error("Errore aggiornamento tabellone:", err);
+        }
       }
 
-      // Update Bracket assignments
-      try {
-        const bConfig = await getBracket(slug);
-        if (bConfig && bConfig.bracketAssignments) {
-          const syncedAssignments = syncAssignmentsWithIscrizioni(bConfig.bracketAssignments, updated);
-          await saveBracket(slug, { ...bConfig, bracketAssignments: syncedAssignments });
-        }
-      } catch (err) {
-        console.error("Errore aggiornamento tabellone:", err);
-      }
+      setEditingIscrizione(null);
+      alert("Iscrizione modificata e sincronizzata con successo! 💾");
+    } catch (err) {
+      console.error("Errore nel salvataggio della modifica:", err);
+    } finally {
+      isSavingRef.current = false;
     }
-
-    setEditingIscrizione(null);
-    alert("Iscrizione modificata e sincronizzata con successo! 💾");
   };
 
   const caricaDati = async () => {
+    if (isSavingRef.current) return;
     try {
       const data = await getIscrizioni();
+      if (isSavingRef.current) return;
       setIscrizioni(data || []);
       const parsed = await getTornei();
+      if (isSavingRef.current) return;
       setTornei(parsed || []);
       if (parsed && parsed.length > 0 && !selectedTorneoImport) {
         setSelectedTorneoImport(parsed[0].nome);
@@ -139,29 +150,43 @@ export default function StaffIscrizioni() {
   }, []);
 
   const handleApprove = async (id) => {
-    const updated = iscrizioni.map((isc) => 
-      String(isc.id) === String(id) ? { ...isc, stato: "Approvata" } : isc
-    );
-    setIscrizioni(updated);
-    await saveIscrizioni(updated);
+    isSavingRef.current = true;
+    try {
+      const updated = iscrizioni.map((isc) => 
+        String(isc.id) === String(id) ? { ...isc, stato: "Approvata" } : isc
+      );
+      setIscrizioni(updated);
+      await saveIscrizioni(updated);
+    } catch (err) {
+      console.error("Errore approvazione iscrizione:", err);
+    } finally {
+      isSavingRef.current = false;
+    }
   };
 
   const handleDelete = async (id) => {
     if (typeof window !== "undefined" && window.confirm("Sei sicuro di voler eliminare definitivamente questa iscrizione?")) {
-      const deletedIsc = iscrizioni.find((isc) => String(isc.id) === String(id));
-      const updated = iscrizioni.filter((isc) => String(isc.id) !== String(id));
-      setIscrizioni(updated);
-      await saveIscrizioni(updated);
+      isSavingRef.current = true;
+      try {
+        const deletedIsc = iscrizioni.find((isc) => String(isc.id) === String(id));
+        const updated = iscrizioni.filter((isc) => String(isc.id) !== String(id));
+        setIscrizioni(updated);
+        await saveIscrizioni(updated);
 
-      if (deletedIsc) {
-        const allTornei = await getTornei();
-        const updatedTornei = allTornei.map(t => {
-          if (t.nome.toLowerCase().trim() === (deletedIsc.torneo || "").toLowerCase().trim()) {
-            return { ...t, iscritti: Math.max(0, (t.iscritti || 0) - 1) };
-          }
-          return t;
-        });
-        await saveTornei(updatedTornei);
+        if (deletedIsc) {
+          const allTornei = await getTornei();
+          const updatedTornei = allTornei.map(t => {
+            if (t.nome.toLowerCase().trim() === (deletedIsc.torneo || "").toLowerCase().trim()) {
+              return { ...t, iscritti: Math.max(0, (t.iscritti || 0) - 1) };
+            }
+            return t;
+          });
+          await saveTornei(updatedTornei);
+        }
+      } catch (err) {
+        console.error("Errore eliminazione iscrizione:", err);
+      } finally {
+        isSavingRef.current = false;
       }
     }
   };
