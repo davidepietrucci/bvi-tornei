@@ -300,10 +300,10 @@ function TabelloneContent() {
       const losM3 = resolveLoser(`${groupKey}-m3`);
 
       return [
-        { nome: winM2 || `1° ${groupKey}`, note: "Qualificata in Semifinale 🏆", pos: 1 },
-        { nome: losM2 || `2° ${groupKey}`, note: "Qualificata in Semifinale ⚽", pos: 2 },
-        { nome: winM3 || `3° ${groupKey}`, note: "3° Posto Pool 🥉", pos: 3 },
-        { nome: losM3 || `4° ${groupKey}`, note: "4° Posto Pool ❌", pos: 4 },
+        { nome: winM2 || `1° ${groupKey}`, note: "Diretta in Semifinale 🏆", pos: 1 },
+        { nome: losM2 || `2° ${groupKey}`, note: "Ai Quarti di Finale ⚔️", pos: 2 },
+        { nome: winM3 || `3° ${groupKey}`, note: "Ai Quarti di Finale ⚔️", pos: 3 },
+        { nome: losM3 || `4° ${groupKey}`, note: "Eliminata ❌", pos: 4 },
       ];
     }
 
@@ -583,11 +583,16 @@ function TabelloneContent() {
         update("pool-gold-2-2", getRankedInt(gD_rank, 0, "1° Gold D"));
         update("pool-gold-2-3", getRankedInt(gC_rank, 1, "2° Gold C"));
 
-        // 2. Semifinali Gold (1° Pool Gold 1 vs 2° Pool Gold 2 | 1° Pool Gold 2 vs 2° Pool Gold 1)
+        // 2. Quarti di Finale Gold (2° e 3° dello stesso Pool si sfidano)
+        update("gold-q1-L", resolveLoser("pool-gold-1-m2") || "2° Pool Gold 1");
+        update("gold-q1-R", resolveWinner("pool-gold-1-m3") || "3° Pool Gold 1");
+        update("gold-q2-L", resolveLoser("pool-gold-2-m2") || "2° Pool Gold 2");
+        update("gold-q2-R", resolveWinner("pool-gold-2-m3") || "3° Pool Gold 2");
+        // 3. Semifinali Gold (1° Pool va diretto + vincente del Quarto dello stesso Pool)
         update("gold-s1-L", resolveWinner("pool-gold-1-m2") || "1° Pool Gold 1");
-        update("gold-s1-R", resolveLoser("pool-gold-2-m2") || "2° Pool Gold 2");
+        update("gold-s1-R", resolveWinner("gold-q1") || "Vincente Quarto 1");
         update("gold-s2-L", resolveWinner("pool-gold-2-m2") || "1° Pool Gold 2");
-        update("gold-s2-R", resolveLoser("pool-gold-1-m2") || "2° Pool Gold 1");
+        update("gold-s2-R", resolveWinner("gold-q2") || "Vincente Quarto 2");
       } else {
         // Standard Intermediate Groups (1° e 2° vanno in Semifinale)
         if (currentNumGoldGironi === 4) {
@@ -652,13 +657,13 @@ function TabelloneContent() {
           update("silver-s2-R", getRankedInt(sA_rank, 2, "3° Silver"));
         }
       } else if (subPhaseType === "custom_18") {
-        // Custom 18 squadre: 2 Gironi Silver all'italiana da 3 squadre.
-        // 1° Silver A vs 1° Silver B => Finale 1°/2° Posto Silver
-        // 2° Silver A vs 2° Silver B => Finalina 3°/4° Posto Silver
-        update("silver-f1-L", getRankedInt(sA_rank, 0, "1° Silver A"));
-        update("silver-f1-R", getRankedInt(sB_rank, 0, "1° Silver B"));
-        update("silver-f3-L", getRankedInt(sA_rank, 1, "2° Silver A"));
-        update("silver-f3-R", getRankedInt(sB_rank, 1, "2° Silver B"));
+        // Custom 18 squadre Silver: 2 Gironi all'italiana da 3 squadre.
+        // Semifinali incrociate: 1°A vs 2°B, 1°B vs 2°A
+        // Vincenti → Finale 1°/2°, Perdenti → Finale 3°/4°
+        update("silver-s1-L", getRankedInt(sA_rank, 0, "1° Silver A"));
+        update("silver-s1-R", getRankedInt(sB_rank, 1, "2° Silver B"));
+        update("silver-s2-L", getRankedInt(sB_rank, 0, "1° Silver B"));
+        update("silver-s2-R", getRankedInt(sA_rank, 1, "2° Silver A"));
       } else {
         // Standard Intermediate Groups (1° e 2° vanno in Semifinale)
         if (currentNumSilverGironi === 4) {
@@ -679,12 +684,10 @@ function TabelloneContent() {
         }
       }
 
-      if (subPhaseType !== "custom_18") {
-        update("silver-f1-L", resolveWinner("silver-s1"));
-        update("silver-f1-R", resolveWinner("silver-s2"));
-        update("silver-f3-L", resolveLoser("silver-s1"));
-        update("silver-f3-R", resolveLoser("silver-s2"));
-      }
+      update("silver-f1-L", resolveWinner("silver-s1"));
+      update("silver-f1-R", resolveWinner("silver-s2"));
+      update("silver-f3-L", resolveLoser("silver-s1"));
+      update("silver-f3-R", resolveLoser("silver-s2"));
     }
 
     if (phaseType === "double") {
@@ -1718,21 +1721,58 @@ function TabelloneContent() {
           </div>
         )}
 
+        {/* Quarti di Finale (solo custom_18 gold: 2° e 3° dello stesso Pool) */}
+        {subPhaseType === "custom_18" && p === "gold" && (
+          <div className="mb-8 max-w-4xl">
+            <h4 className="text-[10px] font-black text-blue-500 mb-2 uppercase tracking-widest">
+              Quarti di Finale (2° e 3° Pool si sfidano — 1° va diretto in Semifinale)
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+              <div>
+                <span className="text-[10px] font-bold text-gray-400 block mb-1">Quarto 1 (2° Pool Gold 1 vs 3° Pool Gold 1)</span>
+                {renderMatch(`${p}-q1`, 'QUARTO 1', color)}
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-gray-400 block mb-1">Quarto 2 (2° Pool Gold 2 vs 3° Pool Gold 2)</span>
+                {renderMatch(`${p}-q2`, 'QUARTO 2', color)}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Turno 3: Semifinali */}
         <div className="mb-8 max-w-4xl">
           <h4 className="text-[10px] font-black text-purple-500 mb-2 uppercase tracking-widest">
-            {isStepladder ? "Semifinali (1° Classificati vs Vincenti Quarti)" : subPhaseType === "custom_18" ? "Semifinali GOLD (1° Pool vs 2° Pool Opposto)" : "Semifinali"}
+            {isStepladder
+              ? "Semifinali (1° Classificati vs Vincenti Quarti)"
+              : subPhaseType === "custom_18" && p === "gold"
+              ? "Semifinali GOLD (1° Pool diretto + Vincente Quarto)"
+              : subPhaseType === "custom_18" && p === "silver"
+              ? "Semifinali SILVER (1° vs 2° Incrociati)"
+              : "Semifinali"}
           </h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
             <div>
               <span className="text-[10px] font-bold text-gray-400 block mb-1">
-                {isStepladder ? "Semifinale 1 (1° Pool 1 vs Vincente Quarto 2)" : subPhaseType === "custom_18" ? "Semifinale 1 (1° Pool Gold 1 vs 2° Pool Gold 2)" : "Semifinale 1"}
+                {isStepladder
+                  ? "Semifinale 1 (1° Pool 1 vs Vincente Quarto 2)"
+                  : subPhaseType === "custom_18" && p === "gold"
+                  ? "Semifinale 1 (1° Pool Gold 1 vs Vincente Quarto 1)"
+                  : subPhaseType === "custom_18" && p === "silver"
+                  ? "Semifinale 1 (1° Silver A vs 2° Silver B)"
+                  : "Semifinale 1"}
               </span>
               {renderMatch(`${p}-s1`, 'SF1', color)}
             </div>
             <div>
               <span className="text-[10px] font-bold text-gray-400 block mb-1">
-                {isStepladder ? "Semifinale 2 (1° Pool 2 vs Vincente Quarto 1)" : subPhaseType === "custom_18" ? "Semifinale 2 (1° Pool Gold 2 vs 2° Pool Gold 1)" : "Semifinale 2"}
+                {isStepladder
+                  ? "Semifinale 2 (1° Pool 2 vs Vincente Quarto 1)"
+                  : subPhaseType === "custom_18" && p === "gold"
+                  ? "Semifinale 2 (1° Pool Gold 2 vs Vincente Quarto 2)"
+                  : subPhaseType === "custom_18" && p === "silver"
+                  ? "Semifinale 2 (1° Silver B vs 2° Silver A)"
+                  : "Semifinale 2"}
               </span>
               {renderMatch(`${p}-s2`, 'SF2', color)}
             </div>
