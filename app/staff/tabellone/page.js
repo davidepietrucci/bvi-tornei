@@ -588,11 +588,11 @@ function TabelloneContent() {
         update("gold-q1-R", resolveWinner("pool-gold-2-m3") || "3° Pool Gold 2");
         update("gold-q2-L", resolveLoser("pool-gold-2-m2") || "2° Pool Gold 2");
         update("gold-q2-R", resolveWinner("pool-gold-1-m3") || "3° Pool Gold 1");
-        // 3. Semifinali Gold (1° Pool va diretto + vincente del Quarto dello stesso Pool)
+        // 3. Semifinali Gold (1° Pool vs Vincente Quarto da Pool opposta)
         update("gold-s1-L", resolveWinner("pool-gold-1-m2") || "1° Pool Gold 1");
-        update("gold-s1-R", resolveWinner("gold-q1") || "Vincente Quarto 1");
+        update("gold-s1-R", resolveWinner("gold-q2") || "Vincente Quarto 2");
         update("gold-s2-L", resolveWinner("pool-gold-2-m2") || "1° Pool Gold 2");
-        update("gold-s2-R", resolveWinner("gold-q2") || "Vincente Quarto 2");
+        update("gold-s2-R", resolveWinner("gold-q1") || "Vincente Quarto 1");
       } else {
         // Standard Intermediate Groups (1° e 2° vanno in Semifinale)
         if (currentNumGoldGironi === 4) {
@@ -1764,7 +1764,7 @@ function TabelloneContent() {
                 {isStepladder
                   ? "Semifinale 1 (1° Pool 1 vs Vincente Quarto 2)"
                   : subPhaseType === "custom_18" && p === "gold"
-                  ? "Semifinale 1 (1° Pool Gold 1 vs Vincente Quarto 1)"
+                  ? "Semifinale 1 (1° Pool Gold 1 vs Vincente Quarto 2)"
                   : subPhaseType === "custom_18" && p === "silver"
                   ? "Semifinale 1 (1° Silver A vs 2° Silver B)"
                   : "Semifinale 1"}
@@ -1776,7 +1776,7 @@ function TabelloneContent() {
                 {isStepladder
                   ? "Semifinale 2 (1° Pool 2 vs Vincente Quarto 1)"
                   : subPhaseType === "custom_18" && p === "gold"
-                  ? "Semifinale 2 (1° Pool Gold 2 vs Vincente Quarto 2)"
+                  ? "Semifinale 2 (1° Pool Gold 2 vs Vincente Quarto 1)"
                   : subPhaseType === "custom_18" && p === "silver"
                   ? "Semifinale 2 (1° Silver B vs 2° Silver A)"
                   : "Semifinale 2"}
