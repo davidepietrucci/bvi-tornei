@@ -583,11 +583,11 @@ function TabelloneContent() {
         update("pool-gold-2-2", getRankedInt(gD_rank, 0, "1° Gold D"));
         update("pool-gold-2-3", getRankedInt(gC_rank, 1, "2° Gold C"));
 
-        // 2. Quarti di Finale Gold (2° e 3° dello stesso Pool si sfidano)
+        // 2. Quarti di Finale Gold (2° e 3° da Pool OPPOSTE si sfidano a croce)
         update("gold-q1-L", resolveLoser("pool-gold-1-m2") || "2° Pool Gold 1");
-        update("gold-q1-R", resolveWinner("pool-gold-1-m3") || "3° Pool Gold 1");
+        update("gold-q1-R", resolveWinner("pool-gold-2-m3") || "3° Pool Gold 2");
         update("gold-q2-L", resolveLoser("pool-gold-2-m2") || "2° Pool Gold 2");
-        update("gold-q2-R", resolveWinner("pool-gold-2-m3") || "3° Pool Gold 2");
+        update("gold-q2-R", resolveWinner("pool-gold-1-m3") || "3° Pool Gold 1");
         // 3. Semifinali Gold (1° Pool va diretto + vincente del Quarto dello stesso Pool)
         update("gold-s1-L", resolveWinner("pool-gold-1-m2") || "1° Pool Gold 1");
         update("gold-s1-R", resolveWinner("gold-q1") || "Vincente Quarto 1");
@@ -1721,19 +1721,19 @@ function TabelloneContent() {
           </div>
         )}
 
-        {/* Quarti di Finale (solo custom_18 gold: 2° e 3° dello stesso Pool) */}
+        {/* Quarti di Finale (solo custom_18 gold: 2° e 3° da Pool opposte - a croce) */}
         {subPhaseType === "custom_18" && p === "gold" && (
           <div className="mb-8 max-w-4xl">
             <h4 className="text-[10px] font-black text-blue-500 mb-2 uppercase tracking-widest">
-              Quarti di Finale (2° e 3° Pool si sfidano — 1° va diretto in Semifinale)
+              Quarti di Finale (2° e 3° si sfidano a croce tra Pool — 1° va diretto in Semifinale)
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
               <div>
-                <span className="text-[10px] font-bold text-gray-400 block mb-1">Quarto 1 (2° Pool Gold 1 vs 3° Pool Gold 1)</span>
+                <span className="text-[10px] font-bold text-gray-400 block mb-1">Quarto 1 (2° Pool Gold 1 vs 3° Pool Gold 2)</span>
                 {renderMatch(`${p}-q1`, 'QUARTO 1', color)}
               </div>
               <div>
-                <span className="text-[10px] font-bold text-gray-400 block mb-1">Quarto 2 (2° Pool Gold 2 vs 3° Pool Gold 2)</span>
+                <span className="text-[10px] font-bold text-gray-400 block mb-1">Quarto 2 (2° Pool Gold 2 vs 3° Pool Gold 1)</span>
                 {renderMatch(`${p}-q2`, 'QUARTO 2', color)}
               </div>
             </div>
