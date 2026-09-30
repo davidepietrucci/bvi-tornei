@@ -1,287 +1,210 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import StaffHeader from "@/app/components/StaffHeader";
-import { getUsers, saveUsers } from "@/app/utils/db";
+
+function formatDate(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleDateString("it-IT");
+}
+
+async function readResponse(response) {
+  const json = await response.json();
+  if (!response.ok) throw new Error(json.error || "Errore durante il caricamento.");
+  return json.data;
+}
 
 export default function StaffAtleti() {
   const router = useRouter();
   const { user, isLoaded } = useUser();
   const [atleti, setAtleti] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  
-  // Modal states
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newUserData, setNewUserData] = useState({
-    nome: "",
-    cognome: "",
-    email: "",
-    password: ""
-  });
-  const [modalError, setModalError] = useState("");
-  const [modalSubmitting, setModalSubmitting] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [selectedAtleta, setSelectedAtleta] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState("");
 
   useEffect(() => {
-    if (isLoaded && !user) {
-      router.push("/staff");
+    if (!isLoaded) return;
+    if (!user) {
+      router.replace("/staff");
+      return;
+    }
+    if (user.publicMetadata?.role !== "admin") {
+      router.replace("/staff/dashboard");
       return;
     }
 
-    if (user) {
-      const role = user.publicMetadata?.role || "staff";
-      if (role !== "admin") {
-        router.push("/staff/dashboard");
-        return;
-      }
-
-      getUsers().then(users => {
-        setAtleti(users);
+    const controller = new AbortController();
+    setLoading(true);
+    fetch("/api/staff/atleti", { cache: "no-store", signal: controller.signal })
+      .then(readResponse)
+      .then((data) => setAtleti(Array.isArray(data) ? data : []))
+      .catch((fetchError) => {
+        if (fetchError.name !== "AbortError") setError(fetchError.message || "Non è stato possibile caricare gli atleti.");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
       });
-    }
-  }, [router, user, isLoaded]);
 
-  const handleModalChange = (e) => {
-    setNewUserData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-  };
+    return () => controller.abort();
+  }, [isLoaded, router, user]);
 
-  const handleCreateUser = async (e) => {
-    e.preventDefault();
-    if (modalSubmitting) return;
-    setModalSubmitting(true);
-    setModalError("");
+  const filteredAtleti = useMemo(() => {
+    const search = searchTerm.trim().toLocaleLowerCase("it-IT");
+    if (!search) return atleti;
+    return atleti.filter((athlete) =>
+      [athlete.nome, athlete.cognome, athlete.email, athlete.username, athlete.id]
+        .some((value) => String(value || "").toLocaleLowerCase("it-IT").includes(search))
+    );
+  }, [atleti, searchTerm]);
 
+  const openProfile = async (athlete) => {
+    setSelectedAtleta({ ...athlete, iscrizioni: [] });
+    setDetailLoading(true);
+    setDetailError("");
     try {
-      const emailNormalized = newUserData.email.trim().toLowerCase();
-      
-      // Check if email already exists
-      const existing = await getUsers();
-      if (existing.some(u => u.email?.toLowerCase() === emailNormalized)) {
-        setModalError("Questo indirizzo email è già registrato.");
-        setModalSubmitting(false);
-        return;
-      }
-
-      const newUser = {
-        id: Date.now().toString(),
-        nome: newUserData.nome.trim(),
-        cognome: newUserData.cognome.trim(),
-        email: emailNormalized,
-        password: newUserData.password,
-        dataRegistrazione: new Date().toLocaleDateString('it-IT')
-      };
-
-      const updated = [...existing, newUser];
-      await saveUsers(updated);
-
-      // Refresh list
-      setAtleti(updated);
-      
-      // Reset form & close modal
-      setNewUserData({
-        nome: "",
-        cognome: "",
-        email: "",
-        password: ""
-      });
-      setShowAddModal(false);
-    } catch (err) {
-      console.error(err);
-      setModalError("Errore durante il salvataggio. Riprova.");
+      const params = new URLSearchParams({ userId: athlete.id });
+      const data = await readResponse(await fetch(`/api/staff/atleti?${params}`, { cache: "no-store" }));
+      setSelectedAtleta(data);
+    } catch (fetchError) {
+      setDetailError(fetchError.message || "Non è stato possibile caricare il profilo.");
     } finally {
-      setModalSubmitting(false);
+      setDetailLoading(false);
     }
   };
 
-  const filteredAtleti = atleti.filter(a => {
-    const fullName = `${a.nome || ""} ${a.cognome || ""}`.toLowerCase();
-    const email = (a.email || "").toLowerCase();
-    const search = searchTerm.toLowerCase();
-    return fullName.includes(search) || email.includes(search);
-  });
+  const fullName = (athlete) => `${athlete.nome || ""} ${athlete.cognome || ""}`.trim() || athlete.username || athlete.email || "Atleta";
 
   return (
     <main className="min-h-screen pb-20 bg-[#f8faff]">
       <StaffHeader />
 
       <div className="max-w-6xl mx-auto mt-6 md:mt-10 px-4">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
-            <div>
-                <h2 className="text-3xl md:text-5xl font-black text-[#0a1628] uppercase tracking-tighter leading-none">Anagrafica Atleti 👤</h2>
-                <p className="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-widest mt-2">Gestione Utenti Registrati</p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto items-center">
-                <button 
-                    onClick={() => setShowAddModal(true)}
-                    className="w-full sm:w-auto px-6 py-4 bg-[#0a1628] text-white rounded-[1.2rem] font-black text-xs uppercase tracking-widest shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
-                >
-                    + Nuovo Atleta
-                </button>
-                <div className="relative w-full sm:w-80">
-                    <input 
-                        type="text" 
-                        placeholder="Cerca per nome o email..." 
-                        className="w-full pl-12 pr-4 py-4 bg-white border-2 border-gray-100 rounded-[1.5rem] focus:border-[#0a1628] outline-none transition-all shadow-xl text-sm font-bold text-gray-900"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-xl">🔍</span>
-                </div>
-            </div>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-5">
+          <div>
+            <h2 className="text-3xl md:text-5xl font-black text-[#0a1628] uppercase tracking-tighter leading-none">Anagrafica Atleti 👤</h2>
+            <p className="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-widest mt-2">Account registrati nell’area atleta</p>
+            <p className="text-sm text-gray-500 mt-3">Gli account Clerk compaiono qui automaticamente dopo la registrazione.</p>
+          </div>
+          <div className="w-full md:w-80">
+            <label htmlFor="athlete-search" className="sr-only">Cerca atleta</label>
+            <input
+              id="athlete-search"
+              type="search"
+              placeholder="Cerca per nome, email o ID…"
+              className="w-full pl-5 pr-4 py-4 bg-white border-2 border-gray-100 rounded-2xl focus:border-[#0a1628] outline-none transition-all shadow-sm text-sm font-bold text-gray-900"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+            />
+          </div>
         </div>
 
-        <div className="space-y-4 md:space-y-0">
-            {/* Desktop Table Header */}
-            <div className="hidden md:grid grid-cols-4 bg-gray-50 p-5 rounded-t-[2rem] border-x border-t border-gray-100 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                <div className="px-4">Atleta</div>
-                <div className="px-4">Email</div>
-                <div className="px-4 text-center">Data Reg.</div>
-                <div className="px-4 text-right">Azioni</div>
+        <div className="mb-4 flex items-center justify-between rounded-2xl bg-white px-5 py-4 border border-gray-100 shadow-sm">
+          <span className="text-xs font-black uppercase tracking-widest text-gray-500">Atleti trovati</span>
+          <span className="text-2xl font-black text-[#0a1628]">{loading ? "…" : filteredAtleti.length}</span>
+        </div>
+
+        {error && <div className="mb-4 rounded-2xl border border-red-100 bg-red-50 p-5 text-sm font-bold text-red-700">{error}</div>}
+
+        <div className="space-y-3">
+          {loading ? (
+            <div className="rounded-3xl bg-white p-12 text-center text-sm font-bold text-gray-400 shadow-sm">Caricamento anagrafica…</div>
+          ) : filteredAtleti.length === 0 ? (
+            <div className="rounded-3xl bg-white p-12 text-center text-sm font-bold text-gray-400 shadow-sm">
+              {atleti.length === 0 ? "Non ci sono ancora account atleta registrati." : "Nessun atleta corrisponde alla ricerca."}
             </div>
-
-            {/* List */}
-            <div className="space-y-4 md:space-y-0 md:bg-white md:rounded-b-[2rem] md:shadow-xl md:border md:border-gray-100 md:divide-y">
-                {filteredAtleti.map((atleta) => (
-                    <div key={atleta.id} className="bg-white p-6 rounded-[2rem] shadow-xl md:shadow-none md:rounded-none md:grid md:grid-cols-4 md:items-center hover:bg-blue-50/20 transition-all">
-                        <div className="flex items-center gap-4 md:px-4 mb-4 md:mb-0">
-                            <div className="w-12 h-12 rounded-2xl bg-[#0a1628] text-white flex items-center justify-center font-black text-sm shadow-lg shadow-blue-900/20">
-                                {(atleta.nome || "A").charAt(0)}{(atleta.cognome || "T").charAt(0)}
-                            </div>
-                            <div>
-                                <h4 className="font-black text-lg text-[#0a1628] leading-none">{atleta.nome} {atleta.cognome}</h4>
-                                <span className="text-[10px] font-black text-gray-300 md:hidden uppercase tracking-widest">ID #{atleta.id}</span>
-                            </div>
-                        </div>
-
-                        <div className="md:px-4 mb-2 md:mb-0">
-                            <p className="text-sm font-bold text-gray-500">{atleta.email}</p>
-                        </div>
-
-                        <div className="md:px-4 mb-6 md:mb-0 md:text-center">
-                            <span className="text-[10px] font-black text-gray-400 uppercase md:hidden block mb-1">Registrato il</span>
-                            <span className="font-bold text-gray-400">{atleta.dataRegistrazione}</span>
-                        </div>
-
-                        <div className="md:px-4 text-right">
-                            <button className="w-full md:w-auto px-6 py-3 bg-gray-50 hover:bg-[#0a1628] hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-gray-100">
-                                Vedi Profilo
-                            </button>
-                        </div>
-                    </div>
-                ))}
-
-                {filteredAtleti.length === 0 && (
-                    <div className="py-20 text-center text-gray-400 font-bold italic">
-                        Nessun atleta trovato.
-                    </div>
-                )}
-            </div>
+          ) : filteredAtleti.map((athlete) => (
+            <article key={athlete.id} className="bg-white p-5 md:p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col md:flex-row md:items-center gap-4">
+              <div className="flex items-center gap-4 flex-1 min-w-0">
+                <div className="w-12 h-12 rounded-2xl bg-[#0a1628] text-[#FFD700] flex items-center justify-center font-black text-sm shrink-0">
+                  {(athlete.nome || athlete.email || "A").charAt(0).toUpperCase()}{(athlete.cognome || "").charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-black text-lg text-[#0a1628] truncate">{fullName(athlete)}</h3>
+                  <p className="text-sm font-semibold text-gray-500 truncate">{athlete.email || "Email non disponibile"}</p>
+                  <p className="mt-1 text-[10px] font-bold text-gray-400">Registrato il {formatDate(athlete.dataRegistrazione)}</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between md:justify-end gap-4">
+                <span className="rounded-xl bg-blue-50 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-blue-700">
+                  {athlete.iscrizioni} {athlete.iscrizioni === 1 ? "iscrizione" : "iscrizioni"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => openProfile(athlete)}
+                  className="px-5 py-3 bg-[#0a1628] text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-colors"
+                >
+                  Vedi profilo
+                </button>
+              </div>
+            </article>
+          ))}
         </div>
       </div>
 
-      {/* Modal Nuovo Atleta */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[200] p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-[2.5rem] p-8 md:p-10 w-full max-w-lg shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h3 className="text-2xl font-black text-[#0a1628] uppercase tracking-tighter leading-none">Nuovo Atleta 👤</h3>
-                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2">Registra un nuovo profilo</p>
+      {selectedAtleta && (
+        <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedAtleta(null); }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="athlete-profile-title" className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white shadow-2xl">
+            <div className="sticky top-0 bg-[#0a1628] p-6 text-white flex items-start justify-between gap-4 rounded-t-3xl">
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#FFD700]">Profilo atleta</p>
+                <h2 id="athlete-profile-title" className="mt-1 text-2xl font-black truncate">{fullName(selectedAtleta)}</h2>
+                <p className="mt-1 text-sm text-white/70 truncate">{selectedAtleta.email || "Email non disponibile"}</p>
               </div>
-              <button 
-                onClick={() => {
-                  setShowAddModal(false);
-                  setModalError("");
-                }} 
-                className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 font-bold hover:bg-gray-100 hover:text-gray-800 transition-all cursor-pointer"
-              >
-                ✕
-              </button>
+              <button type="button" aria-label="Chiudi profilo" onClick={() => setSelectedAtleta(null)} className="rounded-xl bg-white/10 px-3 py-2 text-white hover:bg-white/20">✕</button>
             </div>
 
-            {modalError && (
-              <div className="bg-red-50 text-red-600 p-4 rounded-2xl mb-6 text-xs font-bold border border-red-100">
-                ⚠️ {modalError}
-              </div>
-            )}
-
-            <form onSubmit={handleCreateUser} className="space-y-5">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1 block">Nome</label>
-                  <input 
-                    type="text" 
-                    name="nome"
-                    required
-                    value={newUserData.nome}
-                    onChange={handleModalChange}
-                    placeholder="Mario"
-                    className="w-full bg-gray-50 border-none rounded-2xl px-4 py-3.5 font-bold text-[#0a1628] text-sm focus:ring-2 focus:ring-[#0a1628] transition-all outline-none"
-                  />
+            <div className="p-6 space-y-6">
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div className="rounded-2xl bg-gray-50 p-4">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">ID Clerk</p>
+                  <p className="mt-1 break-all text-xs font-bold text-[#0a1628]">{selectedAtleta.id}</p>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1 block">Cognome</label>
-                  <input 
-                    type="text" 
-                    name="cognome"
-                    required
-                    value={newUserData.cognome}
-                    onChange={handleModalChange}
-                    placeholder="Rossi"
-                    className="w-full bg-gray-50 border-none rounded-2xl px-4 py-3.5 font-bold text-[#0a1628] text-sm focus:ring-2 focus:ring-[#0a1628] transition-all outline-none"
-                  />
+                <div className="rounded-2xl bg-gray-50 p-4">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Registrazione</p>
+                  <p className="mt-1 text-sm font-bold text-[#0a1628]">{formatDate(selectedAtleta.dataRegistrazione)}</p>
+                </div>
+                {selectedAtleta.username && (
+                  <div className="rounded-2xl bg-gray-50 p-4">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Username</p>
+                    <p className="mt-1 text-sm font-bold text-[#0a1628]">{selectedAtleta.username}</p>
+                  </div>
+                )}
+                <div className="rounded-2xl bg-gray-50 p-4">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Ultimo accesso</p>
+                  <p className="mt-1 text-sm font-bold text-[#0a1628]">{formatDate(selectedAtleta.ultimoAccesso)}</p>
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1 block">Email</label>
-                <input 
-                  type="email" 
-                  name="email"
-                  required
-                  value={newUserData.email}
-                  onChange={handleModalChange}
-                  placeholder="mario.rossi@email.com"
-                  className="w-full bg-gray-50 border-none rounded-2xl px-4 py-3.5 font-bold text-[#0a1628] text-sm focus:ring-2 focus:ring-[#0a1628] transition-all outline-none"
-                />
+              <div>
+                <h3 className="text-xs font-black uppercase tracking-widest text-[#0a1628]">Iscrizioni ai tornei</h3>
+                {detailLoading ? (
+                  <p className="mt-3 rounded-2xl bg-gray-50 p-5 text-sm font-semibold text-gray-400">Caricamento iscrizioni…</p>
+                ) : detailError ? (
+                  <p className="mt-3 rounded-2xl bg-red-50 p-5 text-sm font-semibold text-red-700">{detailError}</p>
+                ) : selectedAtleta.iscrizioni?.length ? (
+                  <div className="mt-3 divide-y divide-gray-100 rounded-2xl border border-gray-100">
+                    {selectedAtleta.iscrizioni.map((registration) => (
+                      <div key={registration.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                          <p className="font-black text-[#0a1628]">{registration.torneo}</p>
+                          <p className="mt-1 text-xs text-gray-500">{registration.giocatori || "Partecipazione singola"} · {formatDate(registration.data)}</p>
+                        </div>
+                        <span className="self-start sm:self-auto rounded-lg bg-gray-100 px-3 py-1.5 text-[9px] font-black uppercase tracking-wider text-gray-600">{registration.stato}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-3 rounded-2xl bg-gray-50 p-5 text-sm font-semibold text-gray-500">Questo account non ha ancora iscrizioni ai tornei.</p>
+                )}
               </div>
-
-              <div className="space-y-1">
-                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1 block">Password</label>
-                <input 
-                  type="password" 
-                  name="password"
-                  required
-                  minLength={6}
-                  value={newUserData.password}
-                  onChange={handleModalChange}
-                  placeholder="Password di accesso"
-                  className="w-full bg-gray-50 border-none rounded-2xl px-4 py-3.5 font-bold text-[#0a1628] text-sm focus:ring-2 focus:ring-[#0a1628] transition-all outline-none"
-                />
-              </div>
-
-              <div className="flex gap-4 pt-4">
-                <button 
-                  type="button" 
-                  onClick={() => {
-                    setShowAddModal(false);
-                    setModalError("");
-                  }}
-                  className="flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest text-gray-400 bg-gray-50 border border-gray-100 hover:bg-gray-100 transition-all active:scale-95 cursor-pointer"
-                >
-                  Annulla
-                </button>
-                <button 
-                  type="submit" 
-                  disabled={modalSubmitting}
-                  className="flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest text-white bg-[#0a1628] shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
-                >
-                  {modalSubmitting ? "Registrazione..." : "Crea Profilo 💾"}
-                </button>
-              </div>
-            </form>
-          </div>
+            </div>
+          </section>
         </div>
       )}
     </main>
