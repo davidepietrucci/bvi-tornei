@@ -12,9 +12,10 @@ function safeJsonParse(str, fallback) {
 }
 
 // Helper per eseguire chiamate HTTP sicure dal Client verso l'API del Server (Single Source of Truth)
-async function fetchFromServerDb(type, slug = null) {
+async function fetchFromServerDb(type, slug = null, publicView = false) {
   let url = `/api/db?type=${type}&_t=${Date.now()}`;
   if (slug) url += `&slug=${slug}`;
+  if (publicView) url += "&public=true";
   try {
     const res = await fetch(url, {
       cache: "no-store",
@@ -177,6 +178,20 @@ export async function getIscrizioni() {
 }
 export async function saveIscrizioni(list) {
   return saveArrayEntity("bvi_iscrizioni", "iscrizioni", list);
+}
+
+export async function getPublicIscrizioni() {
+  if (typeof window === "undefined") return [];
+  const data = await fetchFromServerDb("iscrizioni", null, true);
+  if (Array.isArray(data)) return data;
+  const localData = safeJsonParse(localStorage.getItem("bvi_iscrizioni"), []);
+  return Array.isArray(localData) ? localData.map((isc) => ({
+    id: isc.id,
+    torneo: isc.torneo,
+    giocatori: isc.giocatori,
+    stato: isc.stato,
+    data: isc.data,
+  })) : [];
 }
 
 // 3. Gironi

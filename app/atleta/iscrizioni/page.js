@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import AthleteHeader from "@/app/components/AthleteHeader";
 import AthleteBottomNav from "@/app/components/AthleteBottomNav";
-import { getIscrizioni } from "@/app/utils/db";
 
 const FILTRI = ["Tutte", "Approvata", "In Attesa"];
 
@@ -17,6 +16,7 @@ export default function MieIscrizioni() {
   const [filter, setFilter] = useState("Tutte");
   const [expanded, setExpanded] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     if (isLoaded && !user) {
@@ -24,30 +24,14 @@ export default function MieIscrizioni() {
       return;
     }
     if (user) {
-      const email = (user.primaryEmailAddress?.emailAddress || "").toLowerCase().trim();
-      const fullName = (user.fullName || "").toLowerCase().trim();
-      const firstName = (user.firstName || "").toLowerCase().trim();
-      const lastName = (user.lastName || "").toLowerCase().trim();
-
-      getIscrizioni().then((all) => {
-        const mie = all.filter((isc) => {
-          const iscEmail = (isc.email || isc.email1 || isc.email2 || "").toLowerCase().trim();
-          if (email && iscEmail && (iscEmail === email || email.includes(iscEmail) || iscEmail.includes(email))) {
-            return true;
-          }
-          if (isc.userId && isc.userId === user.id) return true;
-
-          const giocatori = (isc.giocatori || "").toLowerCase().trim();
-          if (!giocatori) return false;
-
-          if (fullName && fullName.length >= 4 && giocatori.includes(fullName)) return true;
-          if (firstName && lastName && firstName.length >= 2 && lastName.length >= 2) {
-            if (giocatori.includes(firstName) && giocatori.includes(lastName)) return true;
-          }
-          return false;
-        });
-        setIscrizioni(mie);
-      }).finally(() => setLoading(false));
+      fetch("/api/atleta/iscrizioni", { cache: "no-store" })
+        .then(async (response) => {
+          const json = await response.json();
+          if (!response.ok) throw new Error(json.error || "Errore caricamento iscrizioni");
+          setIscrizioni(json.data || []);
+        })
+        .catch((error) => setLoadError(error.message || "Non è stato possibile caricare le iscrizioni."))
+        .finally(() => setLoading(false));
     }
   }, [router, isLoaded, user]);
 
@@ -100,7 +84,9 @@ export default function MieIscrizioni() {
         </div>
 
         {/* Lista iscrizioni */}
-        {filtered.length > 0 ? (
+        {loadError ? (
+          <div className="bg-white border border-red-100 rounded-3xl p-6 text-center text-sm font-semibold text-red-600">{loadError}</div>
+        ) : filtered.length > 0 ? (
           <div className="space-y-3">
             {filtered.map((isc) => {
               const isOpen = expanded === isc.id;

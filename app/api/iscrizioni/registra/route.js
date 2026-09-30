@@ -1,34 +1,50 @@
 import { NextResponse } from "next/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { getTornei, saveTornei, getIscrizioni, saveIscrizioni } from "@/app/utils/db-server";
 import { sendConfirmationEmail } from "@/app/utils/email";
+import { findCircuitAthlete, getCircuitLeaderboard, normalizeCircuitName, registrationIncludesAthlete } from "@/app/utils/circuit";
 
 export async function POST(request) {
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: "Accedi al portale atleta per inviare un'iscrizione." }, { status: 401 });
+    }
+
+    const user = await currentUser();
+    const athleteEmail = String(user?.primaryEmailAddress?.emailAddress || "").trim().toLocaleLowerCase("it-IT");
+    const athleteName = String(user?.fullName || `${user?.firstName || ""} ${user?.lastName || ""}`.trim()).trim();
+    if (!athleteEmail || !athleteName) {
+      return NextResponse.json({ error: "Completa nome, cognome ed email nel tuo account prima di iscriverti." }, { status: 400 });
+    }
+
     const body = await request.json();
     const { 
       torneo, 
-      giocatori, 
+      giocatore2,
+      email2,
       tel, 
-      email, 
+      email: contactEmail,
       note, 
       moduloIscrizioneId, 
       risposte,
-      checkDuplicateName,
-      userId 
     } = body;
 
-    // Validazione campi minimi obbligatori
-    if (!torneo || !giocatori) {
+    if (!torneo || !tel || !String(tel).trim()) {
       return NextResponse.json(
-        { error: "Campi obbligatori mancanti: 'torneo' e 'giocatori' sono richiesti." },
+        { error: "Seleziona un torneo e inserisci un numero di cellulare." },
         { status: 400 }
       );
     }
 
-    // Carica tornei per verificare che esista
+    const notificationEmail = String(contactEmail || athleteEmail).trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(notificationEmail)) {
+      return NextResponse.json({ error: "L'email di contatto non è valida." }, { status: 400 });
+    }
+
     const tornei = await getTornei();
     const matchTorneo = tornei.find(
-      t => t.nome.toLowerCase().trim() === torneo.toLowerCase().trim()
+      t => String(t.nome || "").toLowerCase().trim() === String(torneo).toLowerCase().trim()
     );
 
     if (!matchTorneo) {
@@ -38,25 +54,55 @@ export async function POST(request) {
       );
     }
 
+    if (matchTorneo.stato !== "Iscrizioni Aperte") {
+      return NextResponse.json({ error: "Le iscrizioni a questo torneo non sono aperte." }, { status: 409 });
+    }
+
+    const isIndividualTournament = ["tappa", "finale"].includes(matchTorneo.circuitRole);
+    const partnerEmail = String(email2 || "").trim().toLocaleLowerCase("it-IT");
+    if (!isIndividualTournament && (!giocatore2 || !String(giocatore2).trim())) {
+      return NextResponse.json({ error: "Inserisci il nome del compagno o della compagna." }, { status: 400 });
+    }
+    if (!isIndividualTournament && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(partnerEmail)) {
+      return NextResponse.json({ error: "L'email del compagno o della compagna non è valida." }, { status: 400 });
+    }
+    if (!isIndividualTournament && partnerEmail === athleteEmail) {
+      return NextResponse.json({ error: "Usa un indirizzo diverso per il compagno o la compagna." }, { status: 400 });
+    }
+
     // Carica iscrizioni esistenti
     const iscrizioni = await getIscrizioni();
 
-    // Controllo duplicati sul server (se richiesto dal client)
-    if (checkDuplicateName) {
-      const lowerName = String(checkDuplicateName).toLowerCase().trim();
-      const lowerTorneo = matchTorneo.nome.toLowerCase().trim();
-      const duplicato = iscrizioni.some(
-        isc => 
-          isc.torneo?.toLowerCase().trim() === lowerTorneo &&
-          isc.giocatori?.toLowerCase().includes(lowerName)
-      );
-
-      if (duplicato) {
-        return NextResponse.json(
-          { error: `Sei già iscritto al torneo "${matchTorneo.nome}".` },
-          { status: 400 }
-        );
+    if (matchTorneo.circuitRole === "finale") {
+      const qualifierLimit = Number(matchTorneo.circuitQualifiers);
+      if (!String(matchTorneo.circuitName || "").trim() || !Number.isInteger(qualifierLimit) || qualifierLimit < 1) {
+        return NextResponse.json({ error: "La finale non è ancora configurata dallo staff per il tour." }, { status: 409 });
       }
+      const standings = getCircuitLeaderboard(tornei, iscrizioni, matchTorneo.circuitName);
+      const athlete = findCircuitAthlete(standings, userId, athleteEmail);
+      if (!athlete || athlete.posizione > qualifierLimit) {
+        return NextResponse.json({
+          error: `La finale è riservata ai primi ${matchTorneo.circuitQualifiers} atleti della classifica ${matchTorneo.circuitName}. Al momento non risulti tra i qualificati.`,
+        }, { status: 403 });
+      }
+    }
+
+    const lowerTorneo = normalizeCircuitName(matchTorneo.nome);
+    const alreadyRegistered = iscrizioni.some((registration) => {
+      if (registration.stato === "Annullata") return false;
+      if (normalizeCircuitName(registration.torneo) !== lowerTorneo) return false;
+      return registrationIncludesAthlete(registration, userId, athleteEmail) ||
+        (!isIndividualTournament && registrationIncludesAthlete(registration, null, partnerEmail));
+    });
+    if (alreadyRegistered) {
+      return NextResponse.json({ error: `Risulti già iscritto al torneo "${matchTorneo.nome}".` }, { status: 409 });
+    }
+
+    const teamSlots = iscrizioni.filter((registration) =>
+      normalizeCircuitName(registration.torneo) === lowerTorneo && registration.stato !== "Annullata"
+    ).length;
+    if (Number(matchTorneo.maxSquadre) > 0 && teamSlots >= Number(matchTorneo.maxSquadre)) {
+      return NextResponse.json({ error: "I posti disponibili per questo torneo sono esauriti." }, { status: 409 });
     }
 
     // Genera un nuovo ID numerico progressivo per l'iscrizione
@@ -66,19 +112,27 @@ export async function POST(request) {
     const oggi = new Date();
     const dataFormatted = `${oggi.getDate().toString().padStart(2, "0")}/${(oggi.getMonth() + 1).toString().padStart(2, "0")}/${oggi.getFullYear()}`;
 
-    // Crea l'iscrizione
-      const effectiveModuloId = moduloIscrizioneId || matchTorneo?.moduloIscrizioneId;
-      const nuovaIscrizione = {
+    // L'atleta registrato deriva sempre dall'account Clerk verificato.
+    const giocatori = isIndividualTournament ? athleteName : `${athleteName} & ${String(giocatore2).trim()}`;
+    const effectiveModuloId = moduloIscrizioneId || matchTorneo?.moduloIscrizioneId;
+    const nuovaIscrizione = {
         id: newId.toString(),
         data: dataFormatted,
         torneo: matchTorneo.nome,
-        giocatori: String(giocatori).trim(),
+        giocatori,
+        formatoIscrizione: isIndividualTournament ? "singola" : "coppia",
+        atleta1Nome: athleteName,
+        atletaUserId1: userId,
+        atletaEmail1: athleteEmail,
+        ...(!isIndividualTournament ? {
+          atleta2Nome: String(giocatore2).trim(),
+          atletaEmail2: partnerEmail,
+        } : {}),
         tel: tel ? String(tel).trim() : "Non inserito",
-        email: email ? String(email).trim() : "Non inserita",
+        email: notificationEmail,
         note: note ? String(note).trim() : "",
         stato: "In Attesa",
         quotaPagata: 0,
-        ...(userId ? { userId: String(userId) } : {}),
         ...(effectiveModuloId ? { 
           moduloIscrizioneId: String(effectiveModuloId),
           risposte: risposte || []
@@ -99,10 +153,10 @@ export async function POST(request) {
     await saveTornei(updatedTornei);
 
     // Invia l'email di conferma all'atleta
-    if (email && email.trim() !== "" && email.toLowerCase() !== "non inserita" && email.toLowerCase() !== "non inserito") {
+    if (notificationEmail) {
       try {
         await sendConfirmationEmail({
-          email: email.trim(),
+          email: notificationEmail,
           torneo: matchTorneo.nome,
           giocatori: String(giocatori).trim(),
           data: matchTorneo.data,

@@ -12,6 +12,8 @@ export default function AtletaIscriviti() {
   const { user, isLoaded } = useUser();
 
   const [torneiAperti, setTorneiAperti] = useState([]);
+  const [qualificazioneTour, setQualificazioneTour] = useState({});
+  const [torneiLoading, setTorneiLoading] = useState(true);
   const [step, setStep] = useState(1); // 1: torneo, 2: dati, 3: conferma
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -20,7 +22,6 @@ export default function AtletaIscriviti() {
   const [formData, setFormData] = useState({
     torneo: "",
     giocatore1: "",
-    giocatore2: "",
     telefono: "",
     email: "",
   });
@@ -37,13 +38,25 @@ export default function AtletaIscriviti() {
         email: user.primaryEmailAddress?.emailAddress || prev.email,
       }));
     }
-    getTornei().then((all) => {
-      const aperti = all.filter((t) => t.stato === "Iscrizioni Aperte");
-      setTorneiAperti(aperti);
-      if (aperti.length > 0) {
-        setFormData((prev) => ({ ...prev, torneo: aperti[0].nome }));
-      }
-    });
+    if (user) {
+      Promise.all([
+        getTornei(),
+        fetch("/api/atleta/profilo", { cache: "no-store" }).then((response) => response.ok ? response.json() : null),
+      ]).then(([all, profile]) => {
+        const aperti = (all || []).filter((t) => t.stato === "Iscrizioni Aperte");
+        setTorneiAperti(aperti);
+        const qualification = {};
+        for (const circuit of profile?.data?.circuiti || []) {
+          for (const final of circuit.finali || []) qualification[final.torneo] = final.qualificato;
+        }
+        setQualificazioneTour(qualification);
+        const selectable = aperti.find((t) => t.circuitRole !== "finale" || qualification[t.nome]);
+        if (selectable) setFormData((prev) => ({ ...prev, torneo: selectable.nome }));
+      }).catch((error) => {
+        console.error("Errore nel caricamento dei tornei:", error);
+        setErrore("Non è stato possibile caricare i tornei. Ricarica la pagina.");
+      }).finally(() => setTorneiLoading(false));
+    }
   }, [router, isLoaded, user]);
 
   const handleChange = (e) => {
@@ -60,11 +73,13 @@ export default function AtletaIscriviti() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           torneo: formData.torneo,
-          giocatori: `${formData.giocatore1} & ${formData.giocatore2}`,
+          ...(!isIndividualTournament ? {
+            giocatore2: formData.giocatore2,
+            email2: formData.emailCompagno,
+          } : {}),
           tel: formData.telefono,
           email: formData.email,
           note: "Iscrizione effettuata dal portale atleti.",
-          checkDuplicateName: formData.giocatore1
         })
       });
 
@@ -81,6 +96,27 @@ export default function AtletaIscriviti() {
     }
   };
 
+  const handleContinueToSummary = () => {
+    setErrore("");
+    if (!isIndividualTournament && !formData.giocatore2.trim()) {
+      setErrore("Inserisci il nome del compagno o della compagna.");
+      return;
+    }
+    if (!isIndividualTournament && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.emailCompagno.trim())) {
+      setErrore("Inserisci l'email del compagno o della compagna usata per accedere al portale.");
+      return;
+    }
+    if (!formData.telefono.trim()) {
+      setErrore("Inserisci un numero di cellulare.");
+      return;
+    }
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      setErrore("L'email di conferma non è valida.");
+      return;
+    }
+    setStep(3);
+  };
+
   if (!isLoaded) {
     return (
       <div className="min-h-screen bg-[#f0f4ff] flex items-center justify-center">
@@ -90,6 +126,7 @@ export default function AtletaIscriviti() {
   }
 
   const selectedTorneo = torneiAperti.find((t) => t.nome === formData.torneo);
+  const isIndividualTournament = ["tappa", "finale"].includes(selectedTorneo?.circuitRole);
 
   return (
     <main className="min-h-screen bg-[#f0f4ff] pb-28 xl:pb-10">
@@ -103,7 +140,13 @@ export default function AtletaIscriviti() {
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Prenota il tuo posto sulla sabbia 🏐</p>
         </div>
 
-        {torneiAperti.length === 0 ? (
+        {errore && step !== 3 && (
+          <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-xs font-black text-red-600">{errore}</div>
+        )}
+
+        {torneiLoading ? (
+          <div className="rounded-[2rem] bg-white p-10 text-center text-xs font-bold text-gray-400">Caricamento tornei…</div>
+        ) : torneiAperti.length === 0 ? (
           <div className="bg-white rounded-[2rem] p-10 shadow-sm border border-gray-100 flex flex-col items-center gap-4 text-center">
             <span className="text-5xl">🏜️</span>
             <p className="font-black text-[#0a1628] text-lg uppercase tracking-tighter">Nessun torneo aperto</p>
@@ -151,10 +194,14 @@ export default function AtletaIscriviti() {
                 {torneiAperti.map((t) => (
                   <button
                     key={t.id}
+                    disabled={t.circuitRole === "finale" && !qualificazioneTour[t.nome]}
                     onClick={() => {
                       setFormData((prev) => ({ ...prev, torneo: t.nome }));
                     }}
                     className={`w-full text-left p-5 rounded-[1.8rem] border-2 transition-all active:scale-[0.99] ${
+                      t.circuitRole === "finale" && !qualificazioneTour[t.nome]
+                        ? "bg-gray-50 border-gray-100 opacity-60 cursor-not-allowed"
+                        :
                       formData.torneo === t.nome
                         ? "bg-[#0a1628] border-[#0a1628] shadow-xl"
                         : "bg-white border-gray-100 shadow-sm hover:border-gray-300"
@@ -173,6 +220,11 @@ export default function AtletaIscriviti() {
                         <p className={`text-[10px] font-semibold mt-0.5 ${formData.torneo === t.nome ? "text-white/60" : "text-gray-400"}`}>
                           {t.data} · {t.categoria}
                         </p>
+                        {t.circuitRole === "finale" && (
+                          <p className={`text-[10px] font-bold mt-1 ${qualificazioneTour[t.nome] ? "text-green-300" : "text-amber-700"}`}>
+                            {qualificazioneTour[t.nome] ? "✓ Qualificato/a alla finale" : `Riservato ai migliori atleti del tour ${t.circuitName || ""}`}
+                          </p>
+                        )}
                       </div>
                       {formData.torneo === t.nome && (
                         <div className="ml-auto w-6 h-6 rounded-full bg-[#FFD700] flex items-center justify-center text-[#0a1628] font-black text-xs">
@@ -184,7 +236,7 @@ export default function AtletaIscriviti() {
                 ))}
 
                 <button
-                  disabled={!formData.torneo}
+                  disabled={!formData.torneo || (selectedTorneo?.circuitRole === "finale" && !qualificazioneTour[selectedTorneo.nome])}
                   onClick={() => setStep(2)}
                   className="w-full py-4 bg-[#0a1628] text-[#FFD700] rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl disabled:opacity-40 active:scale-95 transition-all mt-2"
                 >
@@ -201,7 +253,7 @@ export default function AtletaIscriviti() {
                 <div className="bg-white rounded-[1.8rem] p-5 shadow-sm border border-gray-100 space-y-4">
                   <div>
                     <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1 block mb-1.5">
-                      Giocatore 1 (Tu)
+                      {isIndividualTournament ? "Atleta" : "Giocatore 1 (Tu)"}
                     </label>
                     <input
                       type="text"
@@ -211,20 +263,22 @@ export default function AtletaIscriviti() {
                       className="w-full bg-gray-100 rounded-2xl px-4 py-3.5 font-bold text-gray-400 text-sm cursor-not-allowed"
                     />
                   </div>
-                  <div>
-                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1 block mb-1.5">
-                      Giocatore 2 (Compagno/a) *
-                    </label>
-                    <input
-                      type="text"
-                      name="giocatore2"
-                      value={formData.giocatore2}
-                      onChange={handleChange}
-                      placeholder="es. Elena M."
-                      required
-                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 font-bold text-[#0a1628] text-sm focus:outline-none focus:ring-2 focus:ring-[#0a1628] transition-all"
-                    />
-                  </div>
+                  {!isIndividualTournament && (
+                    <div>
+                      <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1 block mb-1.5">
+                        Giocatore 2 (Compagno/a) *
+                      </label>
+                      <input
+                        type="text"
+                        name="giocatore2"
+                        value={formData.giocatore2}
+                        onChange={handleChange}
+                        placeholder="es. Elena M."
+                        required
+                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 font-bold text-[#0a1628] text-sm focus:outline-none focus:ring-2 focus:ring-[#0a1628] transition-all"
+                      />
+                    </div>
+                  )}
                   <div>
                     <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1 block mb-1.5">
                       Cellulare *
@@ -239,6 +293,23 @@ export default function AtletaIscriviti() {
                       className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 font-bold text-[#0a1628] text-sm focus:outline-none focus:ring-2 focus:ring-[#0a1628] transition-all"
                     />
                   </div>
+                  {!isIndividualTournament && (
+                    <div>
+                      <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1 block mb-1.5">
+                        Email compagno/a *
+                      </label>
+                      <input
+                        type="email"
+                        name="emailCompagno"
+                        value={formData.emailCompagno}
+                        onChange={handleChange}
+                        placeholder="email con cui accede al portale"
+                        required
+                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 font-bold text-[#0a1628] text-sm focus:outline-none focus:ring-2 focus:ring-[#0a1628] transition-all"
+                      />
+                      <p className="mt-1 text-[9px] font-semibold text-gray-400">Deve corrispondere all'email con cui il compagno o la compagna accede al portale, così i punti saranno collegati al suo profilo.</p>
+                    </div>
+                  )}
                   <div>
                     <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1 block mb-1.5">
                       Email di Conferma
@@ -262,8 +333,8 @@ export default function AtletaIscriviti() {
                     ← Indietro
                   </button>
                   <button
-                    disabled={!formData.giocatore2 || !formData.telefono}
-                    onClick={() => setStep(3)}
+                    disabled={!formData.telefono.trim() || (!isIndividualTournament && (!formData.giocatore2.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.emailCompagno.trim())))}
+                    onClick={handleContinueToSummary}
                     className="flex-1 py-4 bg-[#0a1628] text-[#FFD700] rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl disabled:opacity-40 active:scale-95 transition-all"
                   >
                     Continua →
@@ -282,10 +353,11 @@ export default function AtletaIscriviti() {
                   <RiepilogoRow label="Data torneo" value={selectedTorneo?.data || "—"} />
                   <RiepilogoRow label="Categoria" value={selectedTorneo?.categoria || "—"} />
                   <div className="border-t border-gray-50 pt-4">
-                    <RiepilogoRow label="Giocatore 1" value={formData.giocatore1} />
-                    <RiepilogoRow label="Giocatore 2" value={formData.giocatore2} />
+                    <RiepilogoRow label={isIndividualTournament ? "Atleta" : "Giocatore 1"} value={formData.giocatore1} />
+                    {!isIndividualTournament && <RiepilogoRow label="Giocatore 2" value={formData.giocatore2} />}
                     <RiepilogoRow label="Cellulare" value={formData.telefono} />
                     <RiepilogoRow label="Email" value={formData.email} />
+                    {!isIndividualTournament && <RiepilogoRow label="Email compagno/a" value={formData.emailCompagno} />}
                   </div>
                 </div>
 

@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import StaffHeader from "@/app/components/StaffHeader";
 import { getTornei, saveTornei, getModuli } from "@/app/utils/db";
+import CircuitFields from "@/app/components/CircuitFields";
+import { DEFAULT_CIRCUIT_POINT_TABLE } from "@/app/utils/circuit";
 
 export default function ModificaTorneo() {
   const router = useRouter();
@@ -22,6 +24,10 @@ export default function ModificaTorneo() {
           moduloIscrizioneId: "", // fallback
           tipoIscrizione: "interno", // fallback
           googleFormUrl: "", // fallback
+          circuitName: "",
+          circuitRole: "",
+          circuitQualifiers: "",
+          circuitPointTable: { ...DEFAULT_CIRCUIT_POINT_TABLE },
           ...torneoToEdit
         });
       } else {
@@ -34,8 +40,23 @@ export default function ModificaTorneo() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (formData.circuitRole && !String(formData.circuitName || "").trim()) {
+      alert("Inserisci il nome del tour per collegare questo torneo alla classifica.");
+      return;
+    }
+    if (formData.circuitRole === "finale" && Number(formData.circuitQualifiers) < 1) {
+      alert("Indica quanti atleti si qualificano alla finale.");
+      return;
+    }
     const tornei = await getTornei();
-    const updated = tornei.map(t => String(t.id) === String(torneoId) ? { ...t, ...formData, nome: (formData.nome || "").trim() } : t);
+    const updated = tornei.map(t => String(t.id) === String(torneoId) ? {
+      ...t,
+      ...formData,
+      nome: (formData.nome || "").trim(),
+      circuitName: String(formData.circuitName || "").trim(),
+      ...(formData.circuitRole ? { circuitPointTable: formData.circuitPointTable } : {}),
+      ...(formData.circuitRole !== "finale" ? { circuitQualifiers: 0 } : {}),
+    } : t);
     await saveTornei(updated);
     router.push("/staff/tornei");
   };
@@ -169,11 +190,11 @@ export default function ModificaTorneo() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Max Squadre</label>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{["tappa", "finale"].includes(formData.circuitRole) ? "Max atleti" : "Max squadre"}</label>
                 <input 
                   type="number" 
                   name="maxSquadre" 
-                  min="2"
+                  min={["tappa", "finale"].includes(formData.circuitRole) ? "1" : "2"}
                   value={formData.maxSquadre} 
                   onChange={handleChange}
                   className="w-full bg-gray-50 border-none rounded-2xl px-6 py-4 font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] transition-all text-center" 
@@ -194,6 +215,13 @@ export default function ModificaTorneo() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4 border-t border-gray-50">
+              <div className="md:col-span-2">
+                <CircuitFields
+                  value={formData}
+                  onChange={(patch) => setFormData((previous) => ({ ...previous, ...patch }))}
+                />
+              </div>
+
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tipo Iscrizione</label>
                 <select 

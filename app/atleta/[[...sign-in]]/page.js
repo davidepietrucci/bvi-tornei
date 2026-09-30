@@ -2,11 +2,14 @@
 
 import { SignIn, useUser } from "@clerk/nextjs";
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { getAthleteRedirectUrl } from "@/app/utils/athleteRedirect";
 
 export default function AtletaLogin() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = getAthleteRedirectUrl(searchParams.get("redirect_url"));
 
   useEffect(() => {
     if (isLoaded && user) {
@@ -132,8 +135,8 @@ export default function AtletaLogin() {
               },
             }
           }}
-          signUpUrl="/atleta/registrati"
-          forceRedirectUrl="/atleta/dashboard"
+          signUpUrl={`/atleta/registrati?redirect_url=${encodeURIComponent(redirectUrl)}`}
+          forceRedirectUrl={redirectUrl}
           routing="path"
           path="/atleta"
         />

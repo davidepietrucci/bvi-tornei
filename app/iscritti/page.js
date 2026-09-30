@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import { getTornei, getIscrizioni } from "@/app/utils/db";
+import { getTornei, getPublicIscrizioni } from "@/app/utils/db";
 
 function IscrittiContent() {
   const searchParams = useSearchParams();
@@ -16,7 +16,7 @@ function IscrittiContent() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([getTornei(), getIscrizioni()]).then(([allTornei, allIscrizioni]) => {
+    Promise.all([getTornei(), getPublicIscrizioni()]).then(([allTornei, allIscrizioni]) => {
       setTornei(allTornei || []);
       setIscrizioni(allIscrizioni || []);
 

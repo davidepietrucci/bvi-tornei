@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import AthleteHeader from "@/app/components/AthleteHeader";
 import AthleteBottomNav from "@/app/components/AthleteBottomNav";
-import { getIscrizioni, getTornei, getNotifiche } from "@/app/utils/db";
+import { getTornei, getNotifiche } from "@/app/utils/db";
 import { Card, Button, Chip } from "@heroui/react";
 
 export default function AtletaDashboard() {
@@ -30,36 +30,20 @@ export default function AtletaDashboard() {
       return;
     }
     if (user) {
-      const email = (user.primaryEmailAddress?.emailAddress || "").toLowerCase().trim();
-      const fullName = (user.fullName || "").toLowerCase().trim();
-      const firstName = (user.firstName || "").toLowerCase().trim();
-      const lastName = (user.lastName || "").toLowerCase().trim();
-
       Promise.all([
-        getIscrizioni(),
+        fetch("/api/atleta/iscrizioni", { cache: "no-store" }).then(async (response) => {
+          const json = await response.json();
+          if (!response.ok) throw new Error(json.error || "Errore caricamento iscrizioni");
+          return json.data || [];
+        }),
         getTornei(),
         getNotifiche(),
-      ]).then(([allIscrizioni, allTornei, allNotifiche]) => {
-        const mie = allIscrizioni.filter((isc) => {
-          const iscEmail = (isc.email || isc.email1 || isc.email2 || "").toLowerCase().trim();
-          if (email && iscEmail && (iscEmail === email || email.includes(iscEmail) || iscEmail.includes(email))) {
-            return true;
-          }
-          if (isc.userId && isc.userId === user.id) return true;
-
-          const giocatori = (isc.giocatori || "").toLowerCase().trim();
-          if (!giocatori) return false;
-
-          if (fullName && fullName.length >= 4 && giocatori.includes(fullName)) return true;
-          if (firstName && lastName && firstName.length >= 2 && lastName.length >= 2) {
-            if (giocatori.includes(firstName) && giocatori.includes(lastName)) return true;
-          }
-          // If no last name is set, match exact full word of firstName if fullName or email wasn't matched
-          return false;
-        });
+      ]).then(([mie, allTornei, allNotifiche]) => {
         setIscrizioni(mie);
-        setTorneiAperti(allTornei.filter((t) => t.stato === "Iscrizioni Aperte"));
-        setNotifiche(allNotifiche.slice(0, 3)); // ultimi 3 avvisi
+        setTorneiAperti((allTornei || []).filter((t) => t.stato === "Iscrizioni Aperte"));
+        setNotifiche((allNotifiche || []).slice(0, 3));
+      }).catch((error) => {
+        console.error("Errore caricamento area atleta:", error);
       }).finally(() => setLoading(false));
     }
   }, [router, isLoaded, user]);

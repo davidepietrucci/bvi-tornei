@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { getTornei, getGironi, getBracket, getIscrizioni, syncAssignmentsWithIscrizioni } from "@/app/utils/db";
+import { getTornei, getGironi, getBracket, getPublicIscrizioni, syncAssignmentsWithIscrizioni } from "@/app/utils/db";
 import { calculateUnifiedRanking, getSchedule as getScheduleShared } from "@/app/utils/ranking";
 import SponsorBanner from "@/app/components/SponsorBanner";
 
@@ -79,7 +79,7 @@ export default function GironiPubblici() {
     const slug = selectedTorneo.toLowerCase().trim().replace(/\s+/g, "_");
 
     const fetchLive = () => {
-      Promise.all([getGironi(slug), getBracket(slug), getIscrizioni()]).then(([gData, bData, iscData]) => {
+      Promise.all([getGironi(slug), getBracket(slug), getPublicIscrizioni()]).then(([gData, bData, iscData]) => {
         if (gData) {
           const syncedGAssignments = syncAssignmentsWithIscrizioni(gData.gironeAssignments || {}, iscData || []);
           setConfig({ ...gData, gironeAssignments: syncedGAssignments });

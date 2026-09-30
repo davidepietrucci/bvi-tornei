@@ -37,9 +37,11 @@ export default function StaffIscrizioni() {
     giocatori: "",
     tel: "",
     email: "",
+    email2: "",
     torneo: "",
     stato: "Approvata",
-    note: ""
+    note: "",
+    piazzamentoCircuito: "",
   });
 
   const startEdit = (req) => {
@@ -48,15 +50,21 @@ export default function StaffIscrizioni() {
       giocatori: req.giocatori || "",
       tel: req.tel || "",
       email: req.email || "",
+      email2: req.atletaEmail2 || req.email2 || "",
       torneo: req.torneo || "",
       stato: req.stato || "Approvata",
-      note: req.note || ""
+      note: req.note || "",
+      piazzamentoCircuito: req.piazzamentoCircuito || "",
     });
   };
 
   const handleSaveEdit = async () => {
     if (!editFormData.giocatori.trim()) {
       alert("Il campo Giocatori non può essere vuoto.");
+      return;
+    }
+    if (editFormData.piazzamentoCircuito && (!Number.isInteger(Number(editFormData.piazzamentoCircuito)) || Number(editFormData.piazzamentoCircuito) < 1)) {
+      alert("Il piazzamento deve essere un numero intero maggiore di zero.");
       return;
     }
     isSavingRef.current = true;
@@ -72,9 +80,13 @@ export default function StaffIscrizioni() {
               giocatori: newTeamName,
               tel: editFormData.tel.trim(),
               email: editFormData.email.trim(),
+              atletaEmail2: editFormData.email2.trim().toLowerCase(),
               torneo: tournamentName,
               stato: editFormData.stato,
-              note: editFormData.note.trim()
+              note: editFormData.note.trim(),
+              piazzamentoCircuito: Number(editFormData.piazzamentoCircuito) > 0
+                ? Number(editFormData.piazzamentoCircuito)
+                : null,
             } 
           : isc
       );
@@ -949,6 +961,36 @@ export default function StaffIscrizioni() {
                   />
                 </div>
               </div>
+
+              {!tornei.some((torneo) => torneo.nome === editFormData.torneo && (torneo.circuitRole === "tappa" || torneo.circuitRole === "finale")) && (
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Email compagno/a (facoltativa)</label>
+                  <input
+                    type="email"
+                    value={editFormData.email2}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, email2: e.target.value }))}
+                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 font-bold text-sm text-[#0a1628] outline-none focus:ring-4 focus:ring-blue-500/5 transition-all"
+                  />
+                  <p className="mt-1 text-[10px] text-gray-400">Collega l'iscrizione al profilo dell'altro atleta tramite la sua email di accesso.</p>
+                </div>
+              )}
+
+              {tornei.some((torneo) => torneo.nome === editFormData.torneo && (torneo.circuitRole === "tappa" || torneo.circuitRole === "finale")) && (
+                <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                  <label className="block text-[10px] font-black text-blue-800 uppercase tracking-widest mb-2">Piazzamento finale dell’atleta</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="64"
+                    step="1"
+                    value={editFormData.piazzamentoCircuito}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, piazzamentoCircuito: e.target.value }))}
+                    placeholder="es. 3"
+                    className="w-full bg-white border border-blue-100 rounded-xl px-4 py-3 font-bold text-sm text-[#0a1628] outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                  <p className="mt-1 text-[10px] text-blue-700">I punti dell’atleta saranno calcolati dalla tabella del tour quando il torneo è concluso.</p>
+                </div>
+              )}
 
               <div>
                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Stato Iscrizione</label>

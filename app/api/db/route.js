@@ -27,7 +27,7 @@ async function getUserRole(userId, sessionClaims) {
   } catch (e) {
     console.error("Errore nel recupero utente Clerk:", e);
   }
-  return sessionClaims?.metadata?.role || sessionClaims?.publicMetadata?.role || "staff";
+  return sessionClaims?.metadata?.role || sessionClaims?.publicMetadata?.role || "atleta";
 }
 
 // 1. GET: Gestisce le letture del database controllando i permessi di lettura
@@ -59,7 +59,6 @@ export async function GET(req) {
     else if (type === "iscrizioni") {
       data = await getIscrizioni();
       const isPublicRequest = searchParams.get("public") === "true";
-      // Sanitizziamo i dati sensibili SOLO se è esplicitamente richiesta una vista pubblica
       if (isPublicRequest && Array.isArray(data)) {
         data = data.map((isc) => ({
           id: isc.id,
@@ -68,6 +67,10 @@ export async function GET(req) {
           stato: isc.stato,
           data: isc.data,
         }));
+      } else if (!userId) {
+        return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
+      } else if (role !== "admin" && role !== "staff") {
+        return NextResponse.json({ error: "Accesso negato" }, { status: 403 });
       }
     }
     else if (type === "users") data = await getUsers();
@@ -100,6 +103,15 @@ export async function POST(req) {
     const { type, data, slug } = body;
 
     const role = await getUserRole(userId, sessionClaims);
+    if (!userId) {
+      return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
+    }
+    if (role !== "admin" && role !== "staff") {
+      return NextResponse.json({ error: "Accesso negato: scrittura riservata allo staff" }, { status: 403 });
+    }
+    if ((type === "users" || type === "staff") && role !== "admin") {
+      return NextResponse.json({ error: "Accesso negato: gestione utenti riservata agli admin" }, { status: 403 });
+    }
 
     // Controllo dei permessi di scrittura lato server
     if (type === "moduli" || type === "staff") {
@@ -151,4 +163,3 @@ export async function POST(req) {
     return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
   }
 }
-

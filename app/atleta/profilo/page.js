@@ -6,7 +6,7 @@ import { useUser, useClerk } from "@clerk/nextjs";
 import AthleteHeader from "@/app/components/AthleteHeader";
 import AthleteBottomNav from "@/app/components/AthleteBottomNav";
 
-const TABS = ["Info", "Impostazioni"];
+const TABS = ["Info", "Punteggi", "Impostazioni"];
 
 export default function AtletaProfilo() {
   const { user, isLoaded } = useUser();
@@ -14,6 +14,9 @@ export default function AtletaProfilo() {
   const router = useRouter();
   const [tab, setTab] = useState("Info");
   const [notifiche, setNotifiche] = useState(true);
+  const [scoreData, setScoreData] = useState(null);
+  const [scoreLoading, setScoreLoading] = useState(true);
+  const [scoreError, setScoreError] = useState("");
 
   // Profile Edit State
   const [isEditing, setIsEditing] = useState(false);
@@ -25,6 +28,11 @@ export default function AtletaProfilo() {
   });
 
   useEffect(() => {
+    if (isLoaded && !user) {
+      router.replace("/atleta");
+      return;
+    }
+
     // Carica preferenze da localStorage
     const savedNotif = localStorage.getItem("bvi_notif_atleta");
     if (savedNotif !== null) setNotifiche(savedNotif === "true");
@@ -35,8 +43,25 @@ export default function AtletaProfilo() {
         lastName: user.lastName || "",
         username: user.username || ""
       });
+
+      let cancelled = false;
+      fetch("/api/atleta/profilo", { cache: "no-store" })
+        .then(async (response) => {
+          const json = await response.json();
+          if (!response.ok) throw new Error(json.error || "Errore caricamento punteggi");
+          if (!cancelled) setScoreData(json.data);
+        })
+        .catch((error) => {
+          if (!cancelled) setScoreError(error.message || "Non è stato possibile caricare i punteggi.");
+        })
+        .finally(() => {
+          if (!cancelled) setScoreLoading(false);
+        });
+
+      return () => { cancelled = true; };
     }
-  }, [user]);
+    setScoreLoading(false);
+  }, [isLoaded, router, user]);
 
   if (!isLoaded) {
     return (
@@ -143,6 +168,72 @@ export default function AtletaProfilo() {
                 Disconnetti account
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Tab: Punteggi */}
+        {tab === "Punteggi" && (
+          <div className="space-y-4">
+            {scoreLoading ? (
+              <div className="bg-white rounded-[1.8rem] p-8 text-center text-xs font-bold text-gray-400">Caricamento punteggi…</div>
+            ) : scoreError ? (
+              <div className="bg-white rounded-[1.8rem] p-6 border border-red-100 text-sm font-semibold text-red-600">{scoreError}</div>
+            ) : (
+              <>
+                <div className="rounded-[1.8rem] bg-[#0a1628] p-6 text-white shadow-lg">
+                  <p className="text-[10px] font-black text-[#FFD700]/70 uppercase tracking-widest">Punti tappe di qualificazione</p>
+                  <div className="mt-2 flex items-end justify-between gap-3">
+                    <p className="text-5xl font-black text-[#FFD700]">{scoreData?.totalePunti || 0}</p>
+                    <span className="text-[10px] font-bold text-white/60 uppercase">punti</span>
+                  </div>
+                  <p className="mt-2 text-xs font-semibold text-white/60">I punti vengono assegnati in base al piazzamento finale delle tappe concluse.</p>
+                </div>
+
+                {(scoreData?.circuiti || []).map((circuit) => (
+                  <div key={circuit.nome} className="rounded-[1.8rem] bg-white p-5 shadow-sm border border-gray-100">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Classifica tour</p>
+                        <h2 className="mt-1 text-lg font-black text-[#0a1628]">{circuit.nome}</h2>
+                      </div>
+                      <div className="rounded-2xl bg-blue-50 px-4 py-2 text-right">
+                        <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Posizione</p>
+                        <p className="text-2xl font-black text-blue-900">{circuit.posizione ? `#${circuit.posizione}` : "—"}</p>
+                      </div>
+                    </div>
+                    <p className="mt-2 text-xs font-semibold text-gray-500">{circuit.punti} punti · {circuit.tappe} {circuit.tappe === 1 ? "tappa conclusa" : "tappe concluse"}</p>
+                    {circuit.finali.map((final) => (
+                      <div key={final.torneo} className={`mt-4 rounded-xl px-4 py-3 text-xs font-bold ${final.qualificato ? "bg-green-50 text-green-800" : "bg-gray-50 text-gray-500"}`}>
+                        {final.qualificato ? "✓ Sei qualificato/a" : "Non qualificato/a al momento"} per {final.torneo}
+                        {final.qualificati ? ` · accesso riservato ai primi ${final.qualificati}` : ""}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+
+                <div className="rounded-[1.8rem] bg-white p-5 shadow-sm border border-gray-100">
+                  <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">I tuoi tornei</h2>
+                  {scoreData?.punteggi?.length ? (
+                    <div className="divide-y divide-gray-100">
+                      {scoreData.punteggi.map((entry) => (
+                        <div key={entry.id} className="py-3 flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-black text-[#0a1628]">{entry.torneo}</p>
+                            <p className="mt-0.5 text-[10px] font-semibold text-gray-400">{entry.data || "Data non disponibile"}{entry.piazzamento ? ` · ${entry.piazzamento}° posto` : ""}</p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className="text-sm font-black text-[#0a1628]">{entry.punti === null ? "—" : `${entry.punti} pt`}</p>
+                            <p className="text-[9px] font-bold text-gray-400">{entry.punti === null ? (entry.ruoloCircuito ? (entry.torneoConcluso ? "Piazzamento da assegnare" : "In attesa della conclusione") : "Fuori dal tour") : `${entry.circuito}${entry.ruoloCircuito === "finale" ? " · finale" : ""}`}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="py-6 text-center text-xs font-semibold text-gray-400">Le iscrizioni collegate a questo account appariranno qui.</p>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )}
 

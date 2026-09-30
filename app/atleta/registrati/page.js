@@ -1,8 +1,12 @@
 "use client";
 
 import { SignUp } from "@clerk/nextjs";
+import { useSearchParams } from "next/navigation";
+import { getAthleteRedirectUrl } from "@/app/utils/athleteRedirect";
 
 export default function AtletaRegistrati() {
+  const searchParams = useSearchParams();
+  const redirectUrl = getAthleteRedirectUrl(searchParams.get("redirect_url"));
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-4" style={{backgroundColor: "#f0f4ff"}}>
       <div className="my-8">
@@ -15,8 +19,8 @@ export default function AtletaRegistrati() {
               headerTitle: 'text-[#0a1628] font-black uppercase tracking-tighter',
             }
           }}
-          signInUrl="/atleta"
-          forceRedirectUrl="/atleta/dashboard"
+          signInUrl={`/atleta?redirect_url=${encodeURIComponent(redirectUrl)}`}
+          forceRedirectUrl={redirectUrl}
         />
       </div>
     </main>

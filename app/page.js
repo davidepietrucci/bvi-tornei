@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { getTornei, getIscrizioni } from "@/app/utils/db";
+import { getTornei, getPublicIscrizioni } from "@/app/utils/db";
 import SponsorBanner from "@/app/components/SponsorBanner";
 
 
@@ -34,7 +34,7 @@ export default function Home() {
       setTorneiConclusi(conclusi);
     });
 
-    getIscrizioni().then(isc => {
+    getPublicIscrizioni().then(isc => {
       setAllIscrizioni(isc || []);
     });
   }, []);

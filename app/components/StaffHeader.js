@@ -68,6 +68,7 @@ export default function StaffHeader() {
     { name: "Moduli Iscrizione", path: "/staff/moduli" },
     { name: "Anagrafica Atleti", path: "/staff/atleti" },
     { name: "Tornei", path: "/staff/tornei" },
+    { name: "Tour", path: "/staff/tour" },
     { name: "Gironi", path: "/staff/gironi" },
     { name: "Tabellone", path: "/staff/tabellone" },
     { name: "Classifica", path: "/staff/classifica" },

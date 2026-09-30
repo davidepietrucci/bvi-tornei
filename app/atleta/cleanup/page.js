@@ -1,19 +1,33 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 import { getIscrizioni, saveIscrizioni } from "@/app/utils/db";
 
 export default function CleanupPage() {
+  const { user, isLoaded } = useUser();
+  const router = useRouter();
   const [iscrizioni, setIscrizioni] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deleted, setDeleted] = useState([]);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    getIscrizioni().then((data) => {
-      setIscrizioni(data);
-      setLoading(false);
-    });
-  }, []);
+    if (!isLoaded) return;
+    const role = user?.publicMetadata?.role;
+    if (!user) {
+      router.replace("/staff");
+      return;
+    }
+    if (role !== "admin" && role !== "staff") {
+      router.replace("/atleta/dashboard");
+      return;
+    }
+    getIscrizioni().then((data) => setIscrizioni(data || [])).catch((loadError) => {
+      setError(loadError.message || "Accesso non riuscito.");
+    }).finally(() => setLoading(false));
+  }, [isLoaded, router, user]);
 
   const handleDelete = async (id) => {
     const nuova = iscrizioni.filter((i) => i.id !== id);
@@ -22,7 +36,7 @@ export default function CleanupPage() {
     setDeleted((prev) => [...prev, id]);
   };
 
-  if (loading) return (
+  if (!isLoaded || loading) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <p className="font-mono text-gray-500">Caricamento...</p>
     </div>
@@ -31,6 +45,7 @@ export default function CleanupPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-3xl mx-auto">
+        {error && <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-6 text-red-700 font-bold text-sm">{error}</div>}
         <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-6">
           <p className="text-red-700 font-bold text-sm">⚠️ Pagina di manutenzione — usa solo per correggere dati, poi naviga via.</p>
         </div>
