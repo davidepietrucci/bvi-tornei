@@ -109,6 +109,9 @@ export default function AtletaLogin() {
                   transform: "scale(0.98)",
                 }
               },
+              footerAction: {
+                display: "none",
+              },
               footerActionLink: {
                 color: "#0a1628",
                 fontWeight: "700",
@@ -140,6 +143,15 @@ export default function AtletaLogin() {
           routing="path"
           path="/atleta"
         />
+        <div className="mt-3 rounded-2xl border border-gray-200 bg-white px-5 py-4 text-center shadow-sm">
+          <span className="text-sm font-semibold text-gray-500">Non hai ancora un account? </span>
+          <a
+            href={`/atleta/registrati?redirect_url=${encodeURIComponent(redirectUrl)}`}
+            className="text-sm font-black text-[#0a1628] underline decoration-[#FFD700] decoration-2 underline-offset-4 hover:text-blue-700"
+          >
+            Registrati come atleta
+          </a>
+        </div>
       </div>
     </main>
   );
