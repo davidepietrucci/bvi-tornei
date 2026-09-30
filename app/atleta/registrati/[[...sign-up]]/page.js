@@ -22,6 +22,8 @@ function AtletaRegistratiContent() {
           }}
           signInUrl={`/atleta?redirect_url=${encodeURIComponent(redirectUrl)}`}
           forceRedirectUrl={redirectUrl}
+          routing="path"
+          path="/atleta/registrati"
         />
       </div>
     </main>
