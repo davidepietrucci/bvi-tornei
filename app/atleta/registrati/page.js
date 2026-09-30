@@ -1,10 +1,11 @@
 "use client";
 
 import { SignUp } from "@clerk/nextjs";
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { getAthleteRedirectUrl } from "@/app/utils/athleteRedirect";
 
-export default function AtletaRegistrati() {
+function AtletaRegistratiContent() {
   const searchParams = useSearchParams();
   const redirectUrl = getAthleteRedirectUrl(searchParams.get("redirect_url"));
   return (
@@ -24,5 +25,13 @@ export default function AtletaRegistrati() {
         />
       </div>
     </main>
+  );
+}
+
+export default function AtletaRegistrati() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Caricamento...</div>}>
+      <AtletaRegistratiContent />
+    </Suspense>
   );
 }
