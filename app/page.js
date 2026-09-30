@@ -48,11 +48,16 @@ export default function Home() {
           <Image src="/logo.png" alt="BVI Logo" width={50} height={50} className="rounded-full" />
           <h1 className="text-2xl font-bold" style={{ color: "#FFD700" }}>BVI Tornei</h1>
         </div>
-        <nav className="flex gap-6 items-center">
-          <div className="flex gap-4">
-            {/* <a href="/atleta" className="hover:text-yellow-400 text-sm font-medium text-gray-300 transition-colors">Area Atleta</a> */}
-            <a href="/staff" className="hover:text-yellow-400 text-sm font-medium text-gray-300 transition-colors">Area Staff</a>
-          </div>
+        <nav className="flex flex-wrap justify-center gap-3 items-center">
+          <a
+            href="/atleta"
+            className="px-5 py-2.5 rounded-xl bg-[#FFD700] text-[#0a1628] text-sm font-black shadow-md hover:bg-yellow-300 transition-colors"
+          >
+            🏐 Area Atleta
+          </a>
+          <a href="/staff" className="px-4 py-2.5 rounded-xl border border-white/25 hover:border-yellow-400 hover:text-yellow-400 text-sm font-medium text-gray-200 transition-colors">
+            Area Staff
+          </a>
         </nav>
       </header>
 
