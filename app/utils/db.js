@@ -117,7 +117,7 @@ export function syncAssignmentsWithIscrizioni(assignments, iscrizioniList) {
   return changed ? newAssignments : assignments;
 }
 
-// Helper generico per le entità di tipo array (tornei, iscrizioni, users, moduli, notifiche, staff, sponsors)
+// Helper generico per le entità di tipo array (tornei, iscrizioni, users, notifiche, staff, sponsors)
 async function getArrayEntity(key, type) {
   if (typeof window === "undefined") {
     const dbServer = await import("./db-server");
@@ -270,15 +270,7 @@ export async function saveUsers(list) {
   return saveArrayEntity("bvi_users", "users", list);
 }
 
-// 6. Moduli
-export async function getModuli() {
-  return getArrayEntity("bvi_moduli", "moduli");
-}
-export async function saveModuli(list) {
-  return saveArrayEntity("bvi_moduli", "moduli", list);
-}
-
-// 7. Notifiche
+// 6. Notifiche
 export async function getNotifiche() {
   return getArrayEntity("bvi_notifiche", "notifiche");
 }

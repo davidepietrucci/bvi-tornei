@@ -4,7 +4,6 @@ import {
   getTornei, saveTornei, 
   getIscrizioni, saveIscrizioni, 
   getUsers, saveUsers, 
-  getModuli, saveModuli, 
   getGironi, saveGironi,
   getBracket, saveBracket,
   getNotifiche, saveNotifiche,
@@ -75,7 +74,6 @@ export async function GET(req) {
     }
     else if (type === "users") data = await getUsers();
     else if (type === "staff") data = await getStaff();
-    else if (type === "moduli") data = await getModuli();
     else if (type === "gironi") data = await getGironi(slug);
     else if (type === "bracket") data = await getBracket(slug);
     else if (type === "notifiche") data = await getNotifiche();
@@ -114,9 +112,8 @@ export async function POST(req) {
     }
 
     // Controllo dei permessi di scrittura lato server
-    if (type === "moduli" || type === "staff") {
-      if (type === "moduli") await saveModuli(data);
-      if (type === "staff") await saveStaff(data);
+    if (type === "staff") {
+      await saveStaff(data);
     }
     else if (type === "tornei" || type === "gironi" || type === "bracket" || type === "iscrizioni" || type === "notifiche" || type === "sponsors") {
       if (type === "tornei") await saveTornei(data);
@@ -125,9 +122,16 @@ export async function POST(req) {
       if (type === "sponsors") await saveSponsors(data);
 
       if (type === "iscrizioni") {
+        if (!Array.isArray(data)) {
+          return NextResponse.json({ error: "Formato elenco iscrizioni non valido." }, { status: 400 });
+        }
         const existing = await getIscrizioni();
         const existingMap = new Map(existing.map(i => [String(i.id), i]));
-        const mergedData = Array.isArray(data) ? data.map(item => {
+        const newRegistrations = data.filter((item) => !existingMap.has(String(item.id)));
+        if (newRegistrations.length > 0) {
+          return NextResponse.json({ error: "Le nuove iscrizioni possono essere inviate solo dal Portale Atleta." }, { status: 403 });
+        }
+        const mergedData = data.map(item => {
           const oldItem = existingMap.get(String(item.id));
           if (!oldItem) return item;
           return {
@@ -145,7 +149,7 @@ export async function POST(req) {
             quotaTotale: item.quotaTotale !== undefined ? item.quotaTotale : oldItem.quotaTotale,
             risposte: (item.risposte && item.risposte.length > 0) ? item.risposte : (oldItem.risposte || item.risposte)
           };
-        }) : data;
+        });
         await saveIscrizioni(mergedData);
       }
       if (type === "notifiche") await saveNotifiche(data);

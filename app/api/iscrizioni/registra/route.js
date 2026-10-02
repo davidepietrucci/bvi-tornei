@@ -12,6 +12,10 @@ export async function POST(request) {
     }
 
     const user = await currentUser();
+    const role = user?.publicMetadata?.role || "atleta";
+    if (role !== "atleta") {
+      return NextResponse.json({ error: "Per iscriverti usa un account atleta e accedi al Portale Atleta." }, { status: 403 });
+    }
     const athleteEmail = String(user?.primaryEmailAddress?.emailAddress || "").trim().toLocaleLowerCase("it-IT");
     const athleteName = String(user?.fullName || `${user?.firstName || ""} ${user?.lastName || ""}`.trim()).trim();
     if (!athleteEmail || !athleteName) {
@@ -26,8 +30,6 @@ export async function POST(request) {
       tel, 
       email: contactEmail,
       note, 
-      moduloIscrizioneId, 
-      risposte,
     } = body;
 
     if (!torneo || !tel || !String(tel).trim()) {
@@ -114,7 +116,6 @@ export async function POST(request) {
 
     // L'atleta registrato deriva sempre dall'account Clerk verificato.
     const giocatori = isIndividualTournament ? athleteName : `${athleteName} & ${String(giocatore2).trim()}`;
-    const effectiveModuloId = moduloIscrizioneId || matchTorneo?.moduloIscrizioneId;
     const nuovaIscrizione = {
         id: newId.toString(),
         data: dataFormatted,
@@ -133,10 +134,6 @@ export async function POST(request) {
         note: note ? String(note).trim() : "",
         stato: "In Attesa",
         quotaPagata: 0,
-        ...(effectiveModuloId ? { 
-          moduloIscrizioneId: String(effectiveModuloId),
-          risposte: risposte || []
-        } : {})
       };
 
     // Salva l'iscrizione accodata
@@ -161,8 +158,7 @@ export async function POST(request) {
           giocatori: String(giocatori).trim(),
           data: matchTorneo.data,
           quota: matchTorneo.quota,
-          note: note ? String(note).trim() : "",
-          risposte: risposte || []
+          note: note ? String(note).trim() : ""
         });
       } catch (emailError) {
         console.error("Errore nell'invio dell'email di conferma:", emailError);

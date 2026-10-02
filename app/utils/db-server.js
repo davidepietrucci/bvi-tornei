@@ -230,13 +230,6 @@ export async function saveUsers(list) {
   await saveConfigDoc("users", list);
 }
 
-export async function getModuli() {
-  return getConfigDoc("moduli");
-}
-export async function saveModuli(list) {
-  await saveConfigDoc("moduli", list);
-}
-
 export async function getNotifiche() {
   return getConfigDoc("notifiche");
 }
@@ -257,4 +250,3 @@ export async function getSponsors() {
 export async function saveSponsors(list) {
   await saveConfigDoc("sponsors", list);
 }
-

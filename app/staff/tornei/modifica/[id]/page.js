@@ -3,9 +3,17 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import StaffHeader from "@/app/components/StaffHeader";
-import { getTornei, saveTornei, getModuli } from "@/app/utils/db";
+import { getTornei, saveTornei } from "@/app/utils/db";
 import CircuitFields from "@/app/components/CircuitFields";
 import { DEFAULT_CIRCUIT_POINT_TABLE } from "@/app/utils/circuit";
+
+function removeLegacySignupSettings(torneo) {
+  const cleaned = { ...torneo };
+  delete cleaned.moduloIscrizioneId;
+  delete cleaned.tipoIscrizione;
+  delete cleaned.googleFormUrl;
+  return cleaned;
+}
 
 export default function ModificaTorneo() {
   const router = useRouter();
@@ -13,22 +21,17 @@ export default function ModificaTorneo() {
   const torneoId = parseInt(params.id);
   
   const [formData, setFormData] = useState(null);
-  const [moduli, setModuli] = useState([]);
 
   useEffect(() => {
-    Promise.all([getTornei(), getModuli()]).then(([tornei, savedModuli]) => {
-      setModuli(savedModuli);
+    getTornei().then((tornei) => {
       const torneoToEdit = tornei.find(t => String(t.id) === String(torneoId));
       if (torneoToEdit) {
         setFormData({
-          moduloIscrizioneId: "", // fallback
-          tipoIscrizione: "interno", // fallback
-          googleFormUrl: "", // fallback
           circuitName: "",
           circuitRole: "",
           circuitQualifiers: "",
           circuitPointTable: { ...DEFAULT_CIRCUIT_POINT_TABLE },
-          ...torneoToEdit
+          ...removeLegacySignupSettings(torneoToEdit)
         });
       } else {
         router.push("/staff/tornei");
@@ -49,16 +52,17 @@ export default function ModificaTorneo() {
       return;
     }
     const tornei = await getTornei();
-    const updated = tornei.map(t => String(t.id) === String(torneoId) ? {
-      ...t,
-      ...formData,
-      tipoIscrizione: "interno",
-      googleFormUrl: "",
-      nome: (formData.nome || "").trim(),
-      circuitName: String(formData.circuitName || "").trim(),
-      ...(formData.circuitRole ? { circuitPointTable: formData.circuitPointTable } : {}),
-      ...(formData.circuitRole !== "finale" ? { circuitQualifiers: 0 } : {}),
-    } : t);
+    const updated = tornei.map(t => {
+      if (String(t.id) !== String(torneoId)) return t;
+      return {
+        ...removeLegacySignupSettings(t),
+        ...formData,
+        nome: (formData.nome || "").trim(),
+        circuitName: String(formData.circuitName || "").trim(),
+        ...(formData.circuitRole ? { circuitPointTable: formData.circuitPointTable } : {}),
+        ...(formData.circuitRole !== "finale" ? { circuitQualifiers: 0 } : {}),
+      };
+    });
     await saveTornei(updated);
     router.push("/staff/tornei");
   };
@@ -227,18 +231,6 @@ export default function ModificaTorneo() {
               <div className="space-y-2 md:col-span-2">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Iscrizione atleta</label>
                 <p className="rounded-2xl bg-blue-50 px-6 py-4 text-sm font-semibold text-blue-900">Gli atleti inviano la richiesta dopo l'accesso al proprio profilo. I dati del torneo vengono associati automaticamente all'account.</p>
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Modulo Iscrizione Personalizzato</label>
-                <select
-                  name="moduloIscrizioneId"
-                  value={formData.moduloIscrizioneId || ""}
-                  onChange={handleChange}
-                  className="w-full bg-gray-50 border-none rounded-2xl px-6 py-4 font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] transition-all cursor-pointer"
-                >
-                  <option value="">Standard (Default BVI)</option>
-                  {moduli.map((m) => <option key={m.id} value={m.id}>{m.titolo}</option>)}
-                </select>
               </div>
             </div>
 

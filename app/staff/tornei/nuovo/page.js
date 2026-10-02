@@ -1,15 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import StaffHeader from "@/app/components/StaffHeader";
-import { getTornei, saveTornei, getModuli } from "@/app/utils/db";
+import { getTornei, saveTornei } from "@/app/utils/db";
 import CircuitFields from "@/app/components/CircuitFields";
 import { DEFAULT_CIRCUIT_POINT_TABLE } from "@/app/utils/circuit";
 
 export default function NuovoTorneo() {
   const router = useRouter();
-  const [moduli, setModuli] = useState([]);
   const [formData, setFormData] = useState({
     nome: "",
     data: "",
@@ -18,18 +17,11 @@ export default function NuovoTorneo() {
     stato: "In Programmazione",
     maxSquadre: 16,
     quota: 40,
-    moduloIscrizioneId: "",
-    tipoIscrizione: "interno",
-    googleFormUrl: "",
     circuitName: "",
     circuitRole: "",
     circuitQualifiers: "",
     circuitPointTable: { ...DEFAULT_CIRCUIT_POINT_TABLE },
   });
-
-  useEffect(() => {
-    getModuli().then(data => setModuli(data));
-  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -47,9 +39,7 @@ export default function NuovoTorneo() {
     const nuovoTorneo = {
       id: newId,
       ...formData,
-      tipoIscrizione: "interno",
-      googleFormUrl: "",
-        nome: (formData.nome || "").trim(),
+      nome: (formData.nome || "").trim(),
       circuitName: (formData.circuitName || "").trim(),
       iscritti: 0,
       ...(formData.circuitRole ? { circuitPointTable: formData.circuitPointTable } : {}),
@@ -199,18 +189,6 @@ export default function NuovoTorneo() {
               <div className="space-y-2 md:col-span-2">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Iscrizione atleta</label>
                 <p className="rounded-2xl bg-blue-50 px-6 py-4 text-sm font-semibold text-blue-900">Gli atleti inviano la richiesta dopo l'accesso al proprio profilo. I dati del torneo vengono associati automaticamente all'account.</p>
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Modulo Iscrizione Personalizzato</label>
-                <select
-                  name="moduloIscrizioneId"
-                  value={formData.moduloIscrizioneId}
-                  onChange={handleChange}
-                  className="w-full bg-gray-50 border-none rounded-2xl px-6 py-4 font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] transition-all cursor-pointer"
-                >
-                  <option value="">Standard (Default BVI)</option>
-                  {moduli.map((m) => <option key={m.id} value={m.id}>{m.titolo}</option>)}
-                </select>
               </div>
             </div>
 
