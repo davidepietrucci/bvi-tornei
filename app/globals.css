@@ -26,6 +26,12 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+@media (min-width: 1280px) {
+  main:has(> .staff-sidebar) {
+    padding-left: 18rem;
+  }
+}
+
 @keyframes slideUp {
   from {
     transform: translateY(2rem);
@@ -59,4 +65,3 @@ body {
 .animate-marquee-paused:hover .animate-marquee {
   animation-play-state: paused;
 }
-
