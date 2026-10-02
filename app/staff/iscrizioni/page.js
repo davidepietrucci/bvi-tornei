@@ -26,7 +26,9 @@ export default function StaffIscrizioni() {
   const [mapDate, setMapDate] = useState(-1); // -1 means none (use current date)
   
   // Filter by Tournament state
-  const [selectedTorneoFilter, setSelectedTorneoFilter] = useState("Tutti");
+  const [selectedTorneoFilter, setSelectedTorneoFilter] = useState("");
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState("Tutte");
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Detail modal for custom fields
   const [selectedIscrizioneDetail, setSelectedIscrizioneDetail] = useState(null);
@@ -71,7 +73,7 @@ export default function StaffIscrizioni() {
     try {
       const oldTeamName = editingIscrizione.giocatori;
       const newTeamName = editFormData.giocatori.trim();
-      const tournamentName = editFormData.torneo || editingIscrizione.torneo;
+      const tournamentName = editingIscrizione.torneo;
 
       const updated = iscrizioni.map((isc) => 
         String(isc.id) === String(editingIscrizione.id) 
@@ -141,8 +143,9 @@ export default function StaffIscrizioni() {
       const parsed = await getTornei();
       if (isSavingRef.current || loadVersion !== loadVersionRef.current) return;
       setTornei(parsed || []);
-      if (parsed && parsed.length > 0 && !selectedTorneoImport) {
-        setSelectedTorneoImport(parsed[0].nome);
+      if (parsed && parsed.length > 0) {
+        setSelectedTorneoFilter((current) => parsed.some((t) => t.nome === current) ? current : parsed[0].nome);
+        setSelectedTorneoImport((current) => parsed.some((t) => t.nome === current) ? current : parsed[0].nome);
       }
     } catch (err) {
       console.error("Errore ricaricamento iscrizioni:", err);
@@ -366,9 +369,7 @@ export default function StaffIscrizioni() {
   };
 
   const exportToExcel = () => {
-    const targetIscrizioni = selectedTorneoFilter === "Tutti" 
-      ? iscrizioni 
-      : iscrizioni.filter(isc => (isc.torneo || "").toLowerCase().trim() === selectedTorneoFilter.toLowerCase().trim());
+    const targetIscrizioni = iscrizioni.filter(isc => (isc.torneo || "").toLowerCase().trim() === selectedTorneoFilter.toLowerCase().trim());
 
     const escapeCSV = (val) => {
       if (val === undefined || val === null) return '""';
@@ -434,16 +435,24 @@ export default function StaffIscrizioni() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `iscrizioni_bvi_${selectedTorneoFilter.replace(/\s+/g, '_').toLowerCase()}.csv`);
+    link.setAttribute("download", `iscrizioni_bvi_${(selectedTorneoFilter || "torneo").replace(/\s+/g, '_').toLowerCase()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
 
-  const filteredIscrizioni = selectedTorneoFilter === "Tutti" 
-    ? iscrizioni 
-    : iscrizioni.filter(isc => (isc.torneo || "").toLowerCase().trim() === selectedTorneoFilter.toLowerCase().trim());
+  const selectedTorneo = tornei.find((torneo) => torneo.nome === selectedTorneoFilter);
+  const tournamentIscrizioni = selectedTorneoFilter
+    ? iscrizioni.filter((isc) => (isc.torneo || "").toLowerCase().trim() === selectedTorneoFilter.toLowerCase().trim())
+    : [];
+  const pendingCount = tournamentIscrizioni.filter((isc) => isc.stato === "In Attesa").length;
+  const filteredIscrizioni = tournamentIscrizioni.filter((isc) => {
+    const matchesStatus = selectedStatusFilter === "Tutte" || isc.stato === selectedStatusFilter;
+    const query = searchTerm.trim().toLocaleLowerCase("it-IT");
+    const matchesSearch = !query || [isc.giocatori, isc.email, isc.tel, isc.id].some((value) => String(value || "").toLocaleLowerCase("it-IT").includes(query));
+    return matchesStatus && matchesSearch;
+  });
 
   return (
     <main className="min-h-screen pb-20 bg-[#f8faff]">
@@ -457,13 +466,15 @@ export default function StaffIscrizioni() {
             </div>
             <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
                 <button 
-                  onClick={() => setIsImportModalOpen(true)}
+                  onClick={() => { setSelectedTorneoImport(selectedTorneoFilter); setIsImportModalOpen(true); }}
+                  disabled={!selectedTorneoFilter}
                   className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest shadow-lg hover:scale-105 transition-transform"
                 >
                   🟢 Importa
                 </button>
                 <button 
                   onClick={exportToExcel}
+                  disabled={!selectedTorneoFilter || tournamentIscrizioni.length === 0}
                   className="text-xs bg-[#0a1628] text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest shadow-lg hover:scale-105 transition-transform"
                 >
                   ⬇️ Scarica CSV
@@ -471,34 +482,42 @@ export default function StaffIscrizioni() {
             </div>
         </div>
 
-        {/* Tournament Filter Pills */}
-        <div className="flex flex-wrap gap-2 mb-8 bg-white p-3 rounded-2xl shadow-sm border border-gray-100/80">
-            <button
-              onClick={() => setSelectedTorneoFilter("Tutti")}
-              className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
-                selectedTorneoFilter === "Tutti"
-                  ? "bg-[#0a1628] text-white shadow-md shadow-[#0a1628]/10"
-                  : "bg-gray-50 text-gray-500 hover:bg-gray-100"
-              }`}
+        <section className="mb-6 rounded-[2rem] border border-blue-100 bg-white p-5 shadow-sm md:p-7">
+          <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-500">Contesto attivo · un torneo alla volta</p>
+              <h3 className="mt-1 text-xl font-black text-[#0a1628]">Seleziona il torneo da gestire</h3>
+              <p className="mt-1 text-sm text-gray-500">Elenco, importazione ed esportazione seguono il torneo selezionato.</p>
+            </div>
+            <select
+              value={selectedTorneoFilter}
+              onChange={(event) => setSelectedTorneoFilter(event.target.value)}
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-bold text-[#0a1628] outline-none focus:ring-4 focus:ring-blue-500/10 md:max-w-md"
+              aria-label="Seleziona torneo da gestire"
             >
-              Tutti i Tornei ({iscrizioni.length})
-            </button>
-            {tornei.map(t => {
-              const count = iscrizioni.filter(isc => (isc.torneo || "").toLowerCase().trim() === t.nome.toLowerCase().trim()).length;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => setSelectedTorneoFilter(t.nome)}
-                  className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
-                    selectedTorneoFilter === t.nome
-                      ? "bg-[#0a1628] text-white shadow-md shadow-[#0a1628]/10"
-                      : "bg-gray-50 text-gray-500 hover:bg-gray-100"
-                  }`}
-                >
-                  {t.nome} ({count})
-                </button>
-              );
+              {tornei.length === 0 && <option value="">Nessun torneo disponibile</option>}
+              {tornei.length > 0 && !selectedTorneoFilter && <option value="" disabled>Seleziona un torneo</option>}
+              {tornei.map((torneo) => {
+                const count = iscrizioni.filter((isc) => (isc.torneo || "").toLowerCase().trim() === torneo.nome.toLowerCase().trim()).length;
+                return <option key={torneo.id} value={torneo.nome}>{torneo.nome} · {count} iscrizioni</option>;
+              })}
+            </select>
+          </div>
+          {selectedTorneo && <div className="mt-5 flex flex-wrap gap-3 border-t border-gray-100 pt-4 text-xs font-bold">
+            <span className="rounded-full bg-blue-50 px-3 py-2 text-blue-700">{tournamentIscrizioni.length} iscrizioni totali</span>
+            <span className="rounded-full bg-amber-50 px-3 py-2 text-amber-700">{pendingCount} da approvare</span>
+            <span className="rounded-full bg-emerald-50 px-3 py-2 text-emerald-700">{tournamentIscrizioni.length - pendingCount} approvate</span>
+          </div>}
+        </section>
+
+        <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Filtra iscrizioni per stato">
+            {["Tutte", "In Attesa", "Approvata"].map((status) => {
+              const count = status === "Tutte" ? tournamentIscrizioni.length : tournamentIscrizioni.filter((isc) => isc.stato === status).length;
+              return <button key={status} onClick={() => setSelectedStatusFilter(status)} className={`rounded-xl px-4 py-2.5 text-xs font-black transition-colors ${selectedStatusFilter === status ? "bg-[#0a1628] text-white" : "bg-gray-50 text-gray-500 hover:bg-gray-100"}`}>{status} ({count})</button>;
             })}
+          </div>
+          <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Cerca atleta, squadra o contatto" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none focus:ring-4 focus:ring-blue-500/10 md:max-w-sm" />
         </div>
 
         {/* Mobile Cards / Desktop Table Wrapper */}
@@ -612,17 +631,10 @@ export default function StaffIscrizioni() {
 
             {importStep === 1 ? (
               <div className="space-y-6 text-left">
-                {/* Select Torneo */}
-                <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Seleziona Torneo di Destinazione</label>
-                  <select
-                    value={selectedTorneoImport}
-                    onChange={(e) => setSelectedTorneoImport(e.target.value)}
-                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 font-bold text-sm text-[#0a1628] outline-none focus:ring-4 focus:ring-blue-500/5 transition-all appearance-none"
-                  >
-                    {tornei.map(t => <option key={t.id} value={t.nome}>{t.nome}</option>)}
-                    {tornei.length === 0 && <option value="">Nessun torneo attivo</option>}
-                  </select>
+                <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-blue-600">Torneo di destinazione</p>
+                  <p className="mt-1 text-base font-black text-[#0a1628]">{selectedTorneoImport || "Seleziona prima un torneo"}</p>
+                  <p className="mt-1 text-[10px] font-semibold text-blue-700">L’importazione viene associata solo a questo torneo. Per cambiarlo, chiudi e seleziona un altro torneo dalla pagina.</p>
                 </div>
 
                 {/* Select Stato Iniziale */}
@@ -933,15 +945,10 @@ export default function StaffIscrizioni() {
                 />
               </div>
 
-              <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Torneo</label>
-                <select
-                  value={editFormData.torneo}
-                  onChange={(e) => setEditFormData(prev => ({ ...prev, torneo: e.target.value }))}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 font-bold text-sm text-[#0a1628] outline-none focus:ring-4 focus:ring-blue-500/5 transition-all cursor-pointer"
-                >
-                  {tornei.map(t => <option key={t.id} value={t.nome}>{t.nome}</option>)}
-                </select>
+              <div className="rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-blue-600">Torneo associato</p>
+                <p className="mt-1 text-sm font-black text-[#0a1628]">{editingIscrizione.torneo || "Torneo non specificato"}</p>
+                <p className="mt-1 text-[10px] font-semibold text-blue-700">Il torneo resta invariato durante la modifica per evitare spostamenti accidentali.</p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
