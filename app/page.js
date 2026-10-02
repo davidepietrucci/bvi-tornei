@@ -9,6 +9,7 @@ import SponsorBanner from "@/app/components/SponsorBanner";
 export default function Home() {
   const [torneiLive, setTorneiLive] = useState([]);
   const [torneiAperti, setTorneiAperti] = useState([]);
+  const [torneiProgrammati, setTorneiProgrammati] = useState([]);
   const [torneiConclusi, setTorneiConclusi] = useState([]);
   const [allIscrizioni, setAllIscrizioni] = useState([]);
 
@@ -19,13 +20,15 @@ export default function Home() {
   useEffect(() => {
     // Leggi i tornei dal database per mostrarli in home
     getTornei().then(allTornei => {
-      // Filtriamo i tornei in programmazione per la sezione live
-      const live = allTornei.filter(t => t.stato === "In Programmazione");
+      // I tornei programmati non sono live: mostriamo risultati live solo durante il torneo.
+      const live = allTornei.filter(t => ["In Corso", "Live"].includes(t.stato));
       setTorneiLive(live);
 
-      // Mostriamo i tornei che sono "Iscrizioni Aperte" (o non hanno stato impostato, escludendo conclusi/in programmazione)
-      const aperti = allTornei.filter(t => t.stato === "Iscrizioni Aperte" || (!t.stato && t.stato !== "Concluso" && t.stato !== "In Programmazione"));
+      const aperti = allTornei.filter(t => t.stato === "Iscrizioni Aperte" || !t.stato);
       setTorneiAperti(aperti.slice(0, 6)); // Mostriamo un massimo di 6 tornei in home
+
+      const programmati = allTornei.filter(t => t.stato === "In Programmazione");
+      setTorneiProgrammati(programmati.slice(0, 6));
 
       // Mostriamo i tornei conclusi
       const conclusi = allTornei.filter(t => t.stato === "Concluso");
@@ -36,6 +39,9 @@ export default function Home() {
       setAllIscrizioni(isc || []);
     });
   }, []);
+
+  const torneiCalendario = [...torneiAperti, ...torneiProgrammati].slice(0, 6);
+  const torneoInEvidenza = torneiLive[0] || torneiAperti[0] || torneiProgrammati[0];
 
   return (
     <main className="min-h-screen bg-[#f5f4ef] text-[#101d2c]">
@@ -84,9 +90,9 @@ export default function Home() {
                   <p className="text-[10px] font-black uppercase tracking-[.2em] text-[#f5ca3e]">{torneiLive.length ? "In diretta" : "Prossimo appuntamento"}</p>
                   <span className={`flex items-center gap-2 text-[9px] font-black uppercase tracking-wider ${torneiLive.length ? "text-red-300" : "text-white/55"}`}><span className={`h-2 w-2 rounded-full ${torneiLive.length ? "animate-pulse bg-red-400" : "bg-[#f5ca3e]"}`} /> {torneiLive.length ? "Live" : "BVI Tornei"}</span>
                 </div>
-                <h2 className="mt-3 text-xl font-black sm:text-2xl">{torneiLive[0]?.nome || torneiAperti[0]?.nome || "Il campo ti aspetta"}</h2>
-                <p className="mt-1 text-xs text-white/60">{torneiLive[0] ? `${torneiLive[0].data}${torneiLive[0].location ? ` · ${torneiLive[0].location}` : ""}` : torneiAperti[0] ? `${torneiAperti[0].data} · ${torneiAperti[0].categoria || "Categoria libera"}` : "Scopri i prossimi tornei BVI"}</p>
-                <a href={torneiLive[0] ? `/gironi?tour=${encodeURIComponent(torneiLive[0].nome)}` : torneiAperti[0] ? `/atleta/iscriviti?tour=${encodeURIComponent(torneiAperti[0].nome)}` : "/atleta"} className="mt-5 inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-[#f5ca3e] hover:text-yellow-200">{torneiLive.length ? "Apri il live" : torneiAperti.length ? "Vai all’iscrizione" : "Entra nell’Area Atleta"} <span aria-hidden="true">→</span></a>
+                <h2 className="mt-3 text-xl font-black sm:text-2xl">{torneoInEvidenza?.nome || "Il campo ti aspetta"}</h2>
+                <p className="mt-1 text-xs text-white/60">{torneoInEvidenza ? `${torneoInEvidenza.data}${torneoInEvidenza.location ? ` · ${torneoInEvidenza.location}` : ` · ${torneoInEvidenza.categoria || "Categoria libera"}`}` : "Scopri i prossimi tornei BVI"}</p>
+                <a href={torneiLive[0] ? `/gironi?tour=${encodeURIComponent(torneiLive[0].nome)}` : torneoInEvidenza ? (torneoInEvidenza.stato === "Iscrizioni Aperte" || !torneoInEvidenza.stato ? `/atleta/iscriviti?tour=${encodeURIComponent(torneoInEvidenza.nome)}` : `/tornei/${torneoInEvidenza.id}`) : "/atleta"} className="mt-5 inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-[#f5ca3e] hover:text-yellow-200">{torneiLive.length ? "Apri il live" : torneoInEvidenza?.stato === "Iscrizioni Aperte" || (torneoInEvidenza && !torneoInEvidenza.stato) ? "Vai all’iscrizione" : torneoInEvidenza ? "Dettagli torneo" : "Entra nell’Area Atleta"} <span aria-hidden="true">→</span></a>
               </div>
             </div>
             <div className="absolute -bottom-4 -left-4 hidden rounded-xl bg-[#f5ca3e] px-5 py-4 text-[#101d2c] shadow-xl sm:block"><p className="text-[9px] font-black uppercase tracking-[.2em]">#Live your passion</p><p className="mt-1 text-xs font-bold">Ogni torneo, una nuova sfida.</p></div>
@@ -97,7 +103,7 @@ export default function Home() {
       {torneiLive.length > 0 && <section className="bg-[#101d2c] px-5 py-8 text-white sm:px-8">
         <div className="mx-auto max-w-7xl">
           <div className="mb-5 flex items-center justify-between gap-4"><p className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[.22em] text-[#f5ca3e]"><span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" /> Risultati dal campo</p><a href="/gironi" className="text-[10px] font-bold uppercase tracking-wider text-white/60 hover:text-white">Tutti i live →</a></div>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{torneiLive.map((t, idx) => <article key={t.id || idx} className="flex items-center justify-between gap-4 border-l-2 border-[#f5ca3e] bg-white/5 px-4 py-4 sm:px-5"><div className="min-w-0"><h2 className="truncate font-black">{t.nome}</h2><p className="mt-1 truncate text-[10px] text-white/55">{t.categoria || "Categoria libera"} · {t.data}</p></div><a href={`/gironi?tour=${encodeURIComponent(t.nome)}`} className="shrink-0 text-xs font-black uppercase tracking-wider text-[#f5ca3e] hover:text-yellow-200">Live ↗</a></article>)}</div>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{torneiLive.map((t, idx) => <article key={t.id || idx} className="flex items-center justify-between gap-4 border-l-2 border-[#f5ca3e] bg-white/5 px-4 py-4 sm:px-5"><div className="min-w-0"><h2 className="truncate font-black"><a href={`/tornei/${t.id}`} className="hover:text-[#f5ca3e]">{t.nome}</a></h2><p className="mt-1 truncate text-[10px] text-white/55">{t.categoria || "Categoria libera"} · {t.data}</p></div><a href={`/gironi?tour=${encodeURIComponent(t.nome)}`} className="shrink-0 text-xs font-black uppercase tracking-wider text-[#f5ca3e] hover:text-yellow-200">Live ↗</a></article>)}</div>
         </div>
       </section>}
 
@@ -107,12 +113,12 @@ export default function Home() {
           <p className="max-w-md text-sm leading-6 text-[#596574]">Iscrizione personale dal Portale Atleta. Consulta il programma e scegli il prossimo appuntamento in campo.</p>
         </div>
 
-        {torneiAperti.length === 0 ? <div className="grid gap-6 rounded-3xl bg-[#101d2c] p-8 text-white sm:grid-cols-[1fr_auto] sm:items-center sm:p-10"><div><p className="text-[10px] font-black uppercase tracking-[.2em] text-[#f5ca3e]">Calendario in aggiornamento</p><h3 className="mt-3 text-2xl font-black">La prossima sfida è in preparazione.</h3><p className="mt-2 max-w-xl text-sm leading-6 text-white/60">Al momento non ci sono iscrizioni aperte. Nel frattempo puoi entrare nel portale e tenere d’occhio i tuoi risultati.</p></div><a href="/atleta" className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#f5ca3e] px-5 py-3 text-sm font-black text-[#101d2c]">Apri Portale Atleta ↗</a></div> : <div className="overflow-hidden rounded-2xl border border-[#101d2c]/10 bg-white">
-          {torneiAperti.map((t, i) => <article key={t.id || i} className={`grid gap-4 px-5 py-5 sm:grid-cols-[100px_1fr_auto] sm:items-center sm:gap-6 sm:px-7 ${i ? "border-t border-[#101d2c]/10" : ""}`}>
+        {torneiCalendario.length === 0 ? <div className="grid gap-6 rounded-3xl bg-[#101d2c] p-8 text-white sm:grid-cols-[1fr_auto] sm:items-center sm:p-10"><div><p className="text-[10px] font-black uppercase tracking-[.2em] text-[#f5ca3e]">Calendario in aggiornamento</p><h3 className="mt-3 text-2xl font-black">La prossima sfida è in preparazione.</h3><p className="mt-2 max-w-xl text-sm leading-6 text-white/60">Al momento non ci sono tornei pubblicati. Nel frattempo puoi entrare nel portale e tenere d’occhio i tuoi risultati.</p></div><a href="/atleta" className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#f5ca3e] px-5 py-3 text-sm font-black text-[#101d2c]">Apri Portale Atleta ↗</a></div> : <div className="overflow-hidden rounded-2xl border border-[#101d2c]/10 bg-white">
+          {torneiCalendario.map((t, i) => { const iscrizioniAperte = t.stato === "Iscrizioni Aperte" || !t.stato; return <article key={t.id || i} className={`grid gap-4 px-5 py-5 sm:grid-cols-[100px_1fr_auto] sm:items-center sm:gap-6 sm:px-7 ${i ? "border-t border-[#101d2c]/10" : ""}`}>
             <div className="flex items-center gap-3 sm:block sm:border-r sm:border-[#101d2c]/10"><span className="block text-[9px] font-black uppercase tracking-[.2em] text-[#78600d] sm:mb-1">Data</span><span className="text-sm font-black text-[#101d2c]">{t.data}</span></div>
-            <div className="min-w-0"><div className="mb-1 flex flex-wrap items-center gap-2"><span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-[#277446]"><span className="h-1.5 w-1.5 rounded-full bg-[#31a45e]" /> Iscrizioni aperte</span><span className="text-[9px] font-bold uppercase tracking-wider text-[#657080]">{t.categoria || "Categoria libera"}</span></div><h3 className="truncate text-xl font-black tracking-tight">{t.nome}</h3>{t.location && <p className="mt-1 text-xs text-[#657080]">{t.location}</p>}</div>
-            <div className="flex gap-2"><a href={`/atleta/iscriviti?tour=${encodeURIComponent(t.nome)}`} className="flex-1 rounded-lg bg-[#f5ca3e] px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-[#101d2c] transition hover:bg-[#e9b91e] sm:flex-none">Iscriviti ↗</a><button onClick={() => { setSelectedTorneoModal(t); setSearchCoppia(""); }} className="flex-1 cursor-pointer rounded-lg border border-[#101d2c]/15 px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-[#101d2c] hover:bg-[#f5f4ef] sm:flex-none">Iscritti</button></div>
-          </article>)}
+            <div className="min-w-0"><div className="mb-1 flex flex-wrap items-center gap-2"><span className={`inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider ${iscrizioniAperte ? "text-[#277446]" : "text-[#78600d]"}`}><span className={`h-1.5 w-1.5 rounded-full ${iscrizioniAperte ? "bg-[#31a45e]" : "bg-[#f5ca3e]"}`} /> {iscrizioniAperte ? "Iscrizioni aperte" : "In programma"}</span><span className="text-[9px] font-bold uppercase tracking-wider text-[#657080]">{t.categoria || "Categoria libera"}</span></div><h3 className="truncate text-xl font-black tracking-tight"><a href={`/tornei/${t.id}`} className="hover:text-[#8a6e07]">{t.nome}</a></h3>{t.location && <p className="mt-1 text-xs text-[#657080]">{t.location}</p>}<a href={`/tornei/${t.id}`} className="mt-2 inline-flex text-[10px] font-black uppercase tracking-wider text-[#657080] underline decoration-[#f5ca3e] decoration-2 underline-offset-2">Scheda torneo →</a></div>
+            <div className="flex gap-2">{iscrizioniAperte ? <a href={`/atleta/iscriviti?tour=${encodeURIComponent(t.nome)}`} className="flex-1 rounded-lg bg-[#f5ca3e] px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-[#101d2c] transition hover:bg-[#e9b91e] sm:flex-none">Iscriviti ↗</a> : <a href={`/tornei/${t.id}`} className="flex-1 rounded-lg border border-[#101d2c]/15 px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-[#101d2c] hover:bg-[#f5f4ef] sm:flex-none">Dettagli</a>}<button onClick={() => { setSelectedTorneoModal(t); setSearchCoppia(""); }} className="flex-1 cursor-pointer rounded-lg border border-[#101d2c]/15 px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-[#101d2c] hover:bg-[#f5f4ef] sm:flex-none">Iscritti</button></div>
+          </article>; })}
         </div>}
       </section>
 
@@ -125,7 +131,7 @@ export default function Home() {
 
       {torneiConclusi.length > 0 && <section className="mx-auto max-w-7xl px-5 py-16 sm:px-8">
         <div className="mb-8 flex items-end justify-between"><div><p className="mb-2 text-xs font-black uppercase tracking-[0.2em] text-[#b18a0d]">Archivio</p><h2 className="text-3xl font-black">I tornei passati</h2></div><a href="/classifica" className="text-sm font-bold text-[#101d2c] underline decoration-[#f5ca3e] decoration-2 underline-offset-4">Tutte le classifiche →</a></div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{torneiConclusi.slice(0, 3).map((t, i) => <article key={t.id || i} className="flex items-center justify-between gap-4 rounded-2xl border border-[#e8e4d8] bg-white p-5"><div><p className="text-xs font-bold text-gray-500">{t.data} · {t.categoria || "Categoria libera"}</p><h3 className="mt-1 font-black">{t.nome}</h3></div><a href={`/classifica?tour=${encodeURIComponent(t.nome)}`} className="shrink-0 rounded-full bg-[#f5ca3e] px-4 py-2 text-xs font-black">Classifica</a></article>)}</div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{torneiConclusi.slice(0, 3).map((t, i) => <article key={t.id || i} className="flex items-center justify-between gap-4 rounded-2xl border border-[#e8e4d8] bg-white p-5"><div><p className="text-xs font-bold text-gray-500">{t.data} · {t.categoria || "Categoria libera"}</p><h3 className="mt-1 font-black"><a href={`/tornei/${t.id}`} className="hover:text-[#8a6e07]">{t.nome}</a></h3><a href={`/tornei/${t.id}`} className="mt-1 inline-flex text-[10px] font-black uppercase tracking-wider text-[#657080] underline decoration-[#f5ca3e] decoration-2 underline-offset-2">Scheda torneo →</a></div><a href={`/classifica?tour=${encodeURIComponent(t.nome)}`} className="shrink-0 rounded-full bg-[#f5ca3e] px-4 py-2 text-xs font-black">Classifica</a></article>)}</div>
       </section>}
 
       {/* Modal Coppie Iscritte */}

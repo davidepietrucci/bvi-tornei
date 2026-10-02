@@ -91,7 +91,16 @@ export default function StaffTornei() {
                 </div>
               </div>
               
-              <div className="bg-gray-50/50 p-4 sm:p-6 flex gap-3">
+              <div className="bg-gray-50/50 p-4 sm:p-6 flex flex-col gap-3">
+                <a
+                  href={`/tornei/${torneo.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full bg-[#FFD700] py-3.5 rounded-2xl text-center text-xs font-black uppercase tracking-widest text-[#0a1628] hover:bg-yellow-300 transition-all shadow-sm"
+                >
+                  Apri pagina pubblica ↗
+                </a>
+                <div className="flex gap-3">
                 <button 
                   onClick={() => router.push(`/staff/tornei/modifica/${torneo.id}`)}
                   className="flex-1 bg-white border-2 border-gray-100 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest text-gray-600 hover:bg-[#0a1628] hover:text-white hover:border-[#0a1628] transition-all shadow-sm cursor-pointer"
@@ -104,6 +113,7 @@ export default function StaffTornei() {
                 >
                   Gironi
                 </button>
+                </div>
               </div>
             </div>
           ))}
