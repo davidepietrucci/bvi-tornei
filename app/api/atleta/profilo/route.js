@@ -17,6 +17,10 @@ export async function GET() {
     const safeTournaments = Array.isArray(tournaments) ? tournaments : [];
     const tournamentByName = new Map(safeTournaments.map((tournament) => [normalizeCircuitName(tournament.nome), tournament]));
     const mine = safeRegistrations.filter((registration) => registrationIncludesAthlete(registration, userId, email));
+    const telefono = [...mine].reverse().find((registration) => {
+      const value = String(registration.tel || "").trim();
+      return value && value.toLocaleLowerCase("it-IT") !== "non inserito";
+    })?.tel || "";
 
     const scoreDetails = mine.map((registration) => {
       const tournament = tournamentByName.get(normalizeCircuitName(registration.torneo));
@@ -82,6 +86,7 @@ export async function GET() {
 
     return NextResponse.json({
       data: {
+        telefono: String(telefono).trim(),
         totalePunti,
         iscrizioni: mine.length,
         punteggi: scoreDetails.map((detail) => {

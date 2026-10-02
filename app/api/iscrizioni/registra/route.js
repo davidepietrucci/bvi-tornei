@@ -28,7 +28,6 @@ export async function POST(request) {
       giocatore2,
       email2,
       tel, 
-      email: contactEmail,
       note, 
     } = body;
 
@@ -39,10 +38,7 @@ export async function POST(request) {
       );
     }
 
-    const notificationEmail = String(contactEmail || athleteEmail).trim();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(notificationEmail)) {
-      return NextResponse.json({ error: "L'email di contatto non è valida." }, { status: 400 });
-    }
+    const notificationEmail = athleteEmail;
 
     const tornei = await getTornei();
     const matchTorneo = tornei.find(

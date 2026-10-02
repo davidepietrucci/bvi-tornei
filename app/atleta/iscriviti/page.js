@@ -18,6 +18,7 @@ export default function AtletaIscriviti() {
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errore, setErrore] = useState("");
+  const [telefonoPrecompilato, setTelefonoPrecompilato] = useState(false);
 
   const [formData, setFormData] = useState({
     torneo: "",
@@ -35,7 +36,7 @@ export default function AtletaIscriviti() {
     if (user) {
       setFormData((prev) => ({
         ...prev,
-        giocatore1: user.fullName || prev.giocatore1,
+        giocatore1: user.fullName || `${user.firstName || ""} ${user.lastName || ""}`.trim() || prev.giocatore1,
         email: user.primaryEmailAddress?.emailAddress || prev.email,
       }));
     }
@@ -46,6 +47,10 @@ export default function AtletaIscriviti() {
       ]).then(([all, profile]) => {
         const aperti = (all || []).filter((t) => t.stato === "Iscrizioni Aperte");
         setTorneiAperti(aperti);
+        if (profile?.data?.telefono) {
+          setFormData((prev) => ({ ...prev, telefono: prev.telefono || profile.data.telefono }));
+          setTelefonoPrecompilato(true);
+        }
         const qualification = {};
         for (const circuit of profile?.data?.circuiti || []) {
           for (const final of circuit.finali || []) qualification[final.torneo] = final.qualificato;
@@ -84,7 +89,6 @@ export default function AtletaIscriviti() {
             email2: formData.emailCompagno,
           } : {}),
           tel: formData.telefono,
-          email: formData.email,
           note: "Iscrizione effettuata dal portale atleti.",
         })
       });
@@ -298,6 +302,9 @@ export default function AtletaIscriviti() {
                       required
                       className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 font-bold text-[#0a1628] text-sm focus:outline-none focus:ring-2 focus:ring-[#0a1628] transition-all"
                     />
+                    <p className="mt-1 text-[9px] font-semibold text-gray-400">
+                      {telefonoPrecompilato ? "Precompilato dall’ultima iscrizione: aggiornalo se è cambiato." : "Lo salveremo per riutilizzarlo nelle prossime iscrizioni."}
+                    </p>
                   </div>
                   {!isIndividualTournament && (
                     <div>
@@ -318,16 +325,16 @@ export default function AtletaIscriviti() {
                   )}
                   <div>
                     <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1 block mb-1.5">
-                      Email di Conferma
+                      Email account
                     </label>
                     <input
                       type="email"
                       name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      placeholder="tua@email.com"
-                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 font-bold text-[#0a1628] text-sm focus:outline-none focus:ring-2 focus:ring-[#0a1628] transition-all"
+                      value={user?.primaryEmailAddress?.emailAddress || formData.email}
+                      readOnly
+                      className="w-full bg-gray-100 rounded-2xl px-4 py-3.5 font-bold text-gray-500 text-sm cursor-not-allowed"
                     />
+                    <p className="mt-1 text-[9px] font-semibold text-gray-400">Usiamo l’indirizzo verificato del tuo account per l’iscrizione e le comunicazioni.</p>
                   </div>
                 </div>
 
@@ -362,7 +369,7 @@ export default function AtletaIscriviti() {
                     <RiepilogoRow label={isIndividualTournament ? "Atleta" : "Giocatore 1"} value={formData.giocatore1} />
                     {!isIndividualTournament && <RiepilogoRow label="Giocatore 2" value={formData.giocatore2} />}
                     <RiepilogoRow label="Cellulare" value={formData.telefono} />
-                    <RiepilogoRow label="Email" value={formData.email} />
+                    <RiepilogoRow label="Email" value={user?.primaryEmailAddress?.emailAddress || formData.email} />
                     {!isIndividualTournament && <RiepilogoRow label="Email compagno/a" value={formData.emailCompagno} />}
                   </div>
                 </div>
@@ -417,7 +424,7 @@ export default function AtletaIscriviti() {
             <h2 className="text-2xl font-black text-[#0a1628] uppercase tracking-tighter mb-2">Iscrizione Inviata!</h2>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-loose mb-6">
               La richiesta è stata trasmessa allo staff. Riceverai conferma a{" "}
-              <span className="text-[#0a1628]">{formData.email}</span>.
+              <span className="text-[#0a1628]">{user?.primaryEmailAddress?.emailAddress || formData.email}</span>.
             </p>
             <button
               onClick={() => {
