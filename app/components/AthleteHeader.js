@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useUser, useClerk } from "@clerk/nextjs";
@@ -31,8 +32,49 @@ export default function AthleteHeader() {
     : "A";
 
   return (
+    <>
+      <aside className="fixed inset-y-0 left-0 z-[120] hidden w-72 flex-col bg-[#0a1628] px-4 py-5 text-white shadow-2xl xl:flex">
+        <Link href="/atleta/dashboard" className="flex items-center gap-3 border-b border-white/10 px-2 pb-5">
+          <Image src="/logo.png" alt="BVI Logo" width={44} height={44} className="object-contain" />
+          <div>
+            <h1 className="text-lg font-black uppercase tracking-tight leading-none text-[#FFD700]">BVI Atleta</h1>
+            <p className="mt-1 text-[9px] font-bold uppercase tracking-widest text-white/50">Area personale</p>
+          </div>
+        </Link>
+
+        <nav aria-label="Navigazione atleta" className="mt-5 flex-1 space-y-1 overflow-y-auto pr-1">
+          {menuItems.map((item) => {
+            const active = pathname === item.path || pathname.startsWith(`${item.path}/`);
+            return (
+              <Link
+                key={item.path}
+                href={item.path}
+                aria-current={active ? "page" : undefined}
+                className={`flex items-center gap-3 rounded-2xl px-4 py-3.5 text-sm font-bold transition-colors ${active ? "bg-[#FFD700] text-[#0a1628] shadow-md" : "text-white/75 hover:bg-white/10 hover:text-white"}`}
+              >
+                <span aria-hidden="true" className="w-6 text-center text-lg">{item.emoji}</span>
+                <span>{item.name}</span>
+                {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#0a1628]" />}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="mt-4 border-t border-white/10 pt-4">
+          <p className="mb-3 truncate px-3 text-xs font-bold text-white/60">Ciao, {userDisplayName}</p>
+          {isLoaded && user && (user.publicMetadata?.role === "admin" || user.publicMetadata?.role === "staff") && (
+            <Link href="/staff/dashboard" className="mb-2 flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold text-[#FFD700] transition-colors hover:bg-white/10">
+              <span aria-hidden="true" className="w-6 text-center text-lg">🛠️</span>Area Staff
+            </Link>
+          )}
+          <button onClick={handleLogout} className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-bold text-red-200 transition-colors hover:bg-red-500/15 hover:text-red-100">
+            <span aria-hidden="true" className="w-6 text-center text-lg">↪</span>Esci dal portale
+          </button>
+        </div>
+      </aside>
+
     <header
-      className="bg-white/95 backdrop-blur-sm py-3 px-4 md:px-8 flex justify-between items-center shadow-sm border-b sticky top-0 z-[100]"
+      className="xl:hidden bg-white/95 backdrop-blur-sm py-3 px-4 md:px-8 flex justify-between items-center shadow-sm border-b sticky top-0 z-[100]"
       style={{ borderColor: "#FFD700" }}
     >
       {/* Logo + Title */}
@@ -190,5 +232,6 @@ export default function AthleteHeader() {
         </div>
       )}
     </header>
+    </>
   );
 }

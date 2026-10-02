@@ -748,7 +748,7 @@ export default function AtletaGironi() {
   );
 
   return (
-    <main className="min-h-screen bg-[#f8faff] pb-28 xl:pb-10">
+    <main className="min-h-screen bg-[#f8faff] pb-28 xl:pb-10 xl:pl-72">
       <AthleteHeader />
 
       <div className="max-w-6xl mx-auto mt-6 md:mt-10 px-4">

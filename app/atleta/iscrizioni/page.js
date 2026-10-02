@@ -73,7 +73,7 @@ export default function MieIscrizioni() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f0f4ff] pb-28 xl:pb-10">
+    <main className="min-h-screen bg-[#f0f4ff] pb-28 xl:pb-10 xl:pl-72">
       <AthleteHeader />
 
       <div className="max-w-2xl mx-auto px-4 pt-6">
