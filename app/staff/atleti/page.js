@@ -11,6 +11,13 @@ function formatDate(value) {
   return Number.isNaN(date.getTime()) ? "—" : date.toLocaleDateString("it-IT");
 }
 
+function roleLabel(role) {
+  const normalized = String(role || "atleta").toLocaleLowerCase("it-IT");
+  if (normalized === "admin") return "Admin";
+  if (normalized === "staff") return "Staff";
+  return "Atleta";
+}
+
 async function readResponse(response) {
   const json = await response.json();
   if (!response.ok) throw new Error(json.error || "Errore durante il caricamento.");
@@ -125,7 +132,18 @@ export default function StaffAtleti() {
                   {(athlete.nome || athlete.email || "A").charAt(0).toUpperCase()}{(athlete.cognome || "").charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0">
-                  <h3 className="font-black text-lg text-[#0a1628] truncate">{fullName(athlete)}</h3>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <h3 className="font-black text-lg text-[#0a1628] truncate">{fullName(athlete)}</h3>
+                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-wider ${
+                      String(athlete.role).toLocaleLowerCase("it-IT") === "admin"
+                        ? "bg-purple-100 text-purple-700"
+                        : String(athlete.role).toLocaleLowerCase("it-IT") === "staff"
+                          ? "bg-amber-100 text-amber-800"
+                          : "bg-blue-50 text-blue-700"
+                    }`}>
+                      {roleLabel(athlete.role)}
+                    </span>
+                  </div>
                   <p className="text-sm font-semibold text-gray-500 truncate">{athlete.email || "Email non disponibile"}</p>
                   <p className="mt-1 text-[10px] font-bold text-gray-400">Registrato il {formatDate(athlete.dataRegistrazione)}</p>
                 </div>
@@ -153,7 +171,10 @@ export default function StaffAtleti() {
             <div className="sticky top-0 bg-[#0a1628] p-6 text-white flex items-start justify-between gap-4 rounded-t-3xl">
               <div className="min-w-0">
                 <p className="text-[10px] font-black uppercase tracking-widest text-[#FFD700]">Profilo atleta</p>
-                <h2 id="athlete-profile-title" className="mt-1 text-2xl font-black truncate">{fullName(selectedAtleta)}</h2>
+                <div className="mt-1 flex items-center gap-2 min-w-0">
+                  <h2 id="athlete-profile-title" className="text-2xl font-black truncate">{fullName(selectedAtleta)}</h2>
+                  <span className="shrink-0 rounded-full bg-white/10 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-white">{roleLabel(selectedAtleta.role)}</span>
+                </div>
                 <p className="mt-1 text-sm text-white/70 truncate">{selectedAtleta.email || "Email non disponibile"}</p>
               </div>
               <button type="button" aria-label="Chiudi profilo" onClick={() => setSelectedAtleta(null)} className="rounded-xl bg-white/10 px-3 py-2 text-white hover:bg-white/20">✕</button>

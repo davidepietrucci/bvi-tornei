@@ -67,9 +67,7 @@ export async function GET(request) {
 
     const client = await clerkClient();
     const users = await getAllClerkUsers(client);
-    const athletes = users
-      .map(toAthlete)
-      .filter((athlete) => !["admin", "staff"].includes(athlete.role.toLowerCase()));
+    const athletes = users.map(toAthlete);
 
     const { searchParams } = new URL(request.url);
     const requestedUserId = searchParams.get("userId");
