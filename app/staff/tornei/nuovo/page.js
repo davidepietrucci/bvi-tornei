@@ -47,6 +47,8 @@ export default function NuovoTorneo() {
     const nuovoTorneo = {
       id: newId,
       ...formData,
+      tipoIscrizione: "interno",
+      googleFormUrl: "",
         nome: (formData.nome || "").trim(),
       circuitName: (formData.circuitName || "").trim(),
       iscritti: 0,
@@ -194,48 +196,22 @@ export default function NuovoTorneo() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tipo Iscrizione</label>
-                <select 
-                  name="tipoIscrizione" 
-                  value={formData.tipoIscrizione} 
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Iscrizione atleta</label>
+                <p className="rounded-2xl bg-blue-50 px-6 py-4 text-sm font-semibold text-blue-900">Gli atleti inviano la richiesta dopo l'accesso al proprio profilo. I dati del torneo vengono associati automaticamente all'account.</p>
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Modulo Iscrizione Personalizzato</label>
+                <select
+                  name="moduloIscrizioneId"
+                  value={formData.moduloIscrizioneId}
                   onChange={handleChange}
                   className="w-full bg-gray-50 border-none rounded-2xl px-6 py-4 font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] transition-all cursor-pointer"
                 >
-                  <option value="interno">Modulo del Sito (Standard o Personalizzato)</option>
-                  <option value="esterno">Modulo Google Esterno (Link)</option>
+                  <option value="">Standard (Default BVI)</option>
+                  {moduli.map((m) => <option key={m.id} value={m.id}>{m.titolo}</option>)}
                 </select>
               </div>
-
-              {formData.tipoIscrizione === "esterno" ? (
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Link Modulo Google (URL)</label>
-                  <input 
-                    type="url" 
-                    name="googleFormUrl" 
-                    required={formData.tipoIscrizione === "esterno"}
-                    value={formData.googleFormUrl} 
-                    onChange={handleChange}
-                    placeholder="https://docs.google.com/forms/d/e/.../viewform" 
-                    className="w-full bg-gray-50 border-none rounded-2xl px-6 py-4 font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] transition-all" 
-                  />
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Modulo Iscrizione Personalizzato</label>
-                  <select 
-                    name="moduloIscrizioneId" 
-                    value={formData.moduloIscrizioneId} 
-                    onChange={handleChange}
-                    className="w-full bg-gray-50 border-none rounded-2xl px-6 py-4 font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] transition-all cursor-pointer"
-                  >
-                    <option value="">Standard (Default BVI)</option>
-                    {moduli.map(m => (
-                      <option key={m.id} value={m.id}>{m.titolo}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
             </div>
 
           </div>

@@ -28,7 +28,8 @@ export default function AtletaIscriviti() {
 
   useEffect(() => {
     if (isLoaded && !user) {
-      router.push("/atleta");
+      const currentUrl = `${window.location.pathname}${window.location.search}`;
+      router.push(`/atleta?redirect_url=${encodeURIComponent(currentUrl)}`);
       return;
     }
     if (user) {
@@ -50,7 +51,12 @@ export default function AtletaIscriviti() {
           for (const final of circuit.finali || []) qualification[final.torneo] = final.qualificato;
         }
         setQualificazioneTour(qualification);
-        const selectable = aperti.find((t) => t.circuitRole !== "finale" || qualification[t.nome]);
+        const requestedTournament = new URLSearchParams(window.location.search).get("tour");
+        const requested = requestedTournament && aperti.find((t) =>
+          t.nome.toLocaleLowerCase("it-IT").trim() === requestedTournament.toLocaleLowerCase("it-IT").trim()
+        );
+        const selectable = (requested && (requested.circuitRole !== "finale" || qualification[requested.nome]))
+          || aperti.find((t) => t.circuitRole !== "finale" || qualification[t.nome]);
         if (selectable) setFormData((prev) => ({ ...prev, torneo: selectable.nome }));
       }).catch((error) => {
         console.error("Errore nel caricamento dei tornei:", error);

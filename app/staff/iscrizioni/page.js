@@ -80,6 +80,7 @@ export default function StaffIscrizioni() {
               giocatori: newTeamName,
               tel: editFormData.tel.trim(),
               email: editFormData.email.trim(),
+              ...(editFormData.email.trim() ? { atletaEmail1: editFormData.email.trim().toLocaleLowerCase("it-IT") } : {}),
               atletaEmail2: editFormData.email2.trim().toLowerCase(),
               torneo: tournamentName,
               stato: editFormData.stato,
@@ -306,6 +307,9 @@ export default function StaffIscrizioni() {
     const newRegistrations = parsedRows.map((row, idx) => {
       const playersVal = row[mapGiocatori] || "Sconosciuto";
       const contactVal = row[mapContatto] || "Non specificato";
+      const contactEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(contactVal).trim())
+        ? String(contactVal).trim().toLocaleLowerCase("it-IT")
+        : "";
       let dateVal = today;
       if (mapDate !== -1 && row[mapDate]) {
         const rawDate = row[mapDate];
@@ -329,7 +333,7 @@ export default function StaffIscrizioni() {
         data: dateVal,
         torneo: selectedTorneoImport,
         giocatori: playersVal,
-        tel: contactVal,
+        ...(contactEmail ? { email: contactEmail, atletaEmail1: contactEmail, tel: "Non inserito" } : { tel: contactVal }),
         stato: initialStatusImport
       };
     });
@@ -959,6 +963,7 @@ export default function StaffIscrizioni() {
                     onChange={(e) => setEditFormData(prev => ({ ...prev, email: e.target.value }))}
                     className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 font-bold text-sm text-[#0a1628] outline-none focus:ring-4 focus:ring-blue-500/5 transition-all"
                   />
+                  <p className="mt-1 text-[10px] text-gray-400">Per collegare questa iscrizione al profilo atleta, inserisci l'email usata per accedere al portale.</p>
                 </div>
               </div>
 

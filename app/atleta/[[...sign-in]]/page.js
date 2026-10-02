@@ -13,9 +13,9 @@ export default function AtletaLogin() {
 
   useEffect(() => {
     if (isLoaded && user) {
-      router.replace("/atleta/dashboard");
+      router.replace(redirectUrl);
     }
-  }, [user, isLoaded, router]);
+  }, [user, isLoaded, router, redirectUrl]);
 
   if (!isLoaded) {
     return (

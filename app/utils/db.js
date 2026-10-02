@@ -185,7 +185,7 @@ export async function getPublicIscrizioni() {
   const data = await fetchFromServerDb("iscrizioni", null, true);
   if (Array.isArray(data)) return data;
   const localData = safeJsonParse(localStorage.getItem("bvi_iscrizioni"), []);
-  return Array.isArray(localData) ? localData.map((isc) => ({
+  return Array.isArray(localData) ? localData.filter((isc) => isc.stato !== "Annullata").map((isc) => ({
     id: isc.id,
     torneo: isc.torneo,
     giocatori: isc.giocatori,

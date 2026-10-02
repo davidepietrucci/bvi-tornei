@@ -79,7 +79,7 @@ export default function Home() {
             #Live your passion
           </h2>
           <p className="text-lg sm:text-xl text-gray-600 mb-10 font-medium max-w-2xl leading-relaxed">
-            Qui puoi iscriverti ai tornei attivi e guardare i risultati in diretta
+            Accedi all’Area Atleta per iscriverti ai tornei attivi e seguire i tuoi risultati. Da qui puoi consultare gli eventi e le gare in diretta.
           </p>
 
           {torneiLive.length > 0 && (
@@ -161,25 +161,13 @@ export default function Home() {
                     )}
                   </div>
                   <div className="mt-auto pt-6 border-t border-gray-100 flex flex-col sm:flex-row gap-3">
-                    {t.tipoIscrizione === "esterno" && t.googleFormUrl ? (
-                      <a
-                        href={t.googleFormUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex-1 py-3 text-center rounded-xl font-bold text-sm text-[#0a1628] hover:bg-gray-50 transition-colors border-2"
-                        style={{ borderColor: "#0a1628" }}
-                      >
-                        📋 Iscriviti
-                      </a>
-                    ) : (
-                      <a
-                        href={`/iscrizioni?tour=${encodeURIComponent(t.nome)}`}
-                        className="flex-1 py-3 text-center rounded-xl font-bold text-sm text-[#0a1628] hover:bg-gray-50 transition-colors border-2"
-                        style={{ borderColor: "#0a1628" }}
-                      >
-                        📋 Iscriviti
-                      </a>
-                    )}
+                    <a
+                      href={`/atleta/iscriviti?tour=${encodeURIComponent(t.nome)}`}
+                      className="flex-1 py-3 text-center rounded-xl font-bold text-sm text-[#0a1628] hover:bg-gray-50 transition-colors border-2"
+                      style={{ borderColor: "#0a1628" }}
+                    >
+                      📋 Iscriviti dall’area atleta
+                    </a>
                     <button
                       onClick={() => {
                         setSelectedTorneoModal(t);

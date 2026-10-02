@@ -60,7 +60,7 @@ export async function GET(req) {
       data = await getIscrizioni();
       const isPublicRequest = searchParams.get("public") === "true";
       if (isPublicRequest && Array.isArray(data)) {
-        data = data.map((isc) => ({
+        data = data.filter((isc) => isc.stato !== "Annullata").map((isc) => ({
           id: isc.id,
           torneo: isc.torneo,
           giocatori: isc.giocatori,

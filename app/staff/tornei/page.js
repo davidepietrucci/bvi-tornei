@@ -12,9 +12,8 @@ export default function StaffTornei() {
   useEffect(() => {
     Promise.all([getTornei(), getIscrizioni()]).then(([savedTornei, savedIscrizioni]) => {
       const updatedWithActualCounts = savedTornei.map(torneo => {
-        const count = savedIscrizioni.filter(isc => (isc.torneo || "").toLowerCase().trim() === torneo.nome.toLowerCase().trim()).length;
-        const isEsterno = torneo.tipoIscrizione === "esterno" || (torneo.googleFormUrl && torneo.googleFormUrl.trim() !== "");
-        const actualIscritti = count > 0 ? count : (isEsterno ? torneo.iscritti : 0);
+        const count = savedIscrizioni.filter(isc => isc.stato !== "Annullata" && (isc.torneo || "").toLowerCase().trim() === torneo.nome.toLowerCase().trim()).length;
+        const actualIscritti = count;
         return { ...torneo, iscritti: actualIscritti };
       });
 

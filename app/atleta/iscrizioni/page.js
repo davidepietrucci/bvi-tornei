@@ -6,7 +6,7 @@ import { useUser } from "@clerk/nextjs";
 import AthleteHeader from "@/app/components/AthleteHeader";
 import AthleteBottomNav from "@/app/components/AthleteBottomNav";
 
-const FILTRI = ["Tutte", "Approvata", "In Attesa"];
+const FILTRI = ["Tutte", "In Attesa", "Approvata", "Annullata"];
 
 export default function MieIscrizioni() {
   const { user, isLoaded } = useUser();
@@ -17,6 +17,8 @@ export default function MieIscrizioni() {
   const [expanded, setExpanded] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [cancelingId, setCancelingId] = useState(null);
 
   useEffect(() => {
     if (isLoaded && !user) {
@@ -39,6 +41,29 @@ export default function MieIscrizioni() {
 
   const toggleExpand = (id) => setExpanded(expanded === id ? null : id);
 
+  const handleCancel = async (registration) => {
+    if (!window.confirm(`Vuoi annullare l'iscrizione a "${registration.torneo}"?`)) return;
+    setActionError("");
+    setCancelingId(registration.id);
+    try {
+      const response = await fetch("/api/atleta/iscrizioni/annulla", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: registration.id }),
+      });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || "Non è stato possibile annullare l'iscrizione.");
+      setIscrizioni((items) => items.map((item) => String(item.id) === String(registration.id)
+        ? { ...item, stato: "Annullata", canCancel: false }
+        : item
+      ));
+    } catch (error) {
+      setActionError(error.message || "Non è stato possibile annullare l'iscrizione.");
+    } finally {
+      setCancelingId(null);
+    }
+  };
+
   if (!isLoaded || loading) {
     return (
       <div className="min-h-screen bg-[#f0f4ff] flex items-center justify-center">
@@ -57,9 +82,11 @@ export default function MieIscrizioni() {
         <div className="mb-6">
           <h1 className="text-3xl font-black text-[#0a1628] uppercase tracking-tighter">Le Mie Iscrizioni</h1>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
-            {iscrizioni.length} iscrizioni trovate
+            {iscrizioni.length} iscrizioni trovate · puoi annullarle finché il torneo accetta iscrizioni, se non risulta un pagamento
           </p>
         </div>
+
+        {actionError && <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-xs font-bold text-red-700">{actionError}</div>}
 
         {/* Filtri chip */}
         <div className="flex gap-2 overflow-x-auto pb-2 mb-5 no-scrollbar">
@@ -91,11 +118,12 @@ export default function MieIscrizioni() {
             {filtered.map((isc) => {
               const isOpen = expanded === isc.id;
               const isApprovata = isc.stato === "Approvata";
+              const isAnnullata = isc.stato === "Annullata";
               return (
                 <div
                   key={isc.id}
                   className={`bg-white rounded-[1.8rem] shadow-sm border overflow-hidden transition-all duration-300 ${
-                    isOpen ? "border-[#0a1628] shadow-md" : "border-gray-100"
+                      isOpen ? "border-[#0a1628] shadow-md" : "border-gray-100"
                   }`}
                 >
                   {/* Riga principale — tap per espandere */}
@@ -105,7 +133,7 @@ export default function MieIscrizioni() {
                   >
                     {/* Icona */}
                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shrink-0 ${
-                      isApprovata ? "bg-green-50" : "bg-amber-50"
+                      isAnnullata ? "bg-gray-100" : isApprovata ? "bg-green-50" : "bg-amber-50"
                     }`}>
                       🏐
                     </div>
@@ -119,11 +147,13 @@ export default function MieIscrizioni() {
                     {/* Badge stato + chevron */}
                     <div className="flex items-center gap-2 shrink-0">
                       <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                        isApprovata
-                          ? "bg-green-100 text-green-700"
-                          : "bg-amber-100 text-amber-700"
+                        isAnnullata
+                          ? "bg-gray-100 text-gray-600"
+                          : isApprovata
+                            ? "bg-green-100 text-green-700"
+                            : "bg-amber-100 text-amber-700"
                       }`}>
-                        {isApprovata ? "✓ Confermato" : "⏳ Attesa"}
+                        {isAnnullata ? "Annullata" : isApprovata ? "✓ Confermato" : "⏳ Attesa"}
                       </span>
                       <svg
                         xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
@@ -167,6 +197,15 @@ export default function MieIscrizioni() {
 
                         {/* Azioni */}
                         <div className="flex gap-2 pt-1">
+                          {isc.canCancel && (
+                            <button
+                              onClick={() => handleCancel(isc)}
+                              disabled={cancelingId === isc.id}
+                              className="flex-1 py-3 bg-red-50 border border-red-100 text-red-700 rounded-2xl text-[10px] font-black uppercase tracking-widest text-center hover:bg-red-100 transition-colors disabled:opacity-60"
+                            >
+                              {cancelingId === isc.id ? "Annullamento…" : "Annulla iscrizione"}
+                            </button>
+                          )}
                           <a
                             href={`https://wa.me/?text=Ciao, ho bisogno di supporto per l'iscrizione #${isc.id} al torneo ${isc.torneo}`}
                             target="_blank"

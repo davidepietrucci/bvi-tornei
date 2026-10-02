@@ -51,7 +51,8 @@ export default function AtletaDashboard() {
   // Calcoli
   const iscrConfirmate = iscrizioni.filter((i) => i.stato === "Approvata").length;
   const iscrAttesa = iscrizioni.filter((i) => i.stato === "In Attesa").length;
-  const prossimaIscr = iscrizioni.find((i) => i.stato === "Approvata") || iscrizioni[0] || null;
+  const iscrizioniAttive = iscrizioni.filter((i) => i.stato !== "Annullata");
+  const prossimaIscr = iscrizioniAttive.find((i) => i.stato === "Approvata") || iscrizioniAttive[0] || null;
   const notificheNonLette = notifiche.length; // semplificato
 
   if (!isLoaded || loading) {

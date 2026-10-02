@@ -168,11 +168,11 @@ function IscrittiContent() {
                 Non sono ancora presenti iscrizioni per questo torneo. Iscriviti subito!
               </p>
               {activeTorneo && (
-                <a
-                  href={`/iscrizioni?tour=${encodeURIComponent(activeTorneo.nome)}`}
+                  <a
+                  href={`/atleta/iscriviti?tour=${encodeURIComponent(activeTorneo.nome)}`}
                   className="inline-block mt-5 px-6 py-2.5 bg-[#0a1628] text-white font-bold text-xs rounded-xl hover:bg-opacity-90 transition-colors shadow-md"
                 >
-                  📋 Vai all'Iscrizione
+                  📋 Iscriviti dall’area atleta
                 </a>
               )}
             </div>
