@@ -34,7 +34,7 @@ export async function generateMetadata({ params }) {
     openGraph: {
       title: `${tournament.nome} | BVI Tornei`,
       description: `${description || "Torneo Beach Volley Institute"}. Scopri i dettagli e segui il torneo.`,
-      images: ["/images/maschile-bg.jpg"],
+      images: [tournament.immagineUrl || "/images/maschile-bg.jpg"],
     },
   };
 }
@@ -96,7 +96,7 @@ export default async function TournamentPage({ params }) {
   const isFull = capacity > 0 && confirmedRegistrations.length >= capacity;
   const placesLeft = capacity > 0 ? Math.max(0, capacity - confirmedRegistrations.length) : null;
   const category = String(tournament.categoria || "Categoria libera");
-  const heroImage = category.toLocaleLowerCase("it-IT").includes("femminile") ? "/images/femminile-bg.jpg" : "/images/maschile-bg.jpg";
+  const heroImage = tournament.immagineUrl || (category.toLocaleLowerCase("it-IT").includes("femminile") ? "/images/femminile-bg.jpg" : "/images/maschile-bg.jpg");
   const participantLabel = isIndividual ? "atleti" : "squadre";
 
   return (

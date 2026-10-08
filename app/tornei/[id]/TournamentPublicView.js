@@ -287,6 +287,7 @@ export default function TournamentPublicView({
             alt={`Beach volley, ${tournament.nome}`}
             fill
             priority
+            unoptimized={Boolean(heroImage && !heroImage.startsWith("/"))}
             sizes="(max-width: 1024px) 100vw, 45vw"
             className="object-cover object-center"
           />

@@ -21,6 +21,7 @@ export default function NuovoTorneo() {
     circuitRole: "",
     circuitQualifiers: "",
     circuitPointTable: { ...DEFAULT_CIRCUIT_POINT_TABLE },
+    immagineUrl: "",
   });
 
   const handleSubmit = async (e) => {
@@ -179,6 +180,73 @@ export default function NuovoTorneo() {
                   onChange={handleChange}
                   className="w-full bg-gray-50 border-none rounded-2xl px-6 py-4 font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] transition-all text-center" 
                 />
+              </div>
+
+              {/* Immagine di Copertina / Locandina */}
+              <div className="space-y-3 md:col-span-2 bg-gray-50/70 p-5 rounded-2xl border border-gray-100">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                    Immagine / Locandina Torneo (Opzionale)
+                  </label>
+                  <span className="text-[10px] text-gray-400 font-semibold">
+                    Mostrata in Home Page e nella scheda torneo
+                  </span>
+                </div>
+                <input 
+                  type="text" 
+                  name="immagineUrl" 
+                  value={formData.immagineUrl || ""} 
+                  onChange={handleChange}
+                  placeholder="Incolla l'URL dell'immagine o scegli un preset qui sotto" 
+                  className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 font-medium text-xs text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] transition-all" 
+                />
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Preset veloci:</span>
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, immagineUrl: "/images/maschile-bg.jpg" }))}
+                    className="px-3 py-1.5 bg-white hover:bg-gray-100 border border-gray-200 rounded-xl text-[10px] font-bold text-gray-700 transition shadow-sm"
+                  >
+                    🏐 Maschile BVI
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, immagineUrl: "/images/femminile-bg.jpg" }))}
+                    className="px-3 py-1.5 bg-white hover:bg-gray-100 border border-gray-200 rounded-xl text-[10px] font-bold text-gray-700 transition shadow-sm"
+                  >
+                    🌸 Femminile BVI
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, immagineUrl: "/images/prova-bg.jpg" }))}
+                    className="px-3 py-1.5 bg-white hover:bg-gray-100 border border-gray-200 rounded-xl text-[10px] font-bold text-gray-700 transition shadow-sm"
+                  >
+                    🏖️ Sunset BVI
+                  </button>
+                  {formData.immagineUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, immagineUrl: "" }))}
+                      className="px-2.5 py-1.5 text-red-500 hover:text-red-700 text-[10px] font-bold transition ml-auto"
+                    >
+                      Rimuovi immagine
+                    </button>
+                  )}
+                </div>
+                {formData.immagineUrl && (
+                  <div className="mt-3 flex items-center gap-4 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+                    <img 
+                      src={formData.immagineUrl} 
+                      alt="Anteprima locandina" 
+                      className="w-24 h-16 object-cover rounded-lg border border-gray-200 shadow-sm"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                    <div className="text-xs min-w-0">
+                      <p className="font-bold text-gray-800">Anteprima immagine selezionata</p>
+                      <p className="text-[10px] text-gray-400 truncate max-w-sm">{formData.immagineUrl}</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

@@ -40,8 +40,29 @@ export default function Home() {
     });
   }, []);
 
+  const [activeHeroIndex, setActiveHeroIndex] = useState(0);
+  const [isHeroPaused, setIsHeroPaused] = useState(false);
+
+  // Tornei da mostrare nel carosello Hero: prima quelli con Iscrizioni Aperte
+  const heroTornei = torneiAperti.length > 0
+    ? torneiAperti
+    : (torneiLive.length > 0 ? torneiLive : (torneiProgrammati.length > 0 ? torneiProgrammati : []));
+
+  useEffect(() => {
+    if (heroTornei.length <= 1 || isHeroPaused) return;
+    const interval = setInterval(() => {
+      setActiveHeroIndex((prev) => (prev + 1) % heroTornei.length);
+    }, 4500);
+    return () => clearInterval(interval);
+  }, [heroTornei.length, isHeroPaused]);
+
+  const currentHeroTorneo = heroTornei[activeHeroIndex] || heroTornei[0];
+  const currentHeroImage = currentHeroTorneo?.immagineUrl || 
+    (String(currentHeroTorneo?.categoria || "").toLowerCase().includes("femm")
+      ? "/images/femminile-bg.jpg"
+      : "/images/maschile-bg.jpg");
+
   const torneiCalendario = [...torneiAperti, ...torneiProgrammati].slice(0, 6);
-  const torneoInEvidenza = torneiLive[0] || torneiAperti[0] || torneiProgrammati[0];
 
   return (
     <main className="min-h-screen bg-[#f5f4ef] text-[#101d2c]">
@@ -79,23 +100,122 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="relative mx-auto w-full max-w-[560px] lg:ml-auto">
+          <div 
+            className="relative mx-auto w-full max-w-[560px] lg:ml-auto group"
+            onMouseEnter={() => setIsHeroPaused(true)}
+            onMouseLeave={() => setIsHeroPaused(false)}
+          >
             <div className="absolute -right-5 -top-5 h-28 w-28 rounded-full border-[18px] border-[#f5ca3e]/70 sm:-right-8 sm:-top-8 sm:h-40 sm:w-40" />
             <div className="relative overflow-hidden rounded-[2rem] bg-[#101d2c] shadow-[0_28px_70px_-28px_rgba(16,29,44,.7)]">
-              <Image src="/images/maschile-bg.jpg" alt="Azione di beach volley in un torneo BVI" width={682} height={1024} priority className="h-[390px] w-full object-cover object-[center_35%] sm:h-[510px]" />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#081321]/90 via-transparent to-transparent" />
-              <div className="absolute left-5 top-5 rounded-lg border border-white/20 bg-[#101d2c]/80 px-3 py-2 text-[9px] font-black uppercase tracking-[.2em] text-white backdrop-blur-sm">BVI · Match point</div>
+              {/* Immagine con fallback */}
+              <img 
+                key={currentHeroTorneo?.id || activeHeroIndex}
+                src={currentHeroImage} 
+                alt={currentHeroTorneo?.nome || "Torneo BVI"} 
+                className="h-[400px] w-full object-cover object-[center_35%] sm:h-[520px] transition-all duration-700" 
+                onError={(e) => { e.currentTarget.src = "/images/maschile-bg.jpg"; }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#081321] via-[#081321]/30 to-black/30" />
+              
+              {/* Barra superiore */}
+              <div className="absolute left-5 right-5 top-5 flex items-center justify-between z-10">
+                <div className="rounded-lg border border-white/20 bg-[#101d2c]/85 px-3 py-1.5 text-[9px] font-black uppercase tracking-[.2em] text-white backdrop-blur-sm">
+                  BVI · Match point
+                </div>
+                {heroTornei.length > 1 && (
+                  <div className="flex items-center gap-1.5 bg-[#101d2c]/80 backdrop-blur-sm border border-white/15 rounded-xl px-2.5 py-1 text-white">
+                    <button
+                      onClick={() => setActiveHeroIndex((prev) => (prev - 1 + heroTornei.length) % heroTornei.length)}
+                      className="w-6 h-6 flex items-center justify-center text-white/70 hover:text-white font-black text-sm cursor-pointer rounded hover:bg-white/10 transition"
+                      title="Torneo precedente"
+                      aria-label="Torneo precedente"
+                    >
+                      ‹
+                    </button>
+                    <span className="text-[10px] font-black text-[#f5ca3e] px-1">
+                      {activeHeroIndex + 1}/{heroTornei.length}
+                    </span>
+                    <button
+                      onClick={() => setActiveHeroIndex((prev) => (prev + 1) % heroTornei.length)}
+                      className="w-6 h-6 flex items-center justify-center text-white/70 hover:text-white font-black text-sm cursor-pointer rounded hover:bg-white/10 transition"
+                      title="Torneo successivo"
+                      aria-label="Torneo successivo"
+                    >
+                      ›
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Box dettagli torneo */}
               <div className="absolute inset-x-5 bottom-5 rounded-2xl border border-white/15 bg-[#101d2c]/90 p-5 text-white backdrop-blur-md sm:inset-x-6 sm:bottom-6 sm:p-6">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-[10px] font-black uppercase tracking-[.2em] text-[#f5ca3e]">{torneiLive.length ? "In diretta" : "Prossimo appuntamento"}</p>
-                  <span className={`flex items-center gap-2 text-[9px] font-black uppercase tracking-wider ${torneiLive.length ? "text-red-300" : "text-white/55"}`}><span className={`h-2 w-2 rounded-full ${torneiLive.length ? "animate-pulse bg-red-400" : "bg-[#f5ca3e]"}`} /> {torneiLive.length ? "Live" : "BVI Tornei"}</span>
+                  <div className="flex items-center gap-2">
+                    {currentHeroTorneo?.stato === "Iscrizioni Aperte" || !currentHeroTorneo?.stato ? (
+                      <span className="flex items-center gap-2 text-[9px] font-black uppercase tracking-wider text-emerald-400">
+                        <span className="h-2 w-2 rounded-full animate-pulse bg-emerald-400" /> Iscrizioni Aperte
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2 text-[9px] font-black uppercase tracking-wider text-[#f5ca3e]">
+                        <span className="h-2 w-2 rounded-full bg-[#f5ca3e]" /> {currentHeroTorneo?.stato}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-white/60">
+                    {currentHeroTorneo?.categoria || "Coppia"}
+                  </span>
                 </div>
-                <h2 className="mt-3 text-xl font-black sm:text-2xl">{torneoInEvidenza?.nome || "Il campo ti aspetta"}</h2>
-                <p className="mt-1 text-xs text-white/60">{torneoInEvidenza ? `${torneoInEvidenza.data}${torneoInEvidenza.location ? ` · ${torneoInEvidenza.location}` : ` · ${torneoInEvidenza.categoria || "Categoria libera"}`}` : "Scopri i prossimi tornei BVI"}</p>
-                <a href={torneiLive[0] ? `/gironi?tour=${encodeURIComponent(torneiLive[0].nome)}` : torneoInEvidenza ? (torneoInEvidenza.stato === "Iscrizioni Aperte" || !torneoInEvidenza.stato ? `/atleta/iscriviti?tour=${encodeURIComponent(torneoInEvidenza.nome)}` : `/tornei/${torneoInEvidenza.id}`) : "/atleta"} className="mt-5 inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-[#f5ca3e] hover:text-yellow-200">{torneiLive.length ? "Apri il live" : torneoInEvidenza?.stato === "Iscrizioni Aperte" || (torneoInEvidenza && !torneoInEvidenza.stato) ? "Vai all’iscrizione" : torneoInEvidenza ? "Dettagli torneo" : "Entra nell’Area Atleta"} <span aria-hidden="true">→</span></a>
+
+                <h2 className="mt-2 text-xl font-black sm:text-2xl text-white truncate">
+                  {currentHeroTorneo?.nome || "Il campo ti aspetta"}
+                </h2>
+                <p className="mt-1 text-xs text-white/70">
+                  {currentHeroTorneo ? `${currentHeroTorneo.data}${currentHeroTorneo.location ? ` · ${currentHeroTorneo.location}` : ""}` : "Scopri i prossimi tornei BVI"}
+                </p>
+
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <a 
+                    href={currentHeroTorneo?.stato === "Iscrizioni Aperte" || (currentHeroTorneo && !currentHeroTorneo.stato) ? `/atleta/iscriviti?tour=${encodeURIComponent(currentHeroTorneo.nome)}` : currentHeroTorneo ? `/tornei/${currentHeroTorneo.id}` : "/atleta"} 
+                    className="inline-flex items-center gap-2 rounded-xl bg-[#f5ca3e] px-4 py-2.5 text-xs font-black uppercase tracking-wider text-[#101d2c] shadow hover:bg-yellow-300 transition active:scale-95"
+                  >
+                    {currentHeroTorneo?.stato === "Iscrizioni Aperte" || (currentHeroTorneo && !currentHeroTorneo.stato) ? "Vai all’iscrizione →" : "Dettagli torneo →"}
+                  </a>
+                  {currentHeroTorneo?.id && (
+                    <a 
+                      href={`/tornei/${currentHeroTorneo.id}`} 
+                      className="text-xs font-bold text-white/70 hover:text-white underline underline-offset-4 transition"
+                    >
+                      Scheda torneo
+                    </a>
+                  )}
+                </div>
+
+                {/* Indicatori carosello */}
+                {heroTornei.length > 1 && (
+                  <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between">
+                    <div className="flex gap-1.5 items-center">
+                      {heroTornei.map((_, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => setActiveHeroIndex(idx)}
+                          className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                            activeHeroIndex === idx ? "w-7 bg-[#f5ca3e]" : "w-1.5 bg-white/30 hover:bg-white/60"
+                          }`}
+                          aria-label={`Torneo ${idx + 1}`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-[9px] font-bold text-white/50 uppercase tracking-widest">
+                      {heroTornei.length} tornei
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
-            <div className="absolute -bottom-4 -left-4 hidden rounded-xl bg-[#f5ca3e] px-5 py-4 text-[#101d2c] shadow-xl sm:block"><p className="text-[9px] font-black uppercase tracking-[.2em]">#Live your passion</p><p className="mt-1 text-xs font-bold">Ogni torneo, una nuova sfida.</p></div>
+            <div className="absolute -bottom-4 -left-4 hidden rounded-xl bg-[#f5ca3e] px-5 py-4 text-[#101d2c] shadow-xl sm:block">
+              <p className="text-[9px] font-black uppercase tracking-[.2em]">#Live your passion</p>
+              <p className="mt-1 text-xs font-bold">Ogni torneo, una nuova sfida.</p>
+            </div>
           </div>
         </div>
       </section>
