@@ -122,12 +122,10 @@ export default function Home() {
         </div>}
       </section>
 
-      <section className="bg-[#101d2c] px-5 py-12 text-white sm:px-8">
-        <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-6 sm:flex-row sm:items-center">
-          <div><p className="text-xs font-black uppercase tracking-[0.2em] text-[#f5ca3e]">Dentro e fuori dal campo</p><h2 className="mt-2 text-2xl font-black sm:text-3xl">Segui il tuo percorso BVI.</h2></div>
-          <div className="flex flex-wrap gap-3"><a href="/gironi" className="rounded-full border border-white/30 px-5 py-3 text-sm font-bold transition hover:bg-white/10">Gironi e live</a><a href="/classifica" className="rounded-full border border-white/30 px-5 py-3 text-sm font-bold transition hover:bg-white/10">Classifiche</a><a href="/iscritti" className="rounded-full border border-white/30 px-5 py-3 text-sm font-bold transition hover:bg-white/10">Iscritti</a></div>
-        </div>
-      </section>
+      {/* Sponsor Banner */}
+      <div className="border-y border-[#101d2c]/10 bg-white/60 py-2 my-4">
+        <SponsorBanner />
+      </div>
 
       {torneiConclusi.length > 0 && <section className="mx-auto max-w-7xl px-5 py-16 sm:px-8">
         <div className="mb-8 flex items-end justify-between"><div><p className="mb-2 text-xs font-black uppercase tracking-[0.2em] text-[#b18a0d]">Archivio</p><h2 className="text-3xl font-black">I tornei passati</h2></div><a href="/classifica" className="text-sm font-bold text-[#101d2c] underline decoration-[#f5ca3e] decoration-2 underline-offset-4">Tutte le classifiche →</a></div>
@@ -243,8 +241,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* Sponsor Banner */}
-      <SponsorBanner />
+
 
       {/* Footer */}
       <footer className="text-white py-12 px-8 mt-auto border-t-4" style={{ borderColor: "#FFD700", backgroundColor: "#0a1628" }}>
