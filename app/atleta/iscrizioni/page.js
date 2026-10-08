@@ -6,7 +6,7 @@ import { useUser } from "@clerk/nextjs";
 import AthleteHeader from "@/app/components/AthleteHeader";
 import AthleteBottomNav from "@/app/components/AthleteBottomNav";
 
-const FILTRI = ["Tutte", "In Attesa", "Approvata", "Annullata"];
+const FILTRI = ["Tutte", "In Attesa", "Approvata", "Annullata", "Rifiutata"];
 
 export default function MieIscrizioni() {
   const { user, isLoaded } = useUser();
@@ -119,6 +119,7 @@ export default function MieIscrizioni() {
               const isOpen = expanded === isc.id;
               const isApprovata = isc.stato === "Approvata";
               const isAnnullata = isc.stato === "Annullata";
+              const isRifiutata = isc.stato === "Rifiutata";
               return (
                 <div
                   key={isc.id}
@@ -133,9 +134,9 @@ export default function MieIscrizioni() {
                   >
                     {/* Icona */}
                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shrink-0 ${
-                      isAnnullata ? "bg-gray-100" : isApprovata ? "bg-green-50" : "bg-amber-50"
+                      isRifiutata ? "bg-red-50 text-red-500 font-bold" : isAnnullata ? "bg-gray-100" : isApprovata ? "bg-green-50" : "bg-amber-50"
                     }`}>
-                      🏐
+                      {isRifiutata ? "✕" : "🏐"}
                     </div>
 
                     {/* Testo */}
@@ -147,13 +148,15 @@ export default function MieIscrizioni() {
                     {/* Badge stato + chevron */}
                     <div className="flex items-center gap-2 shrink-0">
                       <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                        isAnnullata
-                          ? "bg-gray-100 text-gray-600"
-                          : isApprovata
-                            ? "bg-green-100 text-green-700"
-                            : "bg-amber-100 text-amber-700"
+                        isRifiutata
+                          ? "bg-rose-100 text-rose-700"
+                          : isAnnullata
+                            ? "bg-gray-100 text-gray-600"
+                            : isApprovata
+                              ? "bg-green-100 text-green-700"
+                              : "bg-amber-100 text-amber-700"
                       }`}>
-                        {isAnnullata ? "Annullata" : isApprovata ? "✓ Confermato" : "⏳ Attesa"}
+                        {isRifiutata ? "✕ Rifiutata" : isAnnullata ? "Annullata" : isApprovata ? "✓ Confermato" : "⏳ Attesa"}
                       </span>
                       <svg
                         xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"

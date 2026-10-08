@@ -108,12 +108,53 @@ export default function StaffIscrizioni() {
         }
       }
 
+      // Invia notifica email se lo stato è cambiato in Approvata o Rifiutata
+      if (editingIscrizione.stato !== editFormData.stato) {
+        if (editFormData.stato === "Approvata") {
+          notifyRegistrationStatus("approved", { ...editingIscrizione, ...editFormData });
+        } else if (editFormData.stato === "Rifiutata") {
+          notifyRegistrationStatus("rejected", { ...editingIscrizione, ...editFormData }, editFormData.note || "Aggiornamento da parte dello staff");
+        }
+      }
+
       setEditingIscrizione(null);
       alert("Iscrizione modificata e sincronizzata con successo! 💾");
     } catch (err) {
       console.error("Errore nel salvataggio della modifica:", err);
     } finally {
       isSavingRef.current = false;
+    }
+  };
+
+  const notifyRegistrationStatus = async (action, iscrizione, motivo = "") => {
+    try {
+      const emails = [
+        iscrizione.atletaEmail1,
+        iscrizione.email,
+        iscrizione.atletaEmail2,
+        iscrizione.email2
+      ].filter(e => e && typeof e === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim()));
+
+      if (emails.length === 0) return;
+
+      const targetTorneo = tornei.find(t => String(t.nome || "").trim().toLowerCase() === String(iscrizione.torneo || "").trim().toLowerCase());
+
+      await fetch("/api/staff/iscrizioni/notifica", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          torneo: iscrizione.torneo,
+          giocatori: iscrizione.giocatori,
+          emails,
+          recipientName: iscrizione.atleta1Nome || iscrizione.giocatori,
+          data: targetTorneo?.data || iscrizione.data || "",
+          quota: targetTorneo?.quota,
+          motivo: motivo || ""
+        }),
+      });
+    } catch (err) {
+      console.error("Errore invio notifica email dallo staff:", err);
     }
   };
 
@@ -152,6 +193,7 @@ export default function StaffIscrizioni() {
   }, []);
 
   const handleApprove = async (id) => {
+    const targetIsc = iscrizioni.find((isc) => String(isc.id) === String(id));
     loadVersionRef.current += 1;
     isSavingRef.current = true;
     try {
@@ -160,8 +202,51 @@ export default function StaffIscrizioni() {
       );
       setIscrizioni(updated);
       await saveIscrizioni(updated);
+
+      if (targetIsc) {
+        notifyRegistrationStatus("approved", targetIsc);
+      }
     } catch (err) {
       console.error("Errore approvazione iscrizione:", err);
+    } finally {
+      isSavingRef.current = false;
+    }
+  };
+
+  const handleReject = async (id) => {
+    const targetIsc = iscrizioni.find((isc) => String(isc.id) === String(id));
+    if (!targetIsc) return;
+
+    const motivo = window.prompt(
+      `Confermi di voler rifiutare l'iscrizione di "${targetIsc.giocatori}"?\nPuoi indicare un motivo (es. Posti esauriti, Livello non idoneo) oppure lasciare vuoto:`,
+      "Posti esauriti"
+    );
+    if (motivo === null) return; // Annullato dall'utente
+
+    loadVersionRef.current += 1;
+    isSavingRef.current = true;
+    try {
+      const updated = iscrizioni.map((isc) => 
+        String(isc.id) === String(id) ? { ...isc, stato: "Rifiutata" } : isc
+      );
+      setIscrizioni(updated);
+      await saveIscrizioni(updated);
+
+      // Decrementa conteggio iscritti del torneo
+      const allTornei = tornei.length > 0 ? tornei : await getTornei();
+      const updatedTornei = allTornei.map(t => {
+        if (t.nome.toLowerCase().trim() === (targetIsc.torneo || "").toLowerCase().trim()) {
+          return { ...t, iscritti: Math.max(0, (t.iscritti || 0) - 1) };
+        }
+        return t;
+      });
+      await saveTornei(updatedTornei);
+      setTornei(updatedTornei);
+
+      // Invia email di rifiuto
+      notifyRegistrationStatus("rejected", targetIsc, motivo);
+    } catch (err) {
+      console.error("Errore rifiuto iscrizione:", err);
     } finally {
       isSavingRef.current = false;
     }
@@ -326,13 +411,14 @@ export default function StaffIscrizioni() {
           {selectedTorneo && <div className="mt-5 flex flex-wrap gap-3 border-t border-gray-100 pt-4 text-xs font-bold">
             <span className="rounded-full bg-blue-50 px-3 py-2 text-blue-700">{tournamentIscrizioni.length} iscrizioni totali</span>
             <span className="rounded-full bg-amber-50 px-3 py-2 text-amber-700">{pendingCount} da approvare</span>
-            <span className="rounded-full bg-emerald-50 px-3 py-2 text-emerald-700">{tournamentIscrizioni.length - pendingCount} approvate</span>
+            <span className="rounded-full bg-emerald-50 px-3 py-2 text-emerald-700">{tournamentIscrizioni.filter(i => i.stato === "Approvata").length} approvate</span>
+            <span className="rounded-full bg-rose-50 px-3 py-2 text-rose-700">{tournamentIscrizioni.filter(i => i.stato === "Rifiutata").length} rifiutate</span>
           </div>}
         </section>
 
         <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
           <div className="flex flex-wrap gap-2" role="group" aria-label="Filtra iscrizioni per stato">
-            {["Tutte", "In Attesa", "Approvata"].map((status) => {
+            {["Tutte", "In Attesa", "Approvata", "Rifiutata"].map((status) => {
               const count = status === "Tutte" ? tournamentIscrizioni.length : tournamentIscrizioni.filter((isc) => isc.stato === status).length;
               return <button key={status} onClick={() => setSelectedStatusFilter(status)} className={`rounded-xl px-4 py-2.5 text-xs font-black transition-colors ${selectedStatusFilter === status ? "bg-[#0a1628] text-white" : "bg-gray-50 text-gray-500 hover:bg-gray-100"}`}>{status} ({count})</button>;
             })}
@@ -390,35 +476,54 @@ export default function StaffIscrizioni() {
                                 <span className="inline-flex items-center gap-2 px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-[10px] font-black uppercase">
                                     <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse"></span> In Attesa
                                 </span>
-                            ) : (
+                            ) : req.stato === "Approvata" ? (
                                 <span className="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 rounded-full text-[10px] font-black uppercase">
                                     <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> Approvata
+                                </span>
+                            ) : req.stato === "Rifiutata" ? (
+                                <span className="inline-flex items-center gap-2 px-3 py-1 bg-rose-100 text-rose-700 rounded-full text-[10px] font-black uppercase">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span> Rifiutata
+                                </span>
+                            ) : (
+                                <span className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-[10px] font-black uppercase">
+                                    {req.stato}
                                 </span>
                             )}
                         </div>
 
                         {/* Azioni */}
-                        <div className="flex gap-2 md:justify-end md:px-4">
+                        <div className="flex gap-2 md:justify-end md:px-4 items-center">
                             <button 
                                 onClick={() => startEdit(req)}
-                                className="flex-1 md:flex-none h-12 md:w-10 md:h-10 bg-blue-500 text-white rounded-xl font-black text-sm flex items-center justify-center shadow-lg shadow-blue-200 hover:scale-110 active:scale-95 transition-all"
+                                className="flex-1 md:flex-none h-11 w-11 bg-blue-500 text-white rounded-xl font-black text-sm flex items-center justify-center shadow-md shadow-blue-200 hover:scale-105 active:scale-95 transition-all"
                                 title="Modifica Iscrizione"
                             >
                                 ✏️
                             </button>
                             {req.stato === "In Attesa" && (
+                              <>
                                 <button 
                                     onClick={() => handleApprove(req.id)}
-                                    className="flex-1 md:flex-none h-12 md:w-10 md:h-10 bg-green-500 text-white rounded-xl font-black text-lg flex items-center justify-center shadow-lg shadow-green-200 hover:scale-110 active:scale-95 transition-all"
+                                    className="flex-1 md:flex-none h-11 w-11 bg-emerald-600 text-white rounded-xl font-black text-lg flex items-center justify-center shadow-md shadow-emerald-200 hover:scale-105 active:scale-95 transition-all"
+                                    title="Approva Iscrizione (invia email agli atleti)"
                                 >
                                     ✓
                                 </button>
+                                <button 
+                                    onClick={() => handleReject(req.id)}
+                                    className="flex-1 md:flex-none h-11 w-11 bg-rose-600 text-white rounded-xl font-black text-base flex items-center justify-center shadow-md shadow-rose-200 hover:scale-105 active:scale-95 transition-all"
+                                    title="Rifiuta Iscrizione (invia email agli atleti)"
+                                >
+                                    ✕
+                                </button>
+                              </>
                             )}
                             <button 
                                 onClick={() => handleDelete(req.id)}
-                                className="flex-1 md:flex-none h-12 md:w-10 md:h-10 bg-red-500 text-white rounded-xl font-black text-lg flex items-center justify-center shadow-lg shadow-red-200 hover:scale-110 active:scale-95 transition-all"
+                                className="flex-1 md:flex-none h-11 w-11 bg-gray-100 hover:bg-gray-800 text-gray-500 hover:text-white rounded-xl font-black text-sm flex items-center justify-center transition-all"
+                                title="Elimina definitivamente dal database"
                             >
-                                ✕
+                                🗑️
                             </button>
                         </div>
                     </div>
@@ -596,6 +701,7 @@ export default function StaffIscrizioni() {
                 >
                   <option value="Approvata">Approvata</option>
                   <option value="In Attesa">In Attesa</option>
+                  <option value="Rifiutata">Rifiutata</option>
                 </select>
               </div>
 
