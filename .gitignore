@@ -45,3 +45,8 @@ next-env.d.ts
 
 # local db
 /db_local
+
+# media & scratch
+*.mp4
+/scratch
+

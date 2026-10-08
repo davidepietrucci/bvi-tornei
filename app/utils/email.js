@@ -189,3 +189,50 @@ export async function sendConfirmationEmail({ email, torneo, giocatori, data, qu
     plainTextSummary
   });
 }
+
+/**
+ * Invia un'email di notifica/invito al compagno di squadra
+ */
+export async function sendPartnerInviteEmail({ email, partnerName, inviterName, torneo, data, quota }) {
+  const htmlContent = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px 20px; border: 1px solid #eef2f6; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); color: #333;">
+      <div style="text-align: center; border-bottom: 3px solid #FFD700; padding-bottom: 25px; margin-bottom: 25px;">
+        <h2 style="color: #0a1628; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">BVI TORNEI</h2>
+        <p style="color: #888; margin: 5px 0 0 0; font-size: 13px; font-weight: 600; text-transform: uppercase; tracking-wider: 1px;">Invito in Squadra 🏐</p>
+      </div>
+      
+      <p style="font-size: 15px; line-height: 1.6; color: #555;">Ciao <strong>${partnerName || "Atleta"}</strong>,</p>
+      <p style="font-size: 15px; line-height: 1.6; color: #555;"><strong>${inviterName}</strong> ti ha inserito come compagno di squadra per il torneo:</p>
+      
+      <div style="background-color: #f0f4ff; padding: 20px; border-radius: 12px; margin: 25px 0; border-left: 5px solid #0a1628;">
+        <h3 style="color: #0a1628; margin: 0 0 10px 0; font-size: 18px; font-weight: 800;">${torneo}</h3>
+        <p style="margin: 6px 0; font-size: 14px; color: #444;"><strong>Compagno:</strong> ${inviterName}</p>
+        ${data ? `<p style="margin: 6px 0; font-size: 14px; color: #444;"><strong>Data Gara:</strong> ${data}</p>` : ''}
+        ${quota !== undefined ? `<p style="margin: 6px 0; font-size: 14px; color: #444;"><strong>Quota Squadra:</strong> €${quota}</p>` : ''}
+      </div>
+
+      <p style="font-size: 14px; line-height: 1.6; color: #555;">
+        Accedi o registrati al <strong>Portale Atleta BVI</strong> con questa email per seguire lo stato dell'iscrizione, i gironi, le partite e le tue statistiche!
+      </p>
+
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="https://tornei.beachvolleyinstitute.it/atleta" style="background-color: #0a1628; color: #FFD700; text-decoration: none; padding: 14px 28px; border-radius: 12px; font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; display: inline-block;">
+          Vai al Portale Atleta →
+        </a>
+      </div>
+
+      <div style="margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 20px; text-align: center; color: #94a3b8; font-size: 11px; line-height: 1.5;">
+        <p>Questa è una notifica automatica da Beach Volley Institute. Ci vediamo sulla sabbia!</p>
+        <p>© ${new Date().getFullYear()} Beach Volley Institute. Tutti i diritti riservati.</p>
+      </div>
+    </div>
+  `;
+
+  return sendMailHelper({
+    email,
+    subject: `🏐 ${inviterName} ti ha invitato in squadra per ${torneo}!`,
+    htmlContent,
+    plainTextSummary: `${inviterName} ti ha inserito come compagno per il torneo ${torneo}. Accedi al Portale Atleta per i dettagli!`
+  });
+}
+

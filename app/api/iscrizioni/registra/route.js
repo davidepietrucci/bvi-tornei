@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { getTornei, saveTornei, getIscrizioni, saveIscrizioni } from "@/app/utils/db-server";
-import { sendConfirmationEmail } from "@/app/utils/email";
+import { sendConfirmationEmail, sendPartnerInviteEmail } from "@/app/utils/email";
 import { findCircuitAthlete, getCircuitLeaderboard, normalizeCircuitName, registrationIncludesAthlete } from "@/app/utils/circuit";
 
 export async function POST(request) {
@@ -12,24 +12,31 @@ export async function POST(request) {
     }
 
     const user = await currentUser();
-    const role = user?.publicMetadata?.role || "atleta";
-    if (role !== "atleta") {
-      return NextResponse.json({ error: "Per iscriverti usa un account atleta e accedi al Portale Atleta." }, { status: 403 });
-    }
+    // Tutti gli utenti registrati (atleta, staff, admin) possono iscriversi ai tornei dal portale
     const athleteEmail = String(user?.primaryEmailAddress?.emailAddress || "").trim().toLocaleLowerCase("it-IT");
-    const athleteName = String(user?.fullName || `${user?.firstName || ""} ${user?.lastName || ""}`.trim()).trim();
-    if (!athleteEmail || !athleteName) {
-      return NextResponse.json({ error: "Completa nome, cognome ed email nel tuo account prima di iscriverti." }, { status: 400 });
-    }
 
     const body = await request.json();
     const { 
       torneo, 
+      giocatore1,
       giocatore2,
       email2,
+      atletaUserId2,
       tel, 
       note, 
     } = body;
+
+    const athleteName = String(
+      user?.fullName ||
+      `${user?.firstName || ""} ${user?.lastName || ""}`.trim() ||
+      giocatore1 ||
+      user?.username ||
+      (athleteEmail ? athleteEmail.split("@")[0] : "")
+    ).trim();
+
+    if (!athleteEmail || !athleteName) {
+      return NextResponse.json({ error: "Indica nome, cognome ed email prima di iscriverti." }, { status: 400 });
+    }
 
     if (!torneo || !tel || !String(tel).trim()) {
       return NextResponse.json(
@@ -124,6 +131,8 @@ export async function POST(request) {
         ...(!isIndividualTournament ? {
           atleta2Nome: String(giocatore2).trim(),
           atletaEmail2: partnerEmail,
+          atletaUserId2: atletaUserId2 ? String(atletaUserId2).trim() : "",
+          statoInvitoCompagno: atletaUserId2 ? "Confermato" : "Invitato",
         } : {}),
         tel: tel ? String(tel).trim() : "Non inserito",
         email: notificationEmail,
@@ -158,6 +167,22 @@ export async function POST(request) {
         });
       } catch (emailError) {
         console.error("Errore nell'invio dell'email di conferma:", emailError);
+      }
+    }
+
+    // Invia l'email di notifica/invito al compagno di squadra (se torneo a coppie)
+    if (!isIndividualTournament && partnerEmail) {
+      try {
+        await sendPartnerInviteEmail({
+          email: partnerEmail,
+          partnerName: String(giocatore2).trim(),
+          inviterName: athleteName,
+          torneo: matchTorneo.nome,
+          data: matchTorneo.data,
+          quota: matchTorneo.quota,
+        });
+      } catch (inviteError) {
+        console.error("Errore nell'invio dell'email al compagno:", inviteError);
       }
     }
 
