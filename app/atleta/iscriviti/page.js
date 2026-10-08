@@ -143,10 +143,22 @@ export default function AtletaIscriviti() {
   };
 
   const selectedTorneo = torneiAperti.find((t) => t.nome === formData.torneo);
-  const isIndividualTournament = ["tappa", "finale"].includes(selectedTorneo?.circuitRole) ||
-    String(selectedTorneo?.categoria || "").toLowerCase().includes("giallo") ||
-    selectedTorneo?.formato === "singolo" ||
-    selectedTorneo?.tipoIscrizione === "singola";
+  const isIndividualTournament = (() => {
+    if (!selectedTorneo) return false;
+    const cat = String(selectedTorneo.categoria || "").toLowerCase().trim();
+    // Tornei 2x2, 4x4 o a coppie sono SEMPRE a coppie (NON individuali!)
+    if (cat.includes("2x2") || cat.includes("4x4") || cat.includes("coppi")) {
+      return false;
+    }
+    if (selectedTorneo.formato === "coppia" || selectedTorneo.tipoIscrizione === "coppia") {
+      return false;
+    }
+    // Tornei Giallo o esplicitamente singoli sono individuali
+    if (cat.includes("giallo") || cat.includes("1x1") || cat.includes("singol") || selectedTorneo.formato === "singolo" || selectedTorneo.tipoIscrizione === "singola") {
+      return true;
+    }
+    return false;
+  })();
 
   const handleContinueToSummary = () => {
     setErrore("");
@@ -288,7 +300,9 @@ export default function AtletaIscriviti() {
             </div>
             <div className="flex justify-between text-[9px] font-black text-gray-400 uppercase tracking-widest -mt-5 mb-6 px-0.5">
               <span className={step >= 1 ? "text-[#0a1628]" : ""}>Torneo</span>
-              <span className={step >= 2 ? "text-[#0a1628]" : ""}>Dati</span>
+              <span className={step >= 2 ? "text-[#0a1628]" : ""}>
+                {isIndividualTournament ? "I tuoi dati" : "Dati & Compagno"}
+              </span>
               <span className={step >= 3 ? "text-[#0a1628]" : ""}>Conferma</span>
             </div>
 
@@ -352,11 +366,18 @@ export default function AtletaIscriviti() {
 
             {/* Step 2: Inserimento dati */}
             {step === 2 && (
-              <div className="space-y-4">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">I tuoi dati</p>
-
+              <div className="space-y-5">
                 {/* Sezione Giocatore 1 (Tu) */}
                 <div className="bg-white rounded-[1.8rem] p-5 shadow-sm border border-gray-100 space-y-4">
+                  <div className="flex items-center justify-between border-b border-gray-50 pb-2">
+                    <p className="text-[10px] font-black text-[#0a1628] uppercase tracking-widest">
+                      {isIndividualTournament ? "Dati Atleta" : "1. I tuoi Dati (Giocatore 1)"}
+                    </p>
+                    <span className="text-[9px] font-black uppercase text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
+                      {selectedTorneo?.categoria || "Torneo"}
+                    </span>
+                  </div>
+
                   <div>
                     <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1 block mb-1.5">
                       {isIndividualTournament ? "Atleta (Tu) *" : "Giocatore 1 (Tu) *"}
@@ -409,55 +430,90 @@ export default function AtletaIscriviti() {
                   </div>
                 </div>
 
-                {/* Sezione Compagno di Squadra (Solo per tornei a coppie) */}
+                {/* Sezione Compagno di Squadra (Visibile per tornei a coppie) */}
                 {!isIndividualTournament && (
-                  <div className="bg-white rounded-[1.8rem] p-5 shadow-sm border border-gray-100 space-y-4">
-                    <div>
-                      <h3 className="text-xs font-black uppercase tracking-wider text-[#0a1628] flex items-center gap-1.5">
-                        <span>👥</span> Compagno / Compagna di Squadra *
-                      </h3>
-                      <p className="text-[10px] font-semibold text-gray-400 mt-0.5">
-                        Cerca tra gli atleti iscritti al portale BVI oppure invitalo via email
+                  <div className="bg-white rounded-[1.8rem] p-5 sm:p-6 shadow-sm border border-gray-100 space-y-4">
+                    <div className="border-b border-gray-50 pb-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-black uppercase tracking-wider text-[#0a1628] flex items-center gap-1.5">
+                          <span>👥</span> 2. Scelta del Compagno / Compagna *
+                        </h3>
+                        <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                          Obbligatorio
+                        </span>
+                      </div>
+                      <p className="text-[10px] font-semibold text-gray-500 mt-1">
+                        Scegli come inserire il tuo compagno di squadra per questo torneo:
                       </p>
                     </div>
 
                     {selectedPartner ? (
                       /* Compagno selezionato da directory */
-                      <div className="p-4 rounded-2xl bg-[#0a1628] text-white flex items-center justify-between gap-3 shadow-md">
+                      <div className="p-4 rounded-2xl bg-[#0a1628] text-white flex items-center justify-between gap-3 shadow-md border-2 border-[#FFD700]">
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-10 h-10 rounded-xl bg-[#FFD700] text-[#0a1628] font-black flex items-center justify-center text-sm shrink-0">
+                          <div className="w-11 h-11 rounded-xl bg-[#FFD700] text-[#0a1628] font-black flex items-center justify-center text-base shrink-0">
                             {(selectedPartner.nome?.[0] || selectedPartner.fullName?.[0] || "A").toUpperCase()}
                           </div>
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
                               <p className="font-black text-sm text-white truncate">{selectedPartner.fullName}</p>
-                              <span className="bg-green-500/20 text-green-300 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0">
-                                Portale BVI
+                              <span className="bg-emerald-500/20 text-emerald-300 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0">
+                                Profilo Verificato BVI ✓
                               </span>
                             </div>
-                            <p className="text-[10px] text-gray-300 truncate">{selectedPartner.email}</p>
+                            <p className="text-[10px] text-gray-300 truncate mt-0.5">{selectedPartner.email}</p>
                           </div>
                         </div>
                         <button
                           type="button"
                           onClick={handleClearPartner}
-                          className="text-[10px] font-black text-white/70 hover:text-white px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 transition-all shrink-0"
+                          className="cursor-pointer text-[10px] font-black text-white/80 hover:text-white px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition-all shrink-0"
                         >
-                          Cambia ✕
+                          Cambia compagno ✕
                         </button>
                       </div>
                     ) : (
-                      /* Ricerca compagno */
-                      <div className="space-y-3">
+                      /* Tab interattive di scelta compagno */
+                      <div className="space-y-4">
+                        {/* Tab Switcher */}
+                        <div className="grid grid-cols-2 rounded-2xl bg-gray-100 p-1 gap-1">
+                          <button
+                            type="button"
+                            onClick={() => { setManualInvite(false); }}
+                            className={`cursor-pointer py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
+                              !manualInvite
+                                ? "bg-[#0a1628] text-[#FFD700] shadow-md"
+                                : "text-gray-500 hover:text-[#0a1628]"
+                            }`}
+                          >
+                            <span>🔍</span> Cerca Atleta BVI
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setManualInvite(true); }}
+                            className={`cursor-pointer py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
+                              manualInvite
+                                ? "bg-[#0a1628] text-[#FFD700] shadow-md"
+                                : "text-gray-500 hover:text-[#0a1628]"
+                            }`}
+                          >
+                            <span>➕</span> Inserisci / Invita
+                          </button>
+                        </div>
+
                         {!manualInvite ? (
-                          <div className="space-y-2">
+                          /* TAB 1: Ricerca nel portale BVI */
+                          <div className="space-y-2.5">
+                            <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest block">
+                              Cerca tra gli atleti iscritti al portale BVI:
+                            </label>
                             <div className="relative">
                               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">🔍</span>
                               <input
                                 type="text"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="Cerca atleta per nome, cognome o email..."
+                                placeholder="Digita nome, cognome o email..."
                                 className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-10 pr-10 py-3.5 font-bold text-[#0a1628] text-sm focus:outline-none focus:ring-2 focus:ring-[#0a1628] transition-all"
                               />
                               {searching && (
@@ -467,24 +523,24 @@ export default function AtletaIscriviti() {
 
                             {/* Risultati ricerca */}
                             {searchResults.length > 0 && (
-                              <div className="max-h-52 overflow-y-auto rounded-2xl border border-gray-100 bg-gray-50 p-2 space-y-1">
+                              <div className="max-h-56 overflow-y-auto rounded-2xl border border-gray-100 bg-gray-50 p-2 space-y-1.5">
                                 {searchResults.map((ath) => (
                                   <div
                                     key={ath.id}
-                                    className="p-2.5 rounded-xl bg-white hover:bg-[#0a1628] hover:text-white transition-all flex items-center justify-between gap-3 group cursor-pointer shadow-xs"
+                                    className="p-3 rounded-xl bg-white hover:bg-[#0a1628] hover:text-white transition-all flex items-center justify-between gap-3 group cursor-pointer shadow-xs border border-transparent hover:border-[#0a1628]"
                                     onClick={() => handleSelectPartner(ath)}
                                   >
                                     <div className="flex items-center gap-2.5 min-w-0">
-                                      <div className="w-8 h-8 rounded-lg bg-gray-100 group-hover:bg-[#FFD700] group-hover:text-[#0a1628] font-black flex items-center justify-center text-xs shrink-0">
+                                      <div className="w-9 h-9 rounded-xl bg-gray-100 group-hover:bg-[#FFD700] group-hover:text-[#0a1628] font-black flex items-center justify-center text-xs shrink-0">
                                         {(ath.nome?.[0] || ath.fullName?.[0] || "A").toUpperCase()}
                                       </div>
                                       <div className="min-w-0">
                                         <p className="font-black text-xs text-[#0a1628] group-hover:text-white truncate">{ath.fullName}</p>
-                                        <p className="text-[9px] text-gray-400 group-hover:text-gray-300 truncate">{ath.email}</p>
+                                        <p className="text-[10px] text-gray-400 group-hover:text-gray-300 truncate">{ath.email}</p>
                                       </div>
                                     </div>
-                                    <span className="text-[9px] font-black text-[#0a1628] group-hover:text-[#FFD700] uppercase tracking-wider shrink-0">
-                                      Scegli +
+                                    <span className="text-[10px] font-black text-[#0a1628] group-hover:text-[#FFD700] uppercase tracking-wider shrink-0 bg-gray-100 group-hover:bg-white/10 px-3 py-1.5 rounded-lg">
+                                      Seleziona ✓
                                     </span>
                                   </div>
                                 ))}
@@ -492,63 +548,64 @@ export default function AtletaIscriviti() {
                             )}
 
                             {searchQuery.trim().length >= 2 && !searching && searchResults.length === 0 && (
-                              <p className="text-[10px] font-bold text-gray-400 px-2">
-                                Nessun atleta registrato corrisponde a &quot;{searchQuery}&quot;.
-                              </p>
+                              <div className="p-4 bg-gray-50 rounded-2xl border border-dashed border-gray-200 text-center">
+                                <p className="text-xs font-bold text-gray-600">
+                                  Nessun atleta trovato con &quot;{searchQuery}&quot;.
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={() => { setManualInvite(true); }}
+                                  className="mt-2 text-xs font-black text-blue-600 hover:underline inline-flex items-center gap-1 cursor-pointer"
+                                >
+                                  <span>➕</span> Clicca per inserirlo manualmente e invitarlo via email
+                                </button>
+                              </div>
                             )}
 
-                            <div className="pt-1">
-                              <button
-                                type="button"
-                                onClick={() => { setManualInvite(true); setSearchQuery(""); setSearchResults([]); }}
-                                className="text-[10px] font-black text-[#0a1628] hover:underline uppercase tracking-wider flex items-center gap-1.5"
-                              >
-                                <span>➕</span> Il compagno non è ancora registrato? Inseriscilo manualmente
-                              </button>
-                            </div>
+                            {searchQuery.trim().length < 2 && (
+                              <p className="text-[10px] font-semibold text-gray-400 px-1">
+                                💡 Suggerimento: digita almeno 2 caratteri per trovare i compagni registrati nel portale BVI.
+                              </p>
+                            )}
                           </div>
                         ) : (
-                          /* Inserimento manuale */
-                          <div className="space-y-3 p-4 rounded-2xl bg-amber-50/50 border border-amber-200/60">
+                          /* TAB 2: Inserimento manuale */
+                          <div className="space-y-3.5 p-4 sm:p-5 rounded-2xl bg-amber-50/50 border border-amber-200/60">
                             <div className="flex items-center justify-between">
-                              <p className="text-[10px] font-black text-[#0a1628] uppercase tracking-wider">
-                                Inserisci dati compagno/a
+                              <p className="text-xs font-black text-[#0a1628] uppercase tracking-wider">
+                                Dati Compagno/a (Nuovo o non registrato)
                               </p>
-                              <button
-                                type="button"
-                                onClick={() => setManualInvite(false)}
-                                className="text-[9px] font-bold text-gray-500 hover:text-[#0a1628]"
-                              >
-                                ← Torna alla ricerca atleti
-                              </button>
+                              <span className="text-[9px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
+                                Riceverà notifica email
+                              </span>
                             </div>
                             <div>
                               <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest block mb-1">
-                                Nome e Cognome compagno/a *
+                                Nome e Cognome Compagno/a *
                               </label>
                               <input
                                 type="text"
                                 name="giocatore2"
                                 value={formData.giocatore2}
                                 onChange={(e) => handleManualChange("giocatore2", e.target.value)}
-                                placeholder="es. Elena Rossi"
-                                className="w-full bg-white border border-gray-200 rounded-xl px-3.5 py-2.5 font-bold text-[#0a1628] text-xs focus:ring-2 focus:ring-[#0a1628] focus:outline-none"
+                                placeholder="es. Marco Rossi"
+                                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 font-bold text-[#0a1628] text-sm focus:ring-2 focus:ring-[#0a1628] focus:outline-none"
                               />
                             </div>
                             <div>
                               <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest block mb-1">
-                                Email compagno/a *
+                                Email Compagno/a *
                               </label>
                               <input
                                 type="email"
                                 name="emailCompagno"
                                 value={formData.emailCompagno}
                                 onChange={(e) => handleManualChange("emailCompagno", e.target.value)}
-                                placeholder="es. elena.rossi@email.it"
-                                className="w-full bg-white border border-gray-200 rounded-xl px-3.5 py-2.5 font-bold text-[#0a1628] text-xs focus:ring-2 focus:ring-[#0a1628] focus:outline-none"
+                                placeholder="es. marco.rossi@email.it"
+                                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 font-bold text-[#0a1628] text-sm focus:ring-2 focus:ring-[#0a1628] focus:outline-none"
                               />
-                              <p className="mt-1 text-[9px] font-semibold text-gray-400">
-                                Invieremo un&apos;email di invito a questo indirizzo per unirsi alla tua squadra e registrarsi al portale.
+                              <p className="mt-1.5 text-[10px] font-semibold text-gray-500">
+                                Invieremo un&apos;email di invito a questo indirizzo per confermare la partecipazione in coppia.
                               </p>
                             </div>
                           </div>

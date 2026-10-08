@@ -557,7 +557,7 @@ export default function StaffIscrizioni() {
                 </div>
               </div>
 
-              {!tornei.some((torneo) => torneo.nome === editFormData.torneo && (torneo.circuitRole === "tappa" || torneo.circuitRole === "finale" || String(torneo.categoria || "").toLowerCase().includes("giallo"))) && (
+              {!tornei.some((torneo) => torneo.nome === editFormData.torneo && (String(torneo.categoria || "").toLowerCase().includes("giallo") || torneo.formato === "singolo" || torneo.tipoIscrizione === "singola")) && (
                 <div>
                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Email compagno/a (facoltativa)</label>
                   <input

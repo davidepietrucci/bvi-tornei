@@ -63,10 +63,19 @@ export async function POST(request) {
       return NextResponse.json({ error: "Le iscrizioni a questo torneo non sono aperte." }, { status: 409 });
     }
 
-    const isIndividualTournament = ["tappa", "finale"].includes(matchTorneo.circuitRole) ||
-      String(matchTorneo.categoria || "").toLowerCase().includes("giallo") ||
-      matchTorneo.formato === "singolo" ||
-      matchTorneo.tipoIscrizione === "singola";
+    const isIndividualTournament = (() => {
+      const cat = String(matchTorneo.categoria || "").toLowerCase().trim();
+      if (cat.includes("2x2") || cat.includes("4x4") || cat.includes("coppi")) {
+        return false;
+      }
+      if (matchTorneo.formato === "coppia" || matchTorneo.tipoIscrizione === "coppia") {
+        return false;
+      }
+      if (cat.includes("giallo") || cat.includes("1x1") || cat.includes("singol") || matchTorneo.formato === "singolo" || matchTorneo.tipoIscrizione === "singola") {
+        return true;
+      }
+      return false;
+    })();
     const partnerEmail = String(email2 || "").trim().toLocaleLowerCase("it-IT");
     if (!isIndividualTournament && (!giocatore2 || !String(giocatore2).trim())) {
       return NextResponse.json({ error: "Inserisci il nome del compagno o della compagna." }, { status: 400 });

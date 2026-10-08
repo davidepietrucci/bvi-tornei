@@ -79,10 +79,19 @@ export default async function TournamentPage({ params }) {
   const cleanConfirmed = JSON.parse(JSON.stringify(confirmedRegistrations));
 
   const isOpen = cleanTournament.stato === "Iscrizioni Aperte";
-  const isIndividual = ["tappa", "finale"].includes(tournament.circuitRole) ||
-    String(tournament.categoria || "").toLowerCase().includes("giallo") ||
-    tournament.formato === "singolo" ||
-    tournament.tipoIscrizione === "singola";
+  const isIndividual = (() => {
+    const cat = String(tournament.categoria || "").toLowerCase().trim();
+    if (cat.includes("2x2") || cat.includes("4x4") || cat.includes("coppi")) {
+      return false;
+    }
+    if (tournament.formato === "coppia" || tournament.tipoIscrizione === "coppia") {
+      return false;
+    }
+    if (cat.includes("giallo") || cat.includes("1x1") || cat.includes("singol") || tournament.formato === "singolo" || tournament.tipoIscrizione === "singola") {
+      return true;
+    }
+    return false;
+  })();
   const capacity = Number(tournament.maxSquadre) || 0;
   const isFull = capacity > 0 && confirmedRegistrations.length >= capacity;
   const placesLeft = capacity > 0 ? Math.max(0, capacity - confirmedRegistrations.length) : null;
