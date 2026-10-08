@@ -178,6 +178,10 @@ export default function ModificaTorneo() {
                   <option>Femminile 2x2</option>
                   <option>Misto 4x4</option>
                   <option>Maschile 2x2 / Femminile 2x2</option>
+                  <option>Giallo</option>
+                  <option>Giallo Maschile</option>
+                  <option>Giallo Femminile</option>
+                  <option>Giallo Misto</option>
                 </select>
               </div>
               
@@ -196,11 +200,11 @@ export default function ModificaTorneo() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{["tappa", "finale"].includes(formData.circuitRole) ? "Max atleti" : "Max squadre"}</label>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{["tappa", "finale"].includes(formData.circuitRole) || String(formData.categoria || "").toLowerCase().includes("giallo") ? "Max atleti" : "Max squadre"}</label>
                 <input 
                   type="number" 
                   name="maxSquadre" 
-                  min={["tappa", "finale"].includes(formData.circuitRole) ? "1" : "2"}
+                  min={["tappa", "finale"].includes(formData.circuitRole) || String(formData.categoria || "").toLowerCase().includes("giallo") ? "1" : "2"}
                   value={formData.maxSquadre} 
                   onChange={handleChange}
                   className="w-full bg-gray-50 border-none rounded-2xl px-6 py-4 font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] transition-all text-center" 

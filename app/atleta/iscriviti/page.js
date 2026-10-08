@@ -144,6 +144,7 @@ export default function AtletaIscriviti() {
 
   const selectedTorneo = torneiAperti.find((t) => t.nome === formData.torneo);
   const isIndividualTournament = ["tappa", "finale"].includes(selectedTorneo?.circuitRole) ||
+    String(selectedTorneo?.categoria || "").toLowerCase().includes("giallo") ||
     selectedTorneo?.formato === "singolo" ||
     selectedTorneo?.tipoIscrizione === "singola";
 

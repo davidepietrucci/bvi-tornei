@@ -50,8 +50,10 @@ export default async function TournamentPage({ params }) {
   );
 
   const isOpen = tournament.stato === "Iscrizioni Aperte";
-  const isFinished = tournament.stato === "Concluso";
-  const isIndividual = ["tappa", "finale"].includes(tournament.circuitRole);
+  const isIndividual = ["tappa", "finale"].includes(tournament.circuitRole) ||
+    String(tournament.categoria || "").toLowerCase().includes("giallo") ||
+    tournament.formato === "singolo" ||
+    tournament.tipoIscrizione === "singola";
   const capacity = Number(tournament.maxSquadre) || 0;
   const isFull = capacity > 0 && confirmedRegistrations.length >= capacity;
   const placesLeft = capacity > 0 ? Math.max(0, capacity - confirmedRegistrations.length) : null;
