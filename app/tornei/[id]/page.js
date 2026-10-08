@@ -9,7 +9,14 @@ export const revalidate = 0;
 
 async function findTournament(id) {
   const tournaments = await getTornei();
-  return (Array.isArray(tournaments) ? tournaments : []).find((item) => String(item.id) === String(id)) || null;
+  if (!Array.isArray(tournaments)) return null;
+  const rawId = String(id || "").trim();
+  const decodedId = decodeURIComponent(rawId).trim();
+  return tournaments.find((item) => 
+    String(item.id) === rawId || 
+    String(item.id) === decodedId ||
+    String(item.nome || "").toLowerCase().trim() === decodedId.toLowerCase()
+  ) || null;
 }
 
 export async function generateMetadata({ params }) {
@@ -44,20 +51,34 @@ export default async function TournamentPage({ params }) {
 
   const slug = String(tournament.nome || "").toLowerCase().trim().replace(/\s+/g, '_');
 
-  const [registrations, gironiData, bracketData] = await Promise.all([
-    getIscrizioni(),
-    getGironi(slug),
-    getBracket(slug)
-  ]);
+  let registrations = [];
+  let gironiData = null;
+  let bracketData = null;
+
+  try {
+    const [rawRegs, rawGironi, rawBracket] = await Promise.all([
+      getIscrizioni().catch(() => []),
+      getGironi(slug).catch(() => null),
+      getBracket(slug).catch(() => null)
+    ]);
+    registrations = Array.isArray(rawRegs) ? JSON.parse(JSON.stringify(rawRegs)) : [];
+    gironiData = rawGironi ? JSON.parse(JSON.stringify(rawGironi)) : null;
+    bracketData = rawBracket ? JSON.parse(JSON.stringify(rawBracket)) : null;
+  } catch (e) {
+    console.error("Errore nel recupero dati torneo:", e);
+  }
 
   const tournamentName = String(tournament.nome || "").trim().toLocaleLowerCase("it-IT");
-  const confirmedRegistrations = (Array.isArray(registrations) ? registrations : []).filter((registration) =>
+  const confirmedRegistrations = registrations.filter((registration) =>
     String(registration.torneo || "").trim().toLocaleLowerCase("it-IT") === tournamentName
       && registration.stato !== "Annullata"
       && isConfirmed(registration)
   );
 
-  const isOpen = tournament.stato === "Iscrizioni Aperte";
+  const cleanTournament = JSON.parse(JSON.stringify(tournament));
+  const cleanConfirmed = JSON.parse(JSON.stringify(confirmedRegistrations));
+
+  const isOpen = cleanTournament.stato === "Iscrizioni Aperte";
   const isIndividual = ["tappa", "finale"].includes(tournament.circuitRole) ||
     String(tournament.categoria || "").toLowerCase().includes("giallo") ||
     tournament.formato === "singolo" ||
@@ -88,8 +109,8 @@ export default async function TournamentPage({ params }) {
 
       {/* Vista pubblica con dettagli, anteprima, classifiche in linea e popup per tutte le iscrizioni */}
       <TournamentPublicView
-        tournament={tournament}
-        confirmedRegistrations={confirmedRegistrations}
+        tournament={cleanTournament}
+        confirmedRegistrations={cleanConfirmed}
         gironiData={gironiData}
         bracketData={bracketData}
         isIndividual={isIndividual}

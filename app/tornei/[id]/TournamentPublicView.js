@@ -77,18 +77,27 @@ export default function TournamentPublicView({
     if (!gironiData || !gironiData.gironeAssignments) return {};
     const statsMap = {};
     gironiDisponibili.forEach((gid) => {
-      const stats = calculateSingleGroupStats(gid, gironiData);
-      // Sort: Wins desc, then points quotient desc, then point difference desc
-      statsMap[gid] = [...stats].sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score;
-        const qzA = a.puntiSubiti === 0 ? (a.puntiFatti > 0 ? 999 : 0) : a.puntiFatti / a.puntiSubiti;
-        const qzB = b.puntiSubiti === 0 ? (b.puntiFatti > 0 ? 999 : 0) : b.puntiFatti / b.puntiSubiti;
-        if (qzB !== qzA) return qzB - qzA;
-        const diffA = a.puntiFatti - a.puntiSubiti;
-        const diffB = b.puntiFatti - b.puntiSubiti;
-        if (diffB !== diffA) return diffB - diffA;
-        return b.puntiFatti - a.puntiFatti;
-      });
+      try {
+        const stats = calculateSingleGroupStats(gid, gironiData);
+        if (Array.isArray(stats)) {
+          // Sort: Wins desc, then points quotient desc, then point difference desc
+          statsMap[gid] = [...stats].sort((a, b) => {
+            if (b.score !== a.score) return b.score - a.score;
+            const qzA = a.puntiSubiti === 0 ? (a.puntiFatti > 0 ? 999 : 0) : a.puntiFatti / a.puntiSubiti;
+            const qzB = b.puntiSubiti === 0 ? (b.puntiFatti > 0 ? 999 : 0) : b.puntiFatti / b.puntiSubiti;
+            if (qzB !== qzA) return qzB - qzA;
+            const diffA = (a.puntiFatti || 0) - (a.puntiSubiti || 0);
+            const diffB = (b.puntiFatti || 0) - (b.puntiSubiti || 0);
+            if (diffB !== diffA) return diffB - diffA;
+            return (b.puntiFatti || 0) - (a.puntiFatti || 0);
+          });
+        } else {
+          statsMap[gid] = [];
+        }
+      } catch (err) {
+        console.warn("Calcolo statistiche girone", gid, err);
+        statsMap[gid] = [];
+      }
     });
     return statsMap;
   }, [gironiData, gironiDisponibili]);
@@ -97,7 +106,8 @@ export default function TournamentPublicView({
   const unifiedRankings = useMemo(() => {
     if (!gironiData) return [];
     try {
-      return calculateUnifiedRanking(gironiData);
+      const res = calculateUnifiedRanking(gironiData);
+      return Array.isArray(res) ? res : [];
     } catch (e) {
       return [];
     }
@@ -107,69 +117,73 @@ export default function TournamentPublicView({
   const bracketPodium = useMemo(() => {
     if (!bracketData) return null;
 
-    const assignments = bracketData?.bracketAssignments || {};
-    const metadata = bracketData?.bracketMetadata || {};
+    try {
+      const assignments = bracketData?.bracketAssignments || {};
+      const metadata = bracketData?.bracketMetadata || {};
 
-    const getWinnerOfMatch = (matchId) => {
-      const meta = metadata[matchId] || {};
-      const scoreL = parseInt(meta.scoreL || 0);
-      const scoreR = parseInt(meta.scoreR || 0);
-      if (scoreL === 0 && scoreR === 0) return null;
-      return scoreL > scoreR ? assignments[`${matchId}-L`] : assignments[`${matchId}-R`];
-    };
+      const getWinnerOfMatch = (matchId) => {
+        const meta = metadata[matchId] || {};
+        const scoreL = parseInt(meta.scoreL || 0);
+        const scoreR = parseInt(meta.scoreR || 0);
+        if (scoreL === 0 && scoreR === 0) return null;
+        return scoreL > scoreR ? assignments[`${matchId}-L`] : assignments[`${matchId}-R`];
+      };
 
-    const getLoserOfMatch = (matchId) => {
-      const meta = metadata[matchId] || {};
-      const scoreL = parseInt(meta.scoreL || 0);
-      const scoreR = parseInt(meta.scoreR || 0);
-      if (scoreL === 0 && scoreR === 0) return null;
-      return scoreL > scoreR ? assignments[`${matchId}-R`] : assignments[`${matchId}-L`];
-    };
+      const getLoserOfMatch = (matchId) => {
+        const meta = metadata[matchId] || {};
+        const scoreL = parseInt(meta.scoreL || 0);
+        const scoreR = parseInt(meta.scoreR || 0);
+        if (scoreL === 0 && scoreR === 0) return null;
+        return scoreL > scoreR ? assignments[`${matchId}-R`] : assignments[`${matchId}-L`];
+      };
 
-    const isGoldSilver = bracketData?.phaseType === "gold_silver";
-    const isSingle = bracketData?.phaseType === "single";
+      const isGoldSilver = bracketData?.phaseType === "gold_silver";
+      const isSingle = bracketData?.phaseType === "single";
 
-    if (isGoldSilver) {
-      const goldRank = [
-        { pos: "1°", label: "1° Oro", team: getWinnerOfMatch("gold-f1") },
-        { pos: "2°", label: "2° Oro", team: getLoserOfMatch("gold-f1") },
-        { pos: "3°", label: "3° Oro", team: getWinnerOfMatch("gold-f3") },
-        { pos: "4°", label: "4° Oro", team: getLoserOfMatch("gold-f3") },
-      ].filter((x) => Boolean(x.team));
+      if (isGoldSilver) {
+        const goldRank = [
+          { pos: "1°", label: "1° Oro", team: getWinnerOfMatch("gold-f1") },
+          { pos: "2°", label: "2° Oro", team: getLoserOfMatch("gold-f1") },
+          { pos: "3°", label: "3° Oro", team: getWinnerOfMatch("gold-f3") },
+          { pos: "4°", label: "4° Oro", team: getLoserOfMatch("gold-f3") },
+        ].filter((x) => Boolean(x.team));
 
-      const silverRank = [
-        { pos: "1°", label: "1° Silver", team: getWinnerOfMatch("silver-f1") },
-        { pos: "2°", label: "2° Silver", team: getLoserOfMatch("silver-f1") },
-        { pos: "3°", label: "3° Silver", team: getWinnerOfMatch("silver-f3") },
-        { pos: "4°", label: "4° Silver", team: getLoserOfMatch("silver-f3") },
-      ].filter((x) => Boolean(x.team));
+        const silverRank = [
+          { pos: "1°", label: "1° Silver", team: getWinnerOfMatch("silver-f1") },
+          { pos: "2°", label: "2° Silver", team: getLoserOfMatch("silver-f1") },
+          { pos: "3°", label: "3° Silver", team: getWinnerOfMatch("silver-f3") },
+          { pos: "4°", label: "4° Silver", team: getLoserOfMatch("silver-f3") },
+        ].filter((x) => Boolean(x.team));
 
-      if (goldRank.length > 0 || silverRank.length > 0) {
-        return { type: "gold_silver", goldRank, silverRank };
+        if (goldRank.length > 0 || silverRank.length > 0) {
+          return { type: "gold_silver", goldRank, silverRank };
+        }
+      } else if (isSingle) {
+        const rank = [
+          { pos: "1°", label: "1° Classificato", team: getWinnerOfMatch("gold-f1") },
+          { pos: "2°", label: "2° Classificato", team: getLoserOfMatch("gold-f1") },
+          { pos: "3°", label: "3° Classificato", team: getWinnerOfMatch("gold-f3") },
+          { pos: "4°", label: "4° Classificato", team: getLoserOfMatch("gold-f3") },
+        ].filter((x) => Boolean(x.team));
+
+        if (rank.length > 0) {
+          return { type: "single", rank };
+        }
+      } else {
+        // Double elimination
+        const rank = [
+          { pos: "1°", label: "1° Classificato", team: getWinnerOfMatch("grand-final") },
+          { pos: "2°", label: "2° Classificato", team: getLoserOfMatch("grand-final") },
+          { pos: "3°", label: "3° Classificato", team: getLoserOfMatch("lb-f") },
+          { pos: "4°", label: "4° Classificato", team: getLoserOfMatch("lb-s2") },
+        ].filter((x) => Boolean(x.team));
+
+        if (rank.length > 0) {
+          return { type: "double", rank };
+        }
       }
-    } else if (isSingle) {
-      const rank = [
-        { pos: "1°", label: "1° Classificato", team: getWinnerOfMatch("gold-f1") },
-        { pos: "2°", label: "2° Classificato", team: getLoserOfMatch("gold-f1") },
-        { pos: "3°", label: "3° Classificato", team: getWinnerOfMatch("gold-f3") },
-        { pos: "4°", label: "4° Classificato", team: getLoserOfMatch("gold-f3") },
-      ].filter((x) => Boolean(x.team));
-
-      if (rank.length > 0) {
-        return { type: "single", rank };
-      }
-    } else {
-      // Double elimination
-      const rank = [
-        { pos: "1°", label: "1° Classificato", team: getWinnerOfMatch("grand-final") },
-        { pos: "2°", label: "2° Classificato", team: getLoserOfMatch("grand-final") },
-        { pos: "3°", label: "3° Classificato", team: getLoserOfMatch("lb-f") },
-        { pos: "4°", label: "4° Classificato", team: getLoserOfMatch("lb-s2") },
-      ].filter((x) => Boolean(x.team));
-
-      if (rank.length > 0) {
-        return { type: "double", rank };
-      }
+    } catch (err) {
+      console.warn("Errore calcolo podio bracket:", err);
     }
 
     return null;
