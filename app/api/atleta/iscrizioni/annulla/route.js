@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { getIscrizioni, saveIscrizioni, getTornei, saveTornei } from "@/app/utils/db-server";
+import { updateRegistrationsAtomically } from "@/app/utils/db-server";
 import { registrationIncludesAthlete } from "@/app/utils/circuit";
 
 export async function POST(request) {
@@ -13,7 +13,7 @@ export async function POST(request) {
     const { id } = await request.json();
     if (!id) return NextResponse.json({ error: "Iscrizione non specificata." }, { status: 400 });
 
-    const [iscrizioni, tornei] = await Promise.all([getIscrizioni(), getTornei()]);
+    const outcome = await updateRegistrationsAtomically(async (iscrizioni, tornei) => {
     const target = (iscrizioni || []).find((item) => String(item.id) === String(id));
     if (!target || !registrationIncludesAthlete(target, userId, email)) {
       return NextResponse.json({ error: "Iscrizione non trovata nel tuo profilo." }, { status: 404 });
@@ -37,13 +37,14 @@ export async function POST(request) {
       ? { ...item, stato: "Annullata", annullataIl: now }
       : item
     );
-    await saveIscrizioni(updatedIscrizioni);
 
     const updatedTornei = tornei.map((item, index) => index === tournamentIndex
       ? { ...item, iscritti: Math.max(0, (Number(item.iscritti) || 0) - 1) }
       : item
     );
-    await saveTornei(updatedTornei);
+    return { registrations: updatedIscrizioni, tournaments: updatedTornei, result: { success: true } };
+    });
+    if (outcome instanceof Response) return outcome;
 
     return NextResponse.json({ success: true, message: "Iscrizione annullata." });
   } catch (error) {

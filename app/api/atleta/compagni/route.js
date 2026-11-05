@@ -18,9 +18,10 @@ export async function GET(request) {
 
     const { searchParams } = new URL(request.url);
     const query = String(searchParams.get("q") || "").trim().toLowerCase();
+    if (query.length < 2) return NextResponse.json({ data: [] });
 
     const client = await clerkClient();
-    const clerkResponse = await client.users.getUserList({ limit: 500, orderBy: "-created_at" });
+    const clerkResponse = await client.users.getUserList({ limit: 100, query, orderBy: "-created_at" });
     const allUsers = clerkResponse.data || clerkResponse || [];
 
     const athletes = allUsers

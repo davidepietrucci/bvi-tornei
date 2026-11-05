@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { auth, currentUser } from "@clerk/nextjs/server";
-import { getTornei, saveTornei, getIscrizioni, saveIscrizioni } from "@/app/utils/db-server";
+import { auth, currentUser, clerkClient } from "@clerk/nextjs/server";
+import { updateRegistrationsAtomically } from "@/app/utils/db-server";
 import { sendConfirmationEmail, sendPartnerInviteEmail } from "@/app/utils/email";
 import { findCircuitAthlete, getCircuitLeaderboard, normalizeCircuitName, registrationIncludesAthlete } from "@/app/utils/circuit";
 
@@ -47,7 +47,24 @@ export async function POST(request) {
 
     const notificationEmail = athleteEmail;
 
-    const tornei = await getTornei();
+    let verifiedPartnerId = "";
+    if (atletaUserId2) {
+      const client = await clerkClient();
+      let partner;
+      try {
+        partner = await client.users.getUser(String(atletaUserId2).trim());
+      } catch (error) {
+        if (error?.status === 404) return NextResponse.json({ error: "Profilo del compagno non trovato. Selezionalo nuovamente." }, { status: 400 });
+        throw error;
+      }
+      const email = partner.emailAddresses?.find((item) => item.id === partner.primaryEmailAddressId);
+      if (!email || email.verification?.status !== "verified" || String(email.emailAddress).trim().toLowerCase() !== String(email2 || "").trim().toLowerCase() || partner.id === userId) {
+        return NextResponse.json({ error: "Il profilo del compagno non corrisponde all'email indicata. Selezionalo nuovamente." }, { status: 400 });
+      }
+      verifiedPartnerId = partner.id;
+    }
+
+    const outcome = await updateRegistrationsAtomically(async (iscrizioni, tornei) => {
     const matchTorneo = tornei.find(
       t => String(t.nome || "").toLowerCase().trim() === String(torneo).toLowerCase().trim()
     );
@@ -88,7 +105,6 @@ export async function POST(request) {
     }
 
     // Carica iscrizioni esistenti
-    const iscrizioni = await getIscrizioni();
 
     if (matchTorneo.circuitRole === "finale") {
       const qualifierLimit = Number(matchTorneo.circuitQualifiers);
@@ -143,8 +159,8 @@ export async function POST(request) {
         ...(!isIndividualTournament ? {
           atleta2Nome: String(giocatore2).trim(),
           atletaEmail2: partnerEmail,
-          atletaUserId2: atletaUserId2 ? String(atletaUserId2).trim() : "",
-          statoInvitoCompagno: atletaUserId2 ? "Confermato" : "Invitato",
+          atletaUserId2: verifiedPartnerId,
+          statoInvitoCompagno: verifiedPartnerId ? "Confermato" : "Invitato",
         } : {}),
         tel: tel ? String(tel).trim() : "Non inserito",
         email: notificationEmail,
@@ -155,7 +171,6 @@ export async function POST(request) {
 
     // Salva l'iscrizione accodata
     const updatedIscrizioni = [...iscrizioni, nuovaIscrizione];
-    await saveIscrizioni(updatedIscrizioni);
 
     // Incrementa contatore iscritti del torneo specifico
     const updatedTornei = tornei.map(t => {
@@ -164,7 +179,10 @@ export async function POST(request) {
       }
       return t;
     });
-    await saveTornei(updatedTornei);
+    return { registrations: updatedIscrizioni, tournaments: updatedTornei, result: { nuovaIscrizione, matchTorneo, isIndividualTournament, partnerEmail, giocatori } };
+    });
+    if (outcome instanceof Response) return outcome;
+    const { nuovaIscrizione, matchTorneo, isIndividualTournament, partnerEmail, giocatori } = outcome;
 
     // Invia l'email di conferma all'atleta
     if (notificationEmail) {

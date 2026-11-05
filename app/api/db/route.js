@@ -9,7 +9,7 @@ import {
   getNotifiche, saveNotifiche,
   getStaff, saveStaff,
   getSponsors, saveSponsors,
-  getDbStatus
+  getDbStatus, saveConfigIfUnchanged
 } from "@/app/utils/db-server";
 
 export const dynamic = "force-dynamic";
@@ -98,7 +98,7 @@ export async function POST(req) {
   try {
     const { userId, sessionClaims } = await auth();
     const body = await req.json();
-    const { type, data, slug } = body;
+    const { type, data, slug, baseline } = body;
 
     const role = await getUserRole(userId, sessionClaims);
     if (!userId) {
@@ -116,7 +116,12 @@ export async function POST(req) {
       await saveStaff(data);
     }
     else if (type === "tornei" || type === "gironi" || type === "bracket" || type === "iscrizioni" || type === "notifiche" || type === "sponsors") {
-      if (type === "tornei") await saveTornei(data);
+      if ((type === "tornei" || type === "iscrizioni") && (!Array.isArray(data) || !Array.isArray(baseline))) {
+        return NextResponse.json({ error: "Dati non aggiornati: ricarica la pagina e riprova." }, { status: 409 });
+      }
+      if (type === "tornei" && !await saveConfigIfUnchanged(type, data, baseline)) {
+        return NextResponse.json({ error: "I tornei sono cambiati. Ricarica la pagina e riprova." }, { status: 409 });
+      }
       if (type === "gironi") await saveGironi(slug, data);
       if (type === "bracket") await saveBracket(slug, data);
       if (type === "sponsors") await saveSponsors(data);
@@ -150,7 +155,9 @@ export async function POST(req) {
             risposte: (item.risposte && item.risposte.length > 0) ? item.risposte : (oldItem.risposte || item.risposte)
           };
         });
-        await saveIscrizioni(mergedData);
+        if (!await saveConfigIfUnchanged(type, mergedData, baseline)) {
+          return NextResponse.json({ error: "Le iscrizioni sono cambiate. Ricarica la pagina e riprova." }, { status: 409 });
+        }
       }
       if (type === "notifiche") await saveNotifiche(data);
     }

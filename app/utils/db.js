@@ -1,5 +1,7 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 
+const arrayBaselines = new Map();
+
 // Safe JSON parse helper to prevent crashes
 function safeJsonParse(str, fallback) {
   try {
@@ -30,13 +32,13 @@ async function fetchFromServerDb(type, slug = null, publicView = false) {
   }
 }
 
-async function saveToServerDb(type, data, slug = null) {
+async function saveToServerDb(type, data, slug = null, baseline = undefined) {
   let url = `/api/db`;
   try {
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type, data, slug })
+      body: JSON.stringify({ type, data, slug, baseline })
     });
     if (!res.ok) {
       const errText = await res.text();
@@ -130,6 +132,7 @@ async function getArrayEntity(key, type) {
 
   const serverData = await fetchFromServerDb(type);
   if (serverData !== null && Array.isArray(serverData)) {
+    if (type === "tornei" || type === "iscrizioni") arrayBaselines.set(type, JSON.stringify(serverData));
     try {
       localStorage.setItem(key, JSON.stringify(serverData));
     } catch (e) {
@@ -153,15 +156,15 @@ async function saveArrayEntity(key, type, list) {
     return;
   }
 
-  try {
-    localStorage.setItem(key, JSON.stringify(list));
-  } catch (e) {
-    console.warn(`Could not set localStorage key ${key}:`, e);
-  }
-  const saved = await saveToServerDb(type, list);
+  const guarded = type === "tornei" || type === "iscrizioni";
+  const baseline = guarded && arrayBaselines.has(type) ? JSON.parse(arrayBaselines.get(type)) : undefined;
+  if (guarded && !baseline) throw new Error("Dati non aggiornati: ricarica la pagina e riprova.");
+  const saved = await saveToServerDb(type, list, null, baseline);
   if (!saved) {
-    throw new Error(`Salvataggio non confermato dal server per ${type}`);
+    throw new Error(`Salvataggio non confermato: i dati potrebbero essere cambiati. Ricarica la pagina e riprova.`);
   }
+  if (guarded) arrayBaselines.set(type, JSON.stringify(list));
+  try { localStorage.setItem(key, JSON.stringify(list)); } catch (e) { console.warn(`Could not set localStorage key ${key}:`, e); }
 }
 
 // 1. Tornei

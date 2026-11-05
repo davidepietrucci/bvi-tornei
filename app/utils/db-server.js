@@ -2,6 +2,7 @@ import { getApps, initializeApp, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import fs from "fs";
 import path from "path";
+import { isDeepStrictEqual } from "node:util";
 
 let parsedServiceAccount = null;
 const jsonEnv = process.env.FIREBASE_SERVICE_ACCOUNT || process.env.FIREBASE_CONFIG_JSON || process.env.FIREBASE_CREDENTIALS;
@@ -207,6 +208,38 @@ export async function getIscrizioni() {
 }
 export async function saveIscrizioni(list) {
   await saveConfigDoc("iscrizioni", list);
+}
+
+// Both lists are updated together and Firestore retries when another writer changes them.
+export async function updateRegistrationsAtomically(update) {
+  if (!db) throw new Error("Database Firestore non disponibile");
+  const registrationsRef = db.collection("config").doc("iscrizioni");
+  const tournamentsRef = db.collection("config").doc("tornei");
+  return db.runTransaction(async (transaction) => {
+    const [registrationsDoc, tournamentsDoc] = await Promise.all([
+      transaction.get(registrationsRef), transaction.get(tournamentsRef)
+    ]);
+    const registrations = registrationsDoc.data()?.list ?? [];
+    const tournaments = tournamentsDoc.data()?.list ?? [];
+    if (!Array.isArray(registrations) || !Array.isArray(tournaments)) throw new Error("Dati torneo non validi");
+    const outcome = await update(registrations, tournaments);
+    if (outcome instanceof Response) return outcome;
+    transaction.set(registrationsRef, { list: sanitizeData(outcome.registrations) });
+    transaction.set(tournamentsRef, { list: sanitizeData(outcome.tournaments) });
+    return outcome.result;
+  });
+}
+
+export async function saveConfigIfUnchanged(type, list, baseline) {
+  if (!db) throw new Error("Database Firestore non disponibile");
+  const ref = db.collection("config").doc(type);
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const current = snapshot.data()?.list ?? [];
+    if (!isDeepStrictEqual(current, baseline)) return false;
+    transaction.set(ref, { list: sanitizeData(list) });
+    return true;
+  });
 }
 
 export async function getGironi(slug) {
