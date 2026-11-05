@@ -225,9 +225,11 @@ function TabelloneContent() {
     if (right === "—" && left && left !== "—") return left;
 
     const meta = bracketMetadata[matchId] || {};
+    if (!left || !right || meta.scoreL === undefined || meta.scoreL === "" || meta.scoreR === undefined || meta.scoreR === "") return null;
     const scoreL = parseInt(meta.scoreL || 0);
     const scoreR = parseInt(meta.scoreR || 0);
-    if (scoreL === 0 && scoreR === 0) return null;
+    if (!Number.isFinite(scoreL) || !Number.isFinite(scoreR) || scoreL === scoreR) return null;
+    if ([meta.s1L, meta.s1R, meta.s2L, meta.s2R, meta.s3L, meta.s3R].some(v => v !== undefined && v !== "") && Math.max(scoreL, scoreR) < 2) return null;
     return scoreL > scoreR ? left : right;
   };
 
@@ -238,9 +240,11 @@ function TabelloneContent() {
     if (right === "—" && left && left !== "—") return "—";
 
     const meta = bracketMetadata[matchId] || {};
+    if (!left || !right || meta.scoreL === undefined || meta.scoreL === "" || meta.scoreR === undefined || meta.scoreR === "") return null;
     const scoreL = parseInt(meta.scoreL || 0);
     const scoreR = parseInt(meta.scoreR || 0);
-    if (scoreL === 0 && scoreR === 0) return null;
+    if (!Number.isFinite(scoreL) || !Number.isFinite(scoreR) || scoreL === scoreR) return null;
+    if ([meta.s1L, meta.s1R, meta.s2L, meta.s2R, meta.s3L, meta.s3R].some(v => v !== undefined && v !== "") && Math.max(scoreL, scoreR) < 2) return null;
     return scoreL > scoreR ? right : left;
   };
 
@@ -375,6 +379,50 @@ function TabelloneContent() {
     const newAssignments = { ...bracketAssignments };
     let changed = false;
 
+    // Keep the propagation helpers inside the effect so they always use its current inputs.
+    const getTeamsCountForGroup = (groupKey) => {
+      if (subPhaseType === "custom_18") return groupKey.startsWith("pool-gold-") ? 4 : 3;
+      return groupKey.startsWith("gold-") ? (teamsPerGoldGirone || 4) : (teamsPerSilverGirone || 4);
+    };
+    const getIntermediateGroupTeamsList = (groupKey) =>
+      Array.from({ length: getTeamsCountForGroup(groupKey) }, (_, i) => bracketAssignments[`${groupKey}-${i}`]);
+
+    const getMatchTeams = (matchId) => {
+      let left = bracketAssignments[`${matchId}-L`];
+      let right = bracketAssignments[`${matchId}-R`];
+      const match = matchId.match(/^(.+)-m([0-4])$/);
+      if (match && (!left || !right)) {
+        const [, groupKey, number] = match;
+        const index = Number(number);
+        if (index < 2) {
+          left ||= bracketAssignments[`${groupKey}-${index * 2}`];
+          right ||= bracketAssignments[`${groupKey}-${index * 2 + 1}`];
+        } else if (index === 2 || index === 3) {
+          const resolve = index === 2 ? resolveWinner : resolveLoser;
+          left ||= resolve(`${groupKey}-m0`);
+          right ||= resolve(`${groupKey}-m1`);
+        } else {
+          left ||= resolveLoser(`${groupKey}-m2`);
+          right ||= resolveWinner(`${groupKey}-m3`);
+        }
+      }
+      return { left, right };
+    };
+    const resolveOutcome = (matchId, loser = false) => {
+      const { left, right } = getMatchTeams(matchId);
+      if (left === "—" && right && right !== "—") return loser ? "—" : right;
+      if (right === "—" && left && left !== "—") return loser ? "—" : left;
+      const meta = bracketMetadata[matchId] || {};
+      if (!left || !right || meta.scoreL === undefined || meta.scoreL === "" || meta.scoreR === undefined || meta.scoreR === "") return null;
+      const scoreL = parseInt(meta.scoreL, 10);
+      const scoreR = parseInt(meta.scoreR, 10);
+      if (!Number.isFinite(scoreL) || !Number.isFinite(scoreR) || scoreL === scoreR) return null;
+      if ([meta.s1L, meta.s1R, meta.s2L, meta.s2R, meta.s3L, meta.s3R].some(v => v !== undefined && v !== "") && Math.max(scoreL, scoreR) < 2) return null;
+      return (scoreL > scoreR) !== loser ? left : right;
+    };
+    const resolveWinner = (matchId) => resolveOutcome(matchId);
+    const resolveLoser = (matchId) => resolveOutcome(matchId, true);
+
     const getIntermediateRanking = (groupKey) => {
       if (subPhaseType === "pool_stepladder") {
         const winM2 = resolveWinner(`${groupKey}-m2`);
@@ -448,6 +496,20 @@ function TabelloneContent() {
       if (value && newAssignments[targetKey] !== value) {
         newAssignments[targetKey] = value;
         changed = true;
+      } else if (!value && subPhaseType === "groups" && /^(gold|silver)-s[12]-[LR]$/.test(targetKey) && newAssignments[targetKey]) {
+        newAssignments[targetKey] = "";
+        changed = true;
+      }
+    };
+
+    const updateFromMatch = (targetKey, matchId, loser = false) => {
+      const sourceExists = bracketAssignments[`${matchId}-L`] !== undefined || bracketAssignments[`${matchId}-R`] !== undefined;
+      if (!sourceExists) return;
+      const value = loser ? resolveLoser(matchId) : resolveWinner(matchId);
+      if (value) update(targetKey, value);
+      else if (newAssignments[targetKey] !== undefined && newAssignments[targetKey] !== "") {
+        newAssignments[targetKey] = "";
+        changed = true;
       }
     };
 
@@ -480,29 +542,29 @@ function TabelloneContent() {
           const is16Teams = bracketAssignments[`${p}-o5-L`] !== undefined;
           if (hasOttavi) {
               if (is16Teams) {
-                  update(`${p}-q1-L`, resolveWinner(`${p}-o1`));
-                  update(`${p}-q1-R`, resolveWinner(`${p}-o2`));
-                  update(`${p}-q2-L`, resolveWinner(`${p}-o3`));
-                  update(`${p}-q2-R`, resolveWinner(`${p}-o4`));
-                  update(`${p}-q3-L`, resolveWinner(`${p}-o5`));
-                  update(`${p}-q3-R`, resolveWinner(`${p}-o6`));
-                  update(`${p}-q4-L`, resolveWinner(`${p}-o7`));
-                  update(`${p}-q4-R`, resolveWinner(`${p}-o8`));
+                  updateFromMatch(`${p}-q1-L`, `${p}-o1`);
+                  updateFromMatch(`${p}-q1-R`, `${p}-o2`);
+                  updateFromMatch(`${p}-q2-L`, `${p}-o3`);
+                  updateFromMatch(`${p}-q2-R`, `${p}-o4`);
+                  updateFromMatch(`${p}-q3-L`, `${p}-o5`);
+                  updateFromMatch(`${p}-q3-R`, `${p}-o6`);
+                  updateFromMatch(`${p}-q4-L`, `${p}-o7`);
+                  updateFromMatch(`${p}-q4-R`, `${p}-o8`);
               } else {
-                  update(`${p}-q1-R`, resolveWinner(`${p}-o4`));
-                  update(`${p}-q2-R`, resolveWinner(`${p}-o3`));
-                  update(`${p}-q3-R`, resolveWinner(`${p}-o2`));
-                  update(`${p}-q4-R`, resolveWinner(`${p}-o1`));
+                  updateFromMatch(`${p}-q1-R`, `${p}-o4`);
+                  updateFromMatch(`${p}-q2-R`, `${p}-o3`);
+                  updateFromMatch(`${p}-q3-R`, `${p}-o2`);
+                  updateFromMatch(`${p}-q4-R`, `${p}-o1`);
               }
           }
-          update(`${p}-s1-L`, resolveWinner(`${p}-q1`));
-          update(`${p}-s1-R`, resolveWinner(`${p}-q2`));
-          update(`${p}-s2-L`, resolveWinner(`${p}-q3`));
-          update(`${p}-s2-R`, resolveWinner(`${p}-q4`));
-          update(`${p}-f1-L`, resolveWinner(`${p}-s1`));
-          update(`${p}-f1-R`, resolveWinner(`${p}-s2`));
-          update(`${p}-f3-L`, resolveLoser(`${p}-s1`));
-          update(`${p}-f3-R`, resolveLoser(`${p}-s2`));
+          updateFromMatch(`${p}-s1-L`, `${p}-q1`);
+          updateFromMatch(`${p}-s1-R`, `${p}-q2`);
+          updateFromMatch(`${p}-s2-L`, `${p}-q3`);
+          updateFromMatch(`${p}-s2-R`, `${p}-q4`);
+          updateFromMatch(`${p}-f1-L`, `${p}-s1`);
+          updateFromMatch(`${p}-f1-R`, `${p}-s2`);
+          updateFromMatch(`${p}-f3-L`, `${p}-s1`, true);
+          updateFromMatch(`${p}-f3-R`, `${p}-s2`, true);
       });
     }
 
@@ -613,10 +675,10 @@ function TabelloneContent() {
         }
       }
 
-      update("gold-f1-L", resolveWinner("gold-s1"));
-      update("gold-f1-R", resolveWinner("gold-s2"));
-      update("gold-f3-L", resolveLoser("gold-s1"));
-      update("gold-f3-R", resolveLoser("gold-s2"));
+      updateFromMatch("gold-f1-L", "gold-s1");
+      updateFromMatch("gold-f1-R", "gold-s2");
+      updateFromMatch("gold-f3-L", "gold-s1", true);
+      updateFromMatch("gold-f3-R", "gold-s2", true);
 
       if (isStepladder) {
         if (currentNumSilverGironi === 4) {
@@ -684,10 +746,10 @@ function TabelloneContent() {
         }
       }
 
-      update("silver-f1-L", resolveWinner("silver-s1"));
-      update("silver-f1-R", resolveWinner("silver-s2"));
-      update("silver-f3-L", resolveLoser("silver-s1"));
-      update("silver-f3-R", resolveLoser("silver-s2"));
+      updateFromMatch("silver-f1-L", "silver-s1");
+      updateFromMatch("silver-f1-R", "silver-s2");
+      updateFromMatch("silver-f3-L", "silver-s1", true);
+      updateFromMatch("silver-f3-R", "silver-s2", true);
     }
 
     if (phaseType === "double") {
@@ -700,7 +762,7 @@ function TabelloneContent() {
     }
 
     if (changed) setBracketAssignments(newAssignments);
-  }, [bracketMetadata, bracketAssignments, isLoaded, phaseType, subPhaseType, numGironi, teamCounts]);
+  }, [bracketMetadata, bracketAssignments, isLoaded, phaseType, subPhaseType, numGironi, teamCounts, numGoldGironiOpt, numSilverGironiOpt, teamsPerGoldGirone, teamsPerSilverGirone]);
 
   // Calcola la Classifica Avulsa Gold per custom_18 (12 team: 1° e 2° dei gironi iniziali A-F)
   const getClassificaAvulsaGoldCustom18 = () => {
