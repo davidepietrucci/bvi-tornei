@@ -210,7 +210,7 @@ export default function MieIscrizioni() {
                             </button>
                           )}
                           <a
-                            href={`https://wa.me/?text=Ciao, ho bisogno di supporto per l'iscrizione #${isc.id} al torneo ${isc.torneo}`}
+                            href={`https://wa.me/393714834682?text=${encodeURIComponent(`Ciao, ho bisogno di supporto per l'iscrizione #${isc.id} al torneo ${isc.torneo}`)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex-1 py-3 bg-green-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest text-center flex items-center justify-center gap-1.5 hover:bg-green-600 transition-colors active:scale-95"
