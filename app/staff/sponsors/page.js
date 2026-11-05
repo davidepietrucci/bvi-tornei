@@ -17,19 +17,34 @@ export default function StaffSponsorsPage() {
     });
   }, []);
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 1024 * 1024) {
-        alert("L'immagine è troppo grande. Seleziona un file inferiore a 1MB.");
+      if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) {
+        alert("Seleziona un'immagine PNG, JPG o WebP di massimo 10 MB.");
         e.target.value = "";
         return;
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setSponsorForm((prev) => ({ ...prev, logoUrl: reader.result }));
-      };
-      reader.readAsDataURL(file);
+      setIsSaving(true);
+      try {
+        const bitmap = await createImageBitmap(file);
+        const scale = Math.min(1, 600 / Math.max(bitmap.width, bitmap.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+        canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+        const context = canvas.getContext('2d');
+        if (!context) throw new Error('Impossibile elaborare il logo');
+        context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        bitmap.close();
+        const logoUrl = canvas.toDataURL('image/webp', 0.8);
+        if (logoUrl.length > 180000) throw new Error('Logo troppo grande anche dopo la compressione. Prova un’immagine più semplice.');
+        setSponsorForm((prev) => ({ ...prev, logoUrl }));
+      } catch (error) {
+        alert(error.message || "Impossibile leggere l'immagine.");
+        e.target.value = "";
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 
@@ -49,15 +64,17 @@ export default function StaffSponsorsPage() {
     };
 
     const updatedSponsors = [...sponsorsList, newSponsor];
-    setSponsorsList(updatedSponsors);
-    setSponsorForm({ nome: "", logoUrl: "", linkUrl: "" });
-
     try {
+      if (new TextEncoder().encode(JSON.stringify({ list: updatedSponsors })).length > 900000) {
+        throw new Error('Lo spazio disponibile per i loghi è esaurito. Occorre ridurre i loghi già presenti.');
+      }
       await saveSponsors(updatedSponsors);
+      setSponsorsList(updatedSponsors);
+      setSponsorForm({ nome: "", logoUrl: "", linkUrl: "" });
       alert("Sponsor aggiunto con successo!");
     } catch (err) {
       console.error(err);
-      alert("Errore nel salvataggio dello sponsor.");
+      alert(err.message?.startsWith('Lo spazio') ? err.message : "Non è stato possibile salvare lo sponsor. Verifica la connessione e i permessi staff, poi riprova.");
     } finally {
       setIsSaving(false);
     }
@@ -67,10 +84,9 @@ export default function StaffSponsorsPage() {
     if (!confirm("Sei sicuro di voler eliminare questo sponsor?")) return;
     setIsSaving(true);
     const updatedSponsors = sponsorsList.filter((sp) => String(sp.id) !== String(id));
-    setSponsorsList(updatedSponsors);
-
     try {
       await saveSponsors(updatedSponsors);
+      setSponsorsList(updatedSponsors);
     } catch (err) {
       console.error(err);
       alert("Errore nell'eliminazione dello sponsor.");
@@ -119,11 +135,11 @@ export default function StaffSponsorsPage() {
 
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">
-                  Carica Logo (PNG/JPG max 1MB) *
+                  Carica Logo (PNG/JPG/WebP max 10 MB) *
                 </label>
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/png,image/jpeg,image/webp"
                   onChange={handleFileChange}
                   required={!sponsorForm.logoUrl}
                   className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-xs font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] file:mr-3 file:py-1 file:px-3 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:uppercase file:bg-[#0a1628] file:text-white hover:file:bg-[#FFD700] hover:file:text-[#0a1628] cursor-pointer"
@@ -160,7 +176,7 @@ export default function StaffSponsorsPage() {
 
             <button
               type="submit"
-              disabled={isSaving}
+              disabled={isSaving || loading}
               className="px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-white bg-[#0a1628] hover:bg-[#FFD700] hover:text-[#0a1628] hover:scale-105 active:scale-95 transition-all shadow-lg cursor-pointer"
             >
               {isSaving ? "Salvataggio..." : "Inserisci Sponsor ➕"}
