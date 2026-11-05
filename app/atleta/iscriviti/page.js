@@ -16,6 +16,7 @@ export default function AtletaIscriviti() {
   const [torneiLoading, setTorneiLoading] = useState(true);
   const [step, setStep] = useState(1); // 1: torneo, 2: dati, 3: conferma
   const [showModal, setShowModal] = useState(false);
+  const [emailStatus, setEmailStatus] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [errore, setErrore] = useState("");
   const [telefonoPrecompilato, setTelefonoPrecompilato] = useState(false);
@@ -221,6 +222,7 @@ export default function AtletaIscriviti() {
         throw new Error(json.error || "Errore durante il salvataggio.");
       }
 
+      setEmailStatus(json.emailStatus || null);
       setShowModal(true);
     } catch (e) {
       setErrore(e.message || "Errore durante l'invio. Riprova.");
@@ -706,11 +708,9 @@ export default function AtletaIscriviti() {
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-5 text-3xl">✅</div>
             <h2 className="text-2xl font-black text-[#0a1628] uppercase tracking-tighter mb-2">Iscrizione Inviata!</h2>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-loose mb-6">
-              La richiesta è stata trasmessa allo staff. Riceverai conferma a{" "}
-              <span className="text-[#0a1628]">{user?.primaryEmailAddress?.emailAddress || formData.email}</span>.
-              {!isIndividualTournament && formData.emailCompagno && (
-                <> Abbiamo inviato una notifica anche a <span className="text-[#0a1628]">{formData.emailCompagno}</span>.</>
-              )}
+              La richiesta è stata trasmessa allo staff.
+              {emailStatus?.atleta === true ? " Il servizio email ha accettato la conferma." : " Non è stato possibile confermare l'invio dell'email: contatta lo staff se non la ricevi."}
+              {emailStatus?.compagno === false && " Non è stato possibile inviare la notifica al compagno."}
             </p>
             <button
               onClick={() => {

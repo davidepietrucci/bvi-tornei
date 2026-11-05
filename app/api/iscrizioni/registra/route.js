@@ -184,10 +184,11 @@ export async function POST(request) {
     if (outcome instanceof Response) return outcome;
     const { nuovaIscrizione, matchTorneo, isIndividualTournament, partnerEmail, giocatori } = outcome;
 
-    // Invia l'email di conferma all'atleta
+    // L'iscrizione è già salvata; eventuali errori email non devono annullarla.
+    const emailStatus = { atleta: false, compagno: isIndividualTournament ? null : false };
     if (notificationEmail) {
       try {
-        await sendConfirmationEmail({
+        const result = await sendConfirmationEmail({
           email: notificationEmail,
           torneo: matchTorneo.nome,
           giocatori: String(giocatori).trim(),
@@ -195,6 +196,7 @@ export async function POST(request) {
           quota: matchTorneo.quota,
           note: note ? String(note).trim() : ""
         });
+        emailStatus.atleta = result?.success === true && !result?.isMock;
       } catch (emailError) {
         console.error("Errore nell'invio dell'email di conferma:", emailError);
       }
@@ -203,7 +205,7 @@ export async function POST(request) {
     // Invia l'email di notifica/invito al compagno di squadra (se torneo a coppie)
     if (!isIndividualTournament && partnerEmail) {
       try {
-        await sendPartnerInviteEmail({
+        const result = await sendPartnerInviteEmail({
           email: partnerEmail,
           partnerName: String(giocatore2).trim(),
           inviterName: athleteName,
@@ -211,6 +213,7 @@ export async function POST(request) {
           data: matchTorneo.data,
           quota: matchTorneo.quota,
         });
+        emailStatus.compagno = result?.success === true && !result?.isMock;
       } catch (inviteError) {
         console.error("Errore nell'invio dell'email al compagno:", inviteError);
       }
@@ -219,6 +222,7 @@ export async function POST(request) {
     return NextResponse.json(
       { 
         success: true, 
+        emailStatus,
         message: "Iscrizione avvenuta con successo!", 
         data: nuovaIscrizione 
       },

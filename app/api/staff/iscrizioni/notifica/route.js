@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { sendRegistrationApprovedEmail, sendRegistrationRejectedEmail } from "@/app/utils/email";
+import { sendConfirmationEmail, sendPartnerInviteEmail, sendRegistrationApprovedEmail, sendRegistrationRejectedEmail } from "@/app/utils/email";
+import { getIscrizioni, getTornei } from "@/app/utils/db-server";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,34 @@ export async function POST(req) {
 
     const body = await req.json();
     const { action, torneo, giocatori, emails, recipientName, data, quota, motivo } = body;
+
+    if (action === "resend_confirmation") {
+      if (!body.id) return NextResponse.json({ error: "Iscrizione non specificata." }, { status: 400 });
+      const [registrations, tournaments] = await Promise.all([getIscrizioni(), getTornei()]);
+      const registration = registrations.find((item) => String(item.id) === String(body.id));
+      if (!registration) return NextResponse.json({ error: "Iscrizione non trovata." }, { status: 404 });
+      if (registration.stato === "Annullata" || registration.stato === "Rifiutata") return NextResponse.json({ error: "Non è possibile reinviare la conferma per un'iscrizione annullata o rifiutata." }, { status: 400 });
+      const tournament = tournaments.find((item) => String(item.nome || "").trim().toLowerCase() === String(registration.torneo || "").trim().toLowerCase());
+      const primary = String(registration.atletaEmail1 || registration.email || "").trim();
+      const partner = String(registration.atletaEmail2 || registration.email2 || "").trim();
+      const validEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+      if (!validEmail(primary)) return NextResponse.json({ error: "L'iscrizione non contiene un'email valida per l'atleta principale." }, { status: 400 });
+      const tasks = [{ recipient: "atleta", send: () => sendConfirmationEmail({ email: primary, torneo: registration.torneo, giocatori: registration.giocatori, data: tournament?.data, quota: tournament?.quota, note: registration.note, risposte: registration.risposte }) }];
+      if (partner && partner.toLowerCase() !== primary.toLowerCase()) {
+        if (!validEmail(partner)) return NextResponse.json({ error: "L'email del compagno non è valida." }, { status: 400 });
+        tasks.push({ recipient: "compagno", send: () => sendPartnerInviteEmail({ email: partner, partnerName: registration.atleta2Nome || "", inviterName: registration.atleta1Nome || registration.giocatori, torneo: registration.torneo, data: tournament?.data, quota: tournament?.quota }) });
+      }
+      const results = await Promise.all(tasks.map(async ({ recipient, send }) => {
+        try {
+          const result = await send();
+          return { recipient, success: result?.success === true && !result?.isMock };
+        } catch (error) {
+          console.error("Errore reinvio conferma:", error);
+          return { recipient, success: false };
+        }
+      }));
+      return NextResponse.json({ success: results.every((result) => result.success), results });
+    }
 
     if (!torneo || !emails || (Array.isArray(emails) && emails.length === 0)) {
       return NextResponse.json({ error: "Parametri torneo o email mancanti." }, { status: 400 });

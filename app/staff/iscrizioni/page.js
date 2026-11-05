@@ -13,6 +13,7 @@ export default function StaffIscrizioni() {
   const [selectedTorneoFilter, setSelectedTorneoFilter] = useState("");
   const [selectedStatusFilter, setSelectedStatusFilter] = useState("Tutte");
   const [searchTerm, setSearchTerm] = useState("");
+  const [resendingId, setResendingId] = useState(null);
 
   // Detail modal for custom fields
   const [selectedIscrizioneDetail, setSelectedIscrizioneDetail] = useState(null);
@@ -155,6 +156,28 @@ export default function StaffIscrizioni() {
       });
     } catch (err) {
       console.error("Errore invio notifica email dallo staff:", err);
+    }
+  };
+
+  const resendConfirmation = async (registration) => {
+    if (resendingId !== null) return;
+    if (!window.confirm(`Reinviare la conferma per ${registration.giocatori} e l'eventuale invito al compagno?`)) return;
+    setResendingId(registration.id);
+    try {
+      const response = await fetch("/api/staff/iscrizioni/notifica", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "resend_confirmation", id: registration.id }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Impossibile reinviare la conferma.");
+      const failed = (result.results || []).filter((item) => !item.success).map((item) => item.recipient);
+      if (failed.length) alert(`Invio non riuscito per: ${failed.join(", ")}. Controlla il servizio email e i log.`);
+      else alert("Il servizio email ha accettato il reinvio. La consegna non è garantita: controlla anche lo spam.");
+    } catch (error) {
+      alert(error.message || "Impossibile reinviare la conferma.");
+    } finally {
+      setResendingId(null);
     }
   };
 
@@ -493,6 +516,16 @@ export default function StaffIscrizioni() {
 
                         {/* Azioni */}
                         <div className="flex gap-2 md:justify-end md:px-4 items-center">
+                            <button
+                                type="button"
+                                onClick={() => resendConfirmation(req)}
+                                disabled={resendingId !== null || req.stato === "Annullata" || req.stato === "Rifiutata"}
+                                className="flex-1 md:flex-none h-11 w-11 bg-amber-100 text-amber-800 rounded-xl font-black text-sm flex items-center justify-center disabled:opacity-40"
+                                title="Reinvia conferma di iscrizione"
+                                aria-label="Reinvia conferma di iscrizione"
+                            >
+                                {resendingId === req.id ? "…" : "✉"}
+                            </button>
                             <button 
                                 onClick={() => startEdit(req)}
                                 className="flex-1 md:flex-none h-11 w-11 bg-blue-500 text-white rounded-xl font-black text-sm flex items-center justify-center shadow-md shadow-blue-200 hover:scale-105 active:scale-95 transition-all"
