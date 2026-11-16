@@ -5,6 +5,8 @@ import { useState, useEffect } from "react";
 import { getTornei, getGironi, getBracket, getPublicIscrizioni, syncAssignmentsWithIscrizioni } from "@/app/utils/db";
 import { calculateUnifiedRanking, getSchedule as getScheduleShared } from "@/app/utils/ranking";
 import SponsorBanner from "@/app/components/SponsorBanner";
+import GialloTournament from "@/app/components/GialloTournament";
+import { isGiallo } from "@/app/utils/giallo";
 
 const capitalizeWord = (word) => {
   if (!word) return "";
@@ -1035,6 +1037,10 @@ export default function GironiPubblici() {
     return null;
   };
   const bgImage = getTournamentBgImage(selectedTorneoObj, selectedTorneo);
+
+  if (isGiallo(selectedTorneoObj)) return <main className="min-h-screen bg-[#f8faff] pb-20">
+    <GialloTournament tournament={selectedTorneoObj} tournaments={tornei} onSelect={setSelectedTorneo} />
+  </main>;
 
   return (
     <main className="min-h-screen bg-[#f0f4ff] pb-24 relative">

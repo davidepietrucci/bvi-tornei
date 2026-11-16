@@ -5,6 +5,8 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import StaffHeader from "@/app/components/StaffHeader";
+import GialloTournament from "@/app/components/GialloTournament";
+import { isGiallo } from "@/app/utils/giallo";
 import { getTornei, getGironi, getBracket } from "@/app/utils/db";
 import { calculateUnifiedRanking, getSchedule as getScheduleShared } from "@/app/utils/ranking";
 
@@ -364,6 +366,10 @@ function ClassificaContent() {
       );
     }
   };
+
+  if (isGiallo(selectedTorneoObj)) return <main className="min-h-screen bg-[#f8faff] pb-20"><StaffHeader />
+    <GialloTournament tournament={selectedTorneoObj} editable tournaments={tornei} onSelect={setSelectedTorneo} />
+  </main>;
 
   return (
     <main className="min-h-screen pb-20 bg-[#f8faff]">

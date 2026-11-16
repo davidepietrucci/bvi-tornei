@@ -1,6 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import GialloTournament from "@/app/components/GialloTournament";
+import { isGiallo } from "@/app/utils/giallo";
 import { useState, useEffect } from "react";
 import { getTornei, getGironi, getBracket } from "@/app/utils/db";
 import { getSchedule as getScheduleShared } from "@/app/utils/ranking";
@@ -313,6 +315,11 @@ export default function ClassificaPubblica() {
       );
     }
   };
+
+  const selectedGiallo = tornei.find((t) => t.nome === selectedTorneo && isGiallo(t));
+  if (selectedGiallo) return <main className="min-h-screen bg-[#f8faff] pb-20">
+    <GialloTournament tournament={selectedGiallo} tournaments={tornei} onSelect={setSelectedTorneo} />
+  </main>;
 
   return (
     <main className="min-h-screen bg-gray-50 pb-20 text-[#0a1628]">

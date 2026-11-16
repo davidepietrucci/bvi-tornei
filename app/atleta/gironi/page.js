@@ -1,4 +1,6 @@
 "use client";
+import GialloTournament from "@/app/components/GialloTournament";
+import { isGiallo } from "@/app/utils/giallo";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -746,6 +748,12 @@ export default function AtletaGironi() {
         <div className="w-16 h-16 border-4 border-[#0a1628] border-t-transparent rounded-full animate-spin"></div>
     </div>
   );
+
+  const selectedGiallo = torneiAttivi.find((t) => t.nome === selectedTorneo && isGiallo(t));
+  if (selectedGiallo && isLoaded && user) return <main className="min-h-screen bg-[#f8faff] pb-28 xl:pl-72">
+    <AthleteHeader />
+    <GialloTournament tournament={selectedGiallo} tournaments={torneiAttivi} onSelect={setSelectedTorneo} />
+  </main>;
 
   return (
     <main className="min-h-screen bg-[#f8faff] pb-28 xl:pb-10 xl:pl-72">

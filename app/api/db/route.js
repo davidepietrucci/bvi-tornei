@@ -9,8 +9,9 @@ import {
   getNotifiche, saveNotifiche,
   getStaff, saveStaff,
   getSponsors, saveSponsors,
-  getDbStatus, saveConfigIfUnchanged
+  getDbStatus, saveConfigIfUnchanged, getGiallo, saveGialloIfUnchanged
 } from "@/app/utils/db-server";
+import { validateGiallo, isGiallo, gialloSlug } from "@/app/utils/giallo";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -74,6 +75,11 @@ export async function GET(req) {
     }
     else if (type === "users") data = await getUsers();
     else if (type === "staff") data = await getStaff();
+    else if (type === "giallo") {
+      if (!slug || slug.includes("/") || slug.length > 300) return NextResponse.json({ error: "Torneo non valido" }, { status: 400 });
+      data = await getGiallo(slug);
+      if (role !== "admin" && role !== "staff" && !data?.published) data = null;
+    }
     else if (type === "gironi") data = await getGironi(slug);
     else if (type === "bracket") data = await getBracket(slug);
     else if (type === "notifiche") data = await getNotifiche();
@@ -112,7 +118,22 @@ export async function POST(req) {
     }
 
     // Controllo dei permessi di scrittura lato server
-    if (type === "staff") {
+    if (type === "giallo") {
+      if (!slug || typeof slug !== "string" || slug.includes("/") || slug.length > 300 || baseline === undefined) {
+        return NextResponse.json({ error: "Dati non aggiornati: ricarica il torneo." }, { status: 400 });
+      }
+      try { validateGiallo(data); } catch (error) {
+        return NextResponse.json({ error: error.message }, { status: 400 });
+      }
+      const tournaments = await getTornei();
+      const tournament = tournaments.find((t) => gialloSlug(t.nome) === slug && isGiallo(t));
+      if (!tournament) return NextResponse.json({ error: "Torneo giallo non trovato." }, { status: 404 });
+      const outcome = await saveGialloIfUnchanged(slug, data, baseline, tournament.nome);
+      if (outcome !== "saved") return NextResponse.json({ error: outcome === "conflict"
+        ? "Un altro staff ha modificato il torneo. Ricarica prima di salvare."
+        : "Gli iscritti approvati sono cambiati. Aggiorna gli iscritti e rigenera i gironi." }, { status: 409 });
+    }
+    else if (type === "staff") {
       await saveStaff(data);
     }
     else if (type === "tornei" || type === "gironi" || type === "bracket" || type === "iscrizioni" || type === "notifiche" || type === "sponsors") {

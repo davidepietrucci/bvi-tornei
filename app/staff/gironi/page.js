@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import StaffHeader from "@/app/components/StaffHeader";
+import GialloTournament from "@/app/components/GialloTournament";
+import { isGiallo } from "@/app/utils/giallo";
 import { getTornei, getIscrizioni, getGironi, saveGironi, syncAssignmentsWithIscrizioni } from "@/app/utils/db";
 import { getSchedule as getScheduleShared } from "@/app/utils/ranking";
 
@@ -66,6 +68,7 @@ export default function StaffGironi() {
   
   const [selectedAthlete, setSelectedAthlete] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
+  const selectedGiallo = torneiAttivi.find((t) => t.nome === selectedTorneo && isGiallo(t));
 
   const handleSlotClick = (gironeId, idx, playerInSlot) => {
     const hasPlayer = playerInSlot !== "—";
@@ -163,7 +166,7 @@ export default function StaffGironi() {
 
   // Auto-save whenever configurations change (after they have been fully loaded)
   useEffect(() => {
-    if (!selectedTorneo || !isLoaded) return;
+    if (!selectedTorneo || !isLoaded || selectedGiallo) return;
     const config = {
       numGironi,
       teamCounts,
@@ -185,7 +188,7 @@ export default function StaffGironi() {
     }, 1000);
 
     return () => clearTimeout(handler);
-  }, [numGironi, teamCounts, gironeTypes, gironeSets, gironeAssignments, matchMetadata, pubblicato, rankingType, selectedTorneo, isLoaded]);
+  }, [numGironi, teamCounts, gironeTypes, gironeSets, gironeAssignments, matchMetadata, pubblicato, rankingType, selectedTorneo, isLoaded, selectedGiallo]);
 
   const giocatoriFiltrati = tutteLeIscrizioni.filter(isc => {
     const tName = (isc.torneo || "").toLowerCase().trim();
@@ -526,6 +529,10 @@ export default function StaffGironi() {
       default: return { main: 'bg-gray-600', border: 'border-gray-600', light: 'bg-gray-50', inputBg: 'bg-gray-800/50' };
     }
   };
+
+  if (selectedGiallo) return <main className="min-h-screen bg-[#f8faff] pb-20"><StaffHeader />
+    <GialloTournament tournament={selectedGiallo} editable tournaments={torneiAttivi} onSelect={setSelectedTorneo} />
+  </main>;
 
   return (
     <main className="min-h-screen bg-[#f8faff] pb-20">

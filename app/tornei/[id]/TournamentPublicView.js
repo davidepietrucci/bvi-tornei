@@ -3,6 +3,8 @@
 import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import GialloTournament from "@/app/components/GialloTournament";
+import { isGiallo } from "@/app/utils/giallo";
 import { calculateSingleGroupStats, calculateUnifiedRanking } from "@/app/utils/ranking";
 
 export default function TournamentPublicView({
@@ -324,6 +326,8 @@ export default function TournamentPublicView({
         </div>
       </section>
 
+      {isGiallo(tournament) && <GialloTournament tournament={tournament} />}
+
       {/* SEZIONE IN LINEA: Informazioni Utili | Partecipanti (con popup) | Classifiche del Torneo */}
       <section id="classifica-section" className="mx-auto max-w-7xl px-5 pb-16 sm:px-8 sm:pb-20">
         <div className="mb-6 flex items-center justify-between">
@@ -449,6 +453,13 @@ export default function TournamentPublicView({
           </div>
 
           {/* CARD 3: Classifiche Torneo (visibili direttamente in linea con gli altri elementi) */}
+          {isGiallo(tournament) ? (
+            <div className="flex flex-col justify-between gap-5 rounded-2xl border border-[#101d2c]/10 bg-white p-6 shadow-sm sm:p-7">
+              <h3 className="text-2xl font-black">Classifica individuale giallo</h3>
+              <p className="text-sm text-[#657080]">Gironi con compagni a rotazione, classifica unica e tabellone finale sono disponibili nella sezione dedicata, aggiornata in tempo reale.</p>
+              <Link className="rounded-xl bg-[#101d2c] px-4 py-3 text-center text-sm font-bold text-white" href={`/classifica?tour=${encodeURIComponent(tournament.nome)}`}>Apri classifica e tabellone ↗</Link>
+            </div>
+          ) : (
           <div className="flex flex-col justify-between rounded-2xl border border-[#101d2c]/10 bg-white p-6 shadow-sm sm:p-7">
             <div>
               <div className="flex items-start justify-between gap-3">
@@ -604,6 +615,7 @@ export default function TournamentPublicView({
               </Link>
             </div>
           </div>
+          )}
 
         </div>
       </section>

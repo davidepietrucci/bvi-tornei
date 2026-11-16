@@ -3,6 +3,8 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import StaffHeader from "@/app/components/StaffHeader";
+import GialloTournament from "@/app/components/GialloTournament";
+import { isGiallo } from "@/app/utils/giallo";
 import { getTornei, getGironi, getBracket, saveBracket, getIscrizioni, syncAssignmentsWithIscrizioni } from "@/app/utils/db";
 import { calculateUnifiedRanking, getSchedule as getScheduleShared } from "@/app/utils/ranking";
 
@@ -67,6 +69,7 @@ function TabelloneContent() {
   const [groupCompositionMethod, setGroupCompositionMethod] = useState("girone"); // "girone" or "classifica"
   const [teamsToGold, setTeamsToGold] = useState(8);
   const [teamsToSilver, setTeamsToSilver] = useState(8);
+  const selectedGiallo = torneiAttivi.find((t) => t.nome === selectedTorneo && isGiallo(t));
 
   let goldSlots = 0;
   let silverSlots = 0;
@@ -141,7 +144,7 @@ function TabelloneContent() {
 
   // Auto-save whenever configurations change (after they have been fully loaded)
   useEffect(() => {
-    if (!selectedTorneo || !isLoaded) return;
+    if (!selectedTorneo || !isLoaded || selectedGiallo) return;
     const slug = selectedTorneo.toLowerCase().trim().replace(/\s+/g, '_');
     const config = { 
       phaseType, 
@@ -168,7 +171,7 @@ function TabelloneContent() {
     }, 1000);
 
     return () => clearTimeout(handler);
-  }, [phaseType, subPhaseType, bracketSize, bracketAssignments, bracketMetadata, selectedTorneo, isLoaded, numGoldGironiOpt, teamsPerGoldGirone, numSilverGironiOpt, teamsPerSilverGirone, groupCompositionMethod, teamsToGold, teamsToSilver, tabellonePubblicato]);
+  }, [phaseType, subPhaseType, bracketSize, bracketAssignments, bracketMetadata, selectedTorneo, isLoaded, numGoldGironiOpt, teamsPerGoldGirone, numSilverGironiOpt, teamsPerSilverGirone, groupCompositionMethod, teamsToGold, teamsToSilver, tabellonePubblicato, selectedGiallo]);
 
 
   const getTeamsCountForGroup = (groupKey) => {
@@ -375,7 +378,7 @@ function TabelloneContent() {
   };
 
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!isLoaded || selectedGiallo) return;
     const newAssignments = { ...bracketAssignments };
     let changed = false;
 
@@ -762,7 +765,7 @@ function TabelloneContent() {
     }
 
     if (changed) setBracketAssignments(newAssignments);
-  }, [bracketMetadata, bracketAssignments, isLoaded, phaseType, subPhaseType, numGironi, teamCounts, numGoldGironiOpt, numSilverGironiOpt, teamsPerGoldGirone, teamsPerSilverGirone]);
+  }, [bracketMetadata, bracketAssignments, isLoaded, phaseType, subPhaseType, numGironi, teamCounts, numGoldGironiOpt, numSilverGironiOpt, teamsPerGoldGirone, teamsPerSilverGirone, selectedGiallo]);
 
   // Calcola la Classifica Avulsa Gold per custom_18 (12 team: 1° e 2° dei gironi iniziali A-F)
   const getClassificaAvulsaGoldCustom18 = () => {
@@ -1912,6 +1915,10 @@ function TabelloneContent() {
       </div>
     );
   };
+
+  if (selectedGiallo) return <main className="min-h-screen bg-[#f8faff] pb-20"><StaffHeader />
+    <GialloTournament tournament={selectedGiallo} editable tournaments={torneiAttivi} onSelect={setSelectedTorneo} />
+  </main>;
 
   return (
     <main className="min-h-screen pb-20 bg-[#f8faff]">

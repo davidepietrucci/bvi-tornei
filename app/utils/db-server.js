@@ -3,6 +3,7 @@ import { getFirestore } from "firebase-admin/firestore";
 import fs from "fs";
 import path from "path";
 import { isDeepStrictEqual } from "node:util";
+import { approvedGialloAthletes } from "./giallo";
 
 let parsedServiceAccount = null;
 const jsonEnv = process.env.FIREBASE_SERVICE_ACCOUNT || process.env.FIREBASE_CONFIG_JSON || process.env.FIREBASE_CREDENTIALS;
@@ -244,6 +245,37 @@ export async function saveConfigIfUnchanged(type, list, baseline) {
 
 export async function getGironi(slug) {
   return getSpecificDoc("gironi", slug);
+}
+
+// Separate collection: the giallo never overwrites legacy group/bracket configurations.
+export async function getGiallo(slug) {
+  if (!db) throw new Error("Database Firestore non disponibile");
+  const snapshot = await db.collection("giallo").doc(slug).get();
+  return snapshot.data()?.data ?? null;
+}
+
+export async function saveGialloIfUnchanged(slug, data, baseline, tournamentName) {
+  if (!db) throw new Error("Database Firestore non disponibile");
+  const ref = db.collection("giallo").doc(slug);
+  const registrationsRef = db.collection("config").doc("iscrizioni");
+  return db.runTransaction(async (transaction) => {
+    const [snapshot, registrationsSnapshot] = await Promise.all([
+      transaction.get(ref), transaction.get(registrationsRef),
+    ]);
+    if (!isDeepStrictEqual(snapshot.data()?.data ?? null, baseline)) return "conflict";
+    const current = snapshot.data()?.data;
+    const previousGroups = current?.groups;
+    // Recheck approvals atomically when generating/regenerating, not while recording results.
+    if (!isDeepStrictEqual(previousGroups, data.groups)) {
+      const approved = approvedGialloAthletes(registrationsSnapshot.data()?.list ?? [], tournamentName);
+      const requestedIds = data.groups.flatMap((g) => g.athletes.map((a) => a.id)).sort();
+      if (!isDeepStrictEqual(approved.map((a) => a.id).sort(), requestedIds)) return "registrations_changed";
+      const names = new Map(approved.map((a) => [a.id, a.name]));
+      if (data.groups.some((g) => g.athletes.some((a) => names.get(a.id) !== a.name))) return "registrations_changed";
+    }
+    transaction.set(ref, { data: sanitizeData(data) });
+    return "saved";
+  });
 }
 export async function saveGironi(slug, data) {
   await saveSpecificDoc("gironi", slug, data);
