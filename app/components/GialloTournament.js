@@ -41,8 +41,10 @@ function Match({ game, score, editable, busy, onScore }) {
   </form>;
 }
 
-function GialloPanel({ tournament, editable }) {
-  const [view, setView] = useState("prepare");
+function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange, onSummary }) {
+  const [internalView, setInternalView] = useState("prepare");
+  const view = workflowView ?? internalView;
+  const setView = onWorkflowViewChange || setInternalView;
   const [activeGroup, setActiveGroup] = useState("A");
   const [config, setConfig] = useState(null);
   const [athletes, setAthletes] = useState([]);
@@ -53,6 +55,10 @@ function GialloPanel({ tournament, editable }) {
   const [reload, setReload] = useState(0);
   const [conflict, setConflict] = useState(false);
   const slug = gialloSlug(tournament.nome);
+  useEffect(() => {
+    onSummary?.({ groupsPublished: Boolean(config?.published), finalsPublished: Boolean(config?.published),
+      busy: loading || busy, groupCount: config?.groups.length || 0, approvedCount: athletes.length });
+  }, [onSummary, config, loading, busy, athletes.length]);
 
   useEffect(() => {
     let cancelled = false;
@@ -149,7 +155,7 @@ function GialloPanel({ tournament, editable }) {
         </div>
       </details>
     </div>
-    {editable && <nav aria-label="Passaggi del torneo giallo" className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+    {editable && workflowView === undefined && <nav aria-label="Passaggi del torneo giallo" className="grid grid-cols-2 gap-2 lg:grid-cols-4">
       {[{ id: "prepare", label: "Prepara i gironi", detail: "Controlla atleti e formula" },
         { id: "groups", label: "Gioca i gironi", detail: "Inserisci i risultati" },
         { id: "ranking", label: "Controlla la classifica", detail: "Verifica le qualificazioni" },
@@ -230,13 +236,13 @@ function GialloPanel({ tournament, editable }) {
   </div>;
 }
 
-export default function GialloTournament({ tournament, editable = false, tournaments, onSelect, embedded = false }) {
+export default function GialloTournament({ tournament, editable = false, tournaments, onSelect, embedded = false, workflowView, onWorkflowViewChange, onSummary }) {
   return <section className={embedded ? "space-y-5" : "mx-auto max-w-7xl space-y-5 px-4 py-8"}>
     {tournaments && <label className="block font-bold">Torneo
       <select className="ml-3 max-w-full rounded-xl border bg-white p-3" value={tournament.nome} onChange={(event) => onSelect(event.target.value)}>
         {tournaments.map((t) => <option key={t.id || t.nome} value={t.nome}>{t.nome}</option>)}
       </select>
     </label>}
-    <GialloPanel key={`${tournament.nome}-${editable}`} tournament={tournament} editable={editable} />
+    <GialloPanel key={`${tournament.nome}-${editable}`} tournament={tournament} editable={editable} workflowView={workflowView} onWorkflowViewChange={onWorkflowViewChange} onSummary={onSummary} />
   </section>;
 }

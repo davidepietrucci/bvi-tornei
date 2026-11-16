@@ -1,23 +1,30 @@
 # Torneo giallo
 
-La categoria deve contenere “Giallo”. La voce staff **Torneo giallo** apre il
-percorso dedicato `/staff/giallo`, separato dai tornei a squadre. I vecchi link a
-Gironi e Tabellone con un torneo giallo selezionato rimandano alla nuova pagina.
-La Classifica staff continua a consentire la consultazione di entrambi i formati.
-Gli altri formati conservano la logica precedente.
+La categoria deve contenere “Giallo”. La voce staff **Gestione torneo** apre
+`/staff/gestione-torneo`: un solo ingresso, con scelta tra **Tornei gialli** e
+**Tornei a squadre**. I vecchi indirizzi Giallo, Gironi, Classifica e Tabellone
+rimandano alla sezione corrispondente mantenendo il nome del torneo.
+Gli altri formati conservano le regole precedenti e gli stessi documenti salvati.
 
 ## Interfaccia staff
 
-Quattro passaggi: **Prepara i gironi**, **Gioca i gironi**, **Controlla la classifica**,
-**Crea il tabellone**. Nel secondo passaggio si visualizza un girone alla volta.
+Quattro passaggi condivisi: **Preparazione**, **Gironi**, **Classifica**,
+**Fase finale**. Nel giallo si visualizza un girone alla volta.
 La navigazione tra passaggi mantiene montati i moduli, per non perdere punteggi
 digitati e non ancora salvati. La rigenerazione è raccolta in un pannello avanzato,
 separato dal normale proseguimento del torneo. Pubblicazione e aggiornamento dal
 server restano comandi distinti dal salvataggio del risultato.
 
-I tornei a squadre hanno selezione e configurazione separate. Nella fase finale
+I tornei a squadre hanno configurazione propria dentro le stesse schede. Nella fase finale
 le formule sono presentate come scelte con spiegazione; azzeramenti e punteggi di
 test sono raccolti nelle opzioni avanzate.
+
+Il cambio di fase per le squadre attende il salvataggio dell'editor attivo. Un
+errore impedisce il cambio e viene mostrato, senza dichiarare un salvataggio
+riuscito. Le scritture nella stessa risorsa sono accodate per evitare che un
+autosave precedente superi un salvataggio esplicito. Le viste nascoste non
+salvano; classifica e finali rileggono i dati quando vengono aperte. Il semplice
+accesso a un editor senza configurazione non deve creare gironi/tabelloni vuoti.
 
 ## Generazione
 

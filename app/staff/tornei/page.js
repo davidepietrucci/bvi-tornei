@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import StaffHeader from "@/app/components/StaffHeader";
 import { getTornei, getIscrizioni } from "@/app/utils/db";
+import { managementHref } from "@/app/utils/tournament-workflow";
 
 export default function StaffTornei() {
   const router = useRouter();
@@ -108,10 +109,10 @@ export default function StaffTornei() {
                   Modifica
                 </button>
                 <button 
-                  onClick={() => router.push(`/staff/gironi?tour=${encodeURIComponent(torneo.nome)}`)}
+                  onClick={() => router.push(managementHref({ tour: torneo.nome }))}
                   className="flex-1 bg-white border-2 border-blue-100 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-sm cursor-pointer"
                 >
-                  Gironi
+                  Gestisci torneo
                 </button>
                 </div>
               </div>
