@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import StaffHeader from "@/app/components/StaffHeader";
+import TournamentSetupHeader from "@/app/components/TournamentSetupHeader";
 import GialloTournament from "@/app/components/GialloTournament";
 import { isGiallo } from "@/app/utils/giallo";
 import { getTornei, getIscrizioni, getGironi, saveGironi, syncAssignmentsWithIscrizioni } from "@/app/utils/db";
@@ -108,11 +109,15 @@ export default function StaffGironi() {
 
   useEffect(() => {
     getTornei().then(parsedTornei => {
-      const attivi = parsedTornei.filter(t => t.stato === "Iscrizioni Aperte" || t.stato === "In Programmazione");
+      const attivi = parsedTornei.filter(t => !isGiallo(t) && (t.stato === "Iscrizioni Aperte" || t.stato === "In Programmazione"));
       setTorneiAttivi(attivi);
       
       const params = new URLSearchParams(window.location.search);
       const urlTour = params.get('tour');
+      if (parsedTornei.some((t) => t.nome === urlTour && isGiallo(t))) {
+        window.location.replace(`/staff/giallo?tour=${encodeURIComponent(urlTour)}`);
+        return;
+      }
       
       if (urlTour && attivi.some(t => t.nome === urlTour)) {
         setSelectedTorneo(urlTour);
@@ -539,59 +544,24 @@ export default function StaffGironi() {
       <StaffHeader />
 
       <div className="max-w-[1400px] mx-auto px-4 mt-6 md:mt-10">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
-            <div>
-                <h2 className="text-3xl md:text-5xl font-black text-[#0a1628] uppercase tracking-tighter leading-none">Gestione Gironi 🏐</h2>
-                <p className="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-widest mt-2">Composizione e Risultati</p>
+        <TournamentSetupHeader tournaments={torneiAttivi} selected={selectedTorneo} onSelect={setSelectedTorneo} />
+        <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 text-[#0a1628]">
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+            <div><h2 className="text-xl font-bold">1. Prepara i gironi</h2><p className="mt-1 text-sm leading-6 text-slate-500">Imposta il numero di gironi, scegli il formato e distribuisci le squadre approvate.</p></div>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={handleRandomizeGironi} disabled={!selectedTorneo || !isLoaded} className="rounded-xl bg-[#FFD700] px-5 py-3 text-sm font-bold disabled:opacity-40">Sorteggia squadre</button>
+              <button onClick={handleSave} disabled={!selectedTorneo || !isLoaded} className="rounded-xl bg-[#0a1628] px-5 py-3 text-sm font-bold text-white disabled:opacity-40">Salva gironi</button>
             </div>
-            <div className="flex flex-wrap gap-2 w-full md:w-auto">
-                <select 
-                    className="flex-1 md:w-64 bg-white border-2 border-gray-100 rounded-2xl px-4 py-3 font-bold text-[#0a1628] text-sm shadow-xl"
-                    value={selectedTorneo}
-                    onChange={(e) => setSelectedTorneo(e.target.value)}
-                >
-                    {torneiAttivi.length > 0 ? torneiAttivi.map(t => (
-                        <option key={t.id} value={t.nome}>{t.nome}</option>
-                    )) : (
-                        <option>Nessun torneo attivo</option>
-                    )}
-                </select>
-                <button 
-                    onClick={handleRandomizeGironi}
-                    disabled={!selectedTorneo}
-                    className="flex-1 md:flex-none bg-[#FFD700] text-[#0a1628] px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all disabled:opacity-50"
-                >
-                    🎲 Sorteggia Coppie
-                </button>
-                <button 
-                    onClick={handleFillTestScores}
-                    disabled={!selectedTorneo}
-                    className="flex-1 md:flex-none bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all disabled:opacity-50"
-                >
-                    ⚡ Punteggi Test
-                </button>
-                <button 
-                    onClick={handleClearScores}
-                    disabled={!selectedTorneo}
-                    className="flex-1 md:flex-none bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all disabled:opacity-50"
-                >
-                    🧹 Azzera Punteggi
-                </button>
-                <button 
-                    onClick={handleSave}
-                    disabled={!selectedTorneo}
-                    className="flex-1 md:flex-none bg-[#0a1628] text-white px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all disabled:opacity-50"
-                >
-                    Salva Tutto
-                </button>
-                <button 
-                    onClick={handleDeleteGironi}
-                    disabled={!selectedTorneo}
-                    className="flex-1 md:flex-none bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all disabled:opacity-50"
-                >
-                    🗑️ Elimina
-                </button>
+          </div>
+          <p className="mt-4 border-t border-slate-100 pt-3 text-xs leading-5 text-slate-500">Le squadre si possono anche assegnare manualmente. Controlla composizione e formato prima di rendere i gironi visibili al pubblico.</p>
+          <details className="mt-4 border-t border-slate-100 pt-3"><summary className="cursor-pointer text-sm font-semibold text-slate-600">Opzioni avanzate e azzeramenti</summary>
+            <p className="my-3 text-xs text-slate-500">Usa i punteggi di test soltanto su un torneo di prova. Le altre azioni possono cancellare dati già inseriti.</p>
+            <div className="flex flex-wrap gap-3">
+              <button disabled={!selectedTorneo} onClick={handleFillTestScores} className="rounded-lg border px-3 py-2 text-sm">Inserisci punteggi di test</button>
+              <button disabled={!selectedTorneo} onClick={handleClearScores} className="rounded-lg border border-amber-200 px-3 py-2 text-sm text-amber-800">Azzera punteggi</button>
+              <button disabled={!selectedTorneo} onClick={handleDeleteGironi} className="rounded-lg border border-red-200 px-3 py-2 text-sm text-red-700">Elimina gironi</button>
             </div>
+          </details>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6">
@@ -599,7 +569,7 @@ export default function StaffGironi() {
             <div className="flex-1 space-y-8">
                 <div className="bg-white p-6 rounded-[2.5rem] shadow-xl border border-gray-100">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-gray-50 pb-4">
-                        <h3 className="text-sm font-black uppercase tracking-widest text-gray-400">Parametri Globali</h3>
+                        <div><h3 className="text-lg font-bold text-[#0a1628]">Configurazione dei gironi</h3><p className="mt-1 text-xs text-slate-500">Numero, formato di gioco e visibilità.</p></div>
                         <div className="flex flex-wrap items-center gap-6">
                             <div className="flex items-center gap-2">
                                 <span className="text-xs font-bold text-gray-500">Stato Gironi:</span>

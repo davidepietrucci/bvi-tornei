@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import StaffHeader from "@/app/components/StaffHeader";
+import TournamentSetupHeader from "@/app/components/TournamentSetupHeader";
 import GialloTournament from "@/app/components/GialloTournament";
 import { isGiallo } from "@/app/utils/giallo";
 import { getTornei, getGironi, getBracket, saveBracket, getIscrizioni, syncAssignmentsWithIscrizioni } from "@/app/utils/db";
@@ -87,7 +88,11 @@ function TabelloneContent() {
 
   useEffect(() => {
     getTornei().then(parsed => {
-      const attivi = parsed.filter(t => t.stato === "Iscrizioni Aperte" || t.stato === "In Programmazione");
+      const attivi = parsed.filter(t => !isGiallo(t) && (t.stato === "Iscrizioni Aperte" || t.stato === "In Programmazione"));
+      if (parsed.some((t) => t.nome === urlTour && isGiallo(t))) {
+        window.location.replace(`/staff/giallo?tour=${encodeURIComponent(urlTour)}`);
+        return;
+      }
       setTorneiAttivi(attivi);
       if (urlTour && attivi.some(t => t.nome === urlTour)) setSelectedTorneo(urlTour);
       else if (attivi.length > 0) setSelectedTorneo(attivi[0].nome);
@@ -1925,52 +1930,37 @@ function TabelloneContent() {
       <StaffHeader />
 
       <div className="max-w-7xl mx-auto mt-6 md:mt-10 px-4">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
-            <div>
-                <h2 className="text-3xl md:text-5xl font-black text-[#0a1628] uppercase tracking-tighter leading-none">Tabellone ⚔️</h2>
-                <p className="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-widest mt-2">Progressione Automatica Vincitori</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-                <select 
-                    className="flex-1 md:flex-none bg-white border-2 border-gray-100 rounded-xl px-4 py-3 font-bold text-[#0a1628] text-sm shadow-xl"
-                    value={selectedTorneo}
-                    onChange={(e) => setSelectedTorneo(e.target.value)}
-                >
-                    {torneiAttivi.length > 0 ? torneiAttivi.map(t => (
-                        <option key={t.id} value={t.nome}>{t.nome}</option>
-                    )) : (
-                        <option value="">Nessun torneo attivo</option>
-                    )}
-                </select>
-                <select className="flex-1 md:flex-none bg-white border-2 border-gray-100 rounded-xl px-4 py-3 font-bold text-[#0a1628] text-sm shadow-xl" value={phaseType} onChange={e=>setPhaseType(e.target.value)}>
-                    <option value="double">Doppia Elim.</option>
-                    <option value="single">Eliminazione Diretta</option>
-                    <option value="gold_silver">Gold & Silver</option>
-                </select>
-                {phaseType === "gold_silver" && (
-                  <select className="flex-1 md:flex-none bg-white border-2 border-gray-100 rounded-xl px-4 py-3 font-bold text-[#0a1628] text-sm shadow-xl" value={subPhaseType} onChange={e=>setSubPhaseType(e.target.value)}>
-                      <option value="direct">Eliminazione Diretta</option>
-                      <option value="groups">🔄 Gironi Intermedi (Standard)</option>
-                      <option value="pool_stepladder">🪜 Gironi Pool + Scaletta (Ottavi/Quarti/Semis)</option>
-                      <option value="custom_18">⭐ Personalizzato 18 squadre (Silver: 2 Gironi + Finali)</option>
-                  </select>
-                )}
-                <button onClick={handleAutoFill} disabled={!selectedTorneo} className="flex-1 md:flex-none bg-[#FFD700] text-[#0a1628] px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all disabled:opacity-50">🔄 GENERA</button>
-                <button onClick={handleSave} disabled={!selectedTorneo} className="flex-1 md:flex-none bg-[#10B981] hover:bg-[#059669] text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all disabled:opacity-50">💾 SALVA</button>
-                <button
-                  onClick={() => setTabellonePubblicato(v => !v)}
-                  disabled={!selectedTorneo}
-                  className={`flex-1 md:flex-none px-5 py-3 rounded-xl font-black text-xs uppercase tracking-wider shadow-lg active:scale-95 transition-all disabled:opacity-50 ${
-                    tabellonePubblicato
-                      ? 'bg-green-100 text-green-700 border-2 border-green-300'
-                      : 'bg-amber-100 text-amber-700 border-2 border-amber-300'
-                  }`}
-                >
-                  {tabellonePubblicato ? '🟢 Tabellone: Visibile' : '🟡 Tabellone: Nascosto'}
-                </button>
-                <button onClick={handleDeleteBracket} disabled={!selectedTorneo} className="flex-1 md:flex-none bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all disabled:opacity-50">🗑️ ELIMINA</button>
-            </div>
-        </div>
+        <TournamentSetupHeader step="finals" tournaments={torneiAttivi} selected={selectedTorneo} onSelect={setSelectedTorneo} />
+        <section className="mb-6 space-y-5 rounded-2xl border border-slate-200 bg-white p-5 text-[#0a1628]">
+          <div><h2 className="text-xl font-bold">2. Scegli la fase finale</h2><p className="mt-1 text-sm leading-6 text-slate-500">Scegli la formula, controlla le qualificazioni qui sotto, poi genera gli abbinamenti dai gironi.</p></div>
+          <div className="grid gap-3 sm:grid-cols-3" role="group" aria-label="Formula fase finale">
+            {[{ id: "single", title: "Eliminazione diretta", text: "Un solo tabellone: chi vince avanza." },
+              { id: "gold_silver", title: "Gold e Silver", text: "Due percorsi in base ai risultati iniziali." },
+              { id: "double", title: "Doppia eliminazione", text: "Tabellone vincenti e recupero perdenti." }].map((format) => <button key={format.id} type="button" aria-pressed={phaseType === format.id} disabled={!selectedTorneo || !isLoaded}
+                onClick={() => setPhaseType(format.id)} className={`rounded-xl border p-4 text-left disabled:opacity-40 ${phaseType === format.id ? "border-[#0a1628] bg-slate-50 ring-1 ring-[#0a1628]" : "border-slate-200 hover:border-slate-400"}`}>
+                <span className="block text-sm font-bold">{format.title}</span><span className="mt-2 block text-xs leading-5 text-slate-500">{format.text}</span>
+              </button>)}
+          </div>
+          {phaseType === "gold_silver" && <label className="block max-w-xl text-sm font-bold">Percorso Gold e Silver
+            <select className="mt-2 w-full rounded-xl border border-slate-300 bg-slate-50 p-3 text-sm" value={subPhaseType} onChange={(e) => setSubPhaseType(e.target.value)}>
+              <option value="direct">Accesso diretto ai tabelloni finali</option>
+              <option value="groups">Gironi intermedi standard</option>
+              <option value="pool_stepladder">Pool e turni progressivi</option>
+              <option value="custom_18">Personalizzato 18 squadre</option>
+            </select>
+          </label>}
+          <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
+            <button onClick={handleAutoFill} disabled={!selectedTorneo || !isLoaded} className="rounded-xl bg-[#FFD700] px-5 py-3 text-sm font-bold disabled:opacity-40">Genera abbinamenti</button>
+            <button onClick={handleSave} disabled={!selectedTorneo || !isLoaded} className="rounded-xl bg-[#0a1628] px-5 py-3 text-sm font-bold text-white disabled:opacity-40">Salva tabellone</button>
+            <button onClick={() => setTabellonePubblicato((v) => !v)} disabled={!selectedTorneo || !isLoaded} className={`rounded-xl border px-4 py-3 text-sm font-semibold disabled:opacity-40 ${tabellonePubblicato ? "border-green-200 bg-green-50 text-green-800" : "border-slate-200 text-slate-600"}`}>
+              {tabellonePubblicato ? "Pubblicato · Nascondi" : "Bozza · Pubblica"}
+            </button>
+          </div>
+          <details className="border-t border-slate-100 pt-3"><summary className="cursor-pointer text-sm font-semibold text-slate-600">Opzioni avanzate e azzeramenti</summary>
+            <p className="my-3 text-xs text-slate-500">L’eliminazione rimuove il tabellone e i risultati della fase finale del torneo selezionato.</p>
+            <button onClick={handleDeleteBracket} disabled={!selectedTorneo || !isLoaded} className="rounded-lg border border-red-200 px-3 py-2 text-sm text-red-700">Elimina tabellone</button>
+          </details>
+        </section>
 
         {isLoaded && torneiAttivi.length > 0 && (phaseType === "gold_silver" || phaseType === "single") && (
           <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-xl mb-8 flex flex-col md:flex-row gap-6 items-stretch md:items-center justify-between">

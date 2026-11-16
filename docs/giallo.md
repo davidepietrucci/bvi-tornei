@@ -1,7 +1,23 @@
 # Torneo giallo
 
-La categoria deve contenere “Giallo”. Le pagine staff Gironi, Tabellone e Classifica
-aprono il gestore dedicato. Gli altri formati conservano la logica precedente.
+La categoria deve contenere “Giallo”. La voce staff **Torneo giallo** apre il
+percorso dedicato `/staff/giallo`, separato dai tornei a squadre. I vecchi link a
+Gironi e Tabellone con un torneo giallo selezionato rimandano alla nuova pagina.
+La Classifica staff continua a consentire la consultazione di entrambi i formati.
+Gli altri formati conservano la logica precedente.
+
+## Interfaccia staff
+
+Quattro passaggi: **Prepara i gironi**, **Gioca i gironi**, **Controlla la classifica**,
+**Crea il tabellone**. Nel secondo passaggio si visualizza un girone alla volta.
+La navigazione tra passaggi mantiene montati i moduli, per non perdere punteggi
+digitati e non ancora salvati. La rigenerazione è raccolta in un pannello avanzato,
+separato dal normale proseguimento del torneo. Pubblicazione e aggiornamento dal
+server restano comandi distinti dal salvataggio del risultato.
+
+I tornei a squadre hanno selezione e configurazione separate. Nella fase finale
+le formule sono presentate come scelte con spiegazione; azzeramenti e punteggi di
+test sono raccolti nelle opzioni avanzate.
 
 ## Generazione
 

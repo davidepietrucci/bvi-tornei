@@ -12,6 +12,7 @@ const MENU_ITEMS = [
   { name: "Anagrafica Atleti", path: "/staff/atleti", icon: "♙", adminOnly: true },
   { name: "Tornei", path: "/staff/tornei", icon: "🏆" },
   { name: "Tour", path: "/staff/tour", icon: "↗" },
+  { name: "Torneo giallo", path: "/staff/giallo", icon: "↻" },
   { name: "Gironi", path: "/staff/gironi", icon: "▦" },
   { name: "Tabellone", path: "/staff/tabellone", icon: "⌘" },
   { name: "Classifica", path: "/staff/classifica", icon: "☰" },
