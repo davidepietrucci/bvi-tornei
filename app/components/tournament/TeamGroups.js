@@ -9,7 +9,7 @@ import { isGiallo } from "@/app/utils/giallo";
 import { getTornei, getIscrizioni, syncAssignmentsWithIscrizioni } from "@/app/utils/db";
 import { getSchedule as getScheduleShared } from "@/app/utils/ranking";
 import MatchScoreEntry from "@/app/components/tournament/MatchScoreEntry";
-import { applyTeamGroupScore, teamGroupMatches } from "@/app/utils/match-scoring";
+import { applyTeamGroupScore, applyTeamMatchDetails, teamGroupMatches } from "@/app/utils/match-scoring";
 
 const capitalizeWord = (word) => {
   if (!word) return "";
@@ -83,7 +83,7 @@ export default function TeamGroups({ tournament = null, embedded = false, active
     gironeAssignments, matchMetadata, pubblicato, rankingType }),
   [numGironi, teamCounts, gironeTypes, gironeSets, gironeAssignments, matchMetadata, pubblicato, rankingType]);
   const persist = async (force = false) => {
-    if (scoreDrafts) throw new Error("Ci sono punteggi non salvati. Usa Salva risultato o Annulla modifiche prima di cambiare sezione.");
+    if (scoreDrafts) throw new Error("Ci sono modifiche alle partite non salvate. Salva punteggi e gestione partita oppure annulla le modifiche prima di cambiare sezione.");
     if (!isLoaded) throw new Error("Attendi il caricamento dei gironi.");
     if (!force && savedFingerprint.current === "null" && !Object.keys(gironeAssignments).length && !pubblicato) return;
     if (savedFingerprint.current === JSON.stringify(currentConfig)) return;
@@ -106,8 +106,9 @@ export default function TeamGroups({ tournament = null, embedded = false, active
     finally { setPublishing(false); onSummary?.({ busy: false }); }
   };
   const scoringGroups = useMemo(() => teamGroupMatches(currentConfig), [currentConfig]);
-  const recordGroupScore = async (game, score) => {
+  const recordGroupScore = async (game, score, details) => {
     const outcome = applyTeamGroupScore(currentConfig, game.id, score);
+    if (details) outcome.config = applyTeamMatchDetails(outcome.config, game.id, details);
     if (outcome.cleared.length && !window.confirm("La correzione cambia le coppie degli incontri successivi della pool. I loro risultati saranno azzerati, mantenendo campo e orario. Continuare?")) return false;
     clearTimeout(pendingTimer.current);
     onSummary?.({ busy: true });
@@ -116,6 +117,17 @@ export default function TeamGroups({ tournament = null, embedded = false, active
       savedFingerprint.current = JSON.stringify(outcome.config);
       setMatchMetadata(outcome.config.matchMetadata); setSaveError("");
       onSummary?.({ groupsPublished: outcome.config.pubblicato });
+      return true;
+    } catch (error) { setSaveError(error.message); throw error; }
+    finally { onSummary?.({ busy: false }); }
+  };
+
+  const recordMatchDetails = async (game, details) => {
+    const next = applyTeamMatchDetails(currentConfig, game.id, details);
+    clearTimeout(pendingTimer.current); onSummary?.({ busy: true });
+    try {
+      await saveWorkflowConfig("gironi", selectedTorneo.toLowerCase().trim().replace(/\s+/g, "_"), next);
+      savedFingerprint.current = JSON.stringify(next); setMatchMetadata(next.matchMetadata); setSaveError("");
       return true;
     } catch (error) { setSaveError(error.message); throw error; }
     finally { onSummary?.({ busy: false }); }
@@ -317,16 +329,6 @@ export default function TeamGroups({ tournament = null, embedded = false, active
 
   const handleSetsChange = (gironeId, sets) => {
     setGironeSets(prev => ({ ...prev, [gironeId]: sets }));
-  };
-
-  const handleMetadataChange = (gironeId, matchIdx, field, value) => {
-    setMatchMetadata(prev => ({
-      ...prev,
-      [`${gironeId}-${matchIdx}`]: {
-        ...(prev[`${gironeId}-${matchIdx}`] || {}),
-        [field]: value
-      }
-    }));
   };
 
   const handleSave = async () => {
@@ -603,13 +605,13 @@ export default function TeamGroups({ tournament = null, embedded = false, active
         {saveError && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-red-800">{saveError}</p>}
         <p role="status" className="mb-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">{tournament?.stato === "Concluso" ? "Torneo concluso. " : ""}Gironi {pubblicato ? "visibili" : "nascosti"} al pubblico. La visibilità della fase finale si sceglie separatamente nella sezione Fase finale.</p>
         <nav aria-label="Modalità gestione gironi" className="mb-6 flex flex-wrap gap-2">
-          {[{ id: "setup", label: "Composizione, campi e orari" }, { id: "results", label: "Segna risultati" }].map((mode) => <button key={mode.id} type="button" aria-pressed={entryMode === mode.id} onClick={() => {
-            if (scoreDrafts && mode.id === "setup") { setSaveError("Salva o scarta le bozze dei punteggi prima di cambiare composizione."); return; }
+          {[{ id: "setup", label: "Composizione gironi" }, { id: "results", label: "Segna risultati e gestisci partite" }].map((mode) => <button key={mode.id} type="button" aria-pressed={entryMode === mode.id} onClick={() => {
+            if (scoreDrafts && mode.id === "setup") { setSaveError("Salva o scarta le modifiche a punteggi e gestione partita prima di cambiare composizione."); return; }
             setEntryMode(mode.id); setSaveError("");
           }} className={`rounded-xl border px-4 py-3 text-sm font-bold ${entryMode === mode.id ? "border-[#0a1628] bg-[#0a1628] text-white" : "border-slate-200 bg-white"}`}>{mode.label}</button>)}
         </nav>
         <section hidden={entryMode !== "results"}>
-          {isLoaded ? <MatchScoreEntry groups={scoringGroups} onSave={recordGroupScore} onClear={(game) => recordGroupScore(game, null)} onDirtyChange={setScoreDrafts} /> : <p role="status">Caricamento partite…</p>}
+          {isLoaded ? <MatchScoreEntry groups={scoringGroups} onSave={recordGroupScore} onSaveDetails={recordMatchDetails} onClear={(game) => recordGroupScore(game, null)} onDirtyChange={setScoreDrafts} /> : <p role="status">Caricamento partite…</p>}
         </section>
         <div hidden={entryMode !== "setup"} className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 text-[#0a1628]">
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
@@ -767,7 +769,8 @@ export default function TeamGroups({ tournament = null, embedded = false, active
 
                 {/* Partite */}
                 <div className="bg-white p-6 rounded-[2.5rem] shadow-xl border border-gray-100">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-gray-400 mb-8">Campi e orari delle partite</h3>
+                    <h3 className="text-sm font-black uppercase tracking-widest text-gray-400 mb-2">Riepilogo partite</h3>
+                    <p className="mb-6 text-xs text-slate-500">Campo, orario e stato si modificano in Segna risultati e gestisci partite.</p>
                     <div className="space-y-10">
                         {gironi.map((g) => {
                             const c = getColors(g.colorClass);
@@ -790,8 +793,7 @@ export default function TeamGroups({ tournament = null, embedded = false, active
                                                     <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-1">
                                                         <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Gara {idx + 1}</span>
                                                         <div className="flex gap-2">
-                                                            <input type="text" placeholder="hh:mm" value={meta.time || ""} onChange={(e) => handleMetadataChange(g.id, idx, 'time', e.target.value)} className="w-12 bg-white border border-gray-200 rounded-lg text-[10px] py-1 text-center font-bold text-gray-900" />
-                                                            <input type="text" placeholder="C." value={meta.court || ""} onChange={(e) => handleMetadataChange(g.id, idx, 'court', e.target.value)} className="w-8 bg-white border border-gray-200 rounded-lg text-[10px] py-1 text-center font-bold text-gray-900" />
+                                                            <span className="text-[10px] text-slate-500">{[meta.time, meta.court && `Campo ${meta.court}`].filter(Boolean).join(" · ") || "Da programmare"}</span>
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center justify-between gap-4">

@@ -945,9 +945,10 @@ export default function PortaleLiveMobile() {
         id={`${matchKeyPrefix}-${idx}`}
         className="bg-white rounded-[1.6rem] p-5 border border-gray-100 shadow-sm flex flex-col gap-3 transition-all"
       >
-        <div className="flex justify-between items-center text-[10px] sm:text-[11px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 pb-2">
+        <div className="flex flex-wrap gap-2 justify-between items-center text-[10px] sm:text-[11px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 pb-2">
           <span>{matchLabel || (gironeId ? `Girone ${gironeId.replace("gold-", "Gold ").replace("silver-", "Silver ")}` : `Gara ${idx + 1}`)}</span>
-          <div className="flex gap-1.5">
+          <div className="flex flex-wrap gap-1.5">
+            <span className={`rounded-lg px-3 py-1 text-[10px] font-bold ${meta?.status === "in_progress" && !hasScore ? "bg-amber-50 text-amber-800" : "bg-slate-50 text-slate-600"}`}>{hasScore ? "Terminata" : meta?.status === "in_progress" ? "In corso" : "Da giocare"}</span>
             {meta?.time && (
               <span className="bg-gray-50 text-gray-500 px-3 py-1 rounded-lg text-[10px] font-bold">{meta.time}</span>
             )}

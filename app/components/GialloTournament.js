@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import MatchScoreEntry from "@/app/components/tournament/MatchScoreEntry";
+import { validateMatchDetails } from "@/app/utils/match-scoring";
 import {
   approvedGialloAthletes, createGiallo, gialloRanking, gialloSlug, gialloStages,
   groupGames, groupsComplete, setGialloScore, startGialloFinals, supportedGialloCount,
@@ -19,7 +20,7 @@ async function readData(type, slug) {
   return json.data;
 }
 
-function Match({ game, score, editable, busy, onScore }) {
+function Match({ game, score, editable, busy, onScore, details }) {
   const [left, setLeft] = useState(score?.[0] ?? "");
   const [right, setRight] = useState(score?.[1] ?? "");
   return <form className="rounded-xl border border-gray-200 bg-white p-4" onSubmit={(event) => {
@@ -28,6 +29,7 @@ function Match({ game, score, editable, busy, onScore }) {
     onScore(game.id, [Number(left), Number(right)]);
   }}>
     <p className="mb-3 text-xs font-bold text-gray-500">Partita {Number(game.id.split("-").at(-1)) + 1} · Set unico a 21</p>
+    {details && <p className="mb-3 text-xs font-semibold text-slate-600">{[details.court && `Campo ${details.court}`, details.time && `Ore ${details.time}`, score ? "Terminata" : details.status === "in_progress" ? "In corso" : "Da giocare"].filter(Boolean).join(" · ")}</p>}
     {[game.left, game.right].map((pair, side) => <div key={side} className="my-2 flex items-center justify-between gap-3">
       <span className="font-semibold">{pair.map((athlete) => athlete.name).join(" + ")}</span>
       {editable ? <input aria-label={`Punti ${side === 0 ? "prima" : "seconda"} coppia ${game.id}`} type="number" min="0" step="1" required
@@ -114,13 +116,17 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
     finally { setBusy(false); }
   };
 
-  const recordScore = async (id, score) => {
+  const recordScore = async (id, score, details) => {
     if (JSON.stringify(config.results[id] ?? config.finals?.results[id] ?? null) === JSON.stringify(score)) return true;
     const isGroup = id.startsWith("group-");
     if ((isGroup && config.finals || !isGroup && Object.keys(config.finals?.results || {}).length > 0) &&
       !window.confirm(isGroup ? "La modifica annullerà il tabellone finale e i suoi risultati. Continuare?"
         : "La modifica cancellerà i risultati dei turni successivi, che saranno ricalcolati. Continuare?")) return false;
-    try { return await persist(setGialloScore(config, id, score)); } catch (reason) { setError(reason.message); return false; }
+    try {
+      const next = setGialloScore(config, id, score);
+      if (details) next.matchMetadata = { ...next.matchMetadata, [id]: details };
+      return await persist(next);
+    } catch (reason) { setError(reason.message); return false; }
   };
 
   if (loading) return <p className="p-6" role="status">Caricamento torneo giallo…</p>;
@@ -175,7 +181,7 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
         <div className="flex flex-wrap gap-2">
           {config && <button className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold disabled:opacity-40" disabled={disabled} onClick={() => persist({ ...config, published: !config.published })}>{config.published ? "Nascondi al pubblico" : "Pubblica torneo"}</button>}
           <button className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-600 disabled:opacity-40" disabled={busy} onClick={() => {
-            if (!window.confirm("Aggiornare dal server? Eventuali punteggi digitati ma non salvati andranno persi.")) return;
+            if (!window.confirm("Aggiornare dal server? Le modifiche non salvate a punteggi, campo, orario e stato andranno perse.")) return;
             setMessage(""); setLoading(true); setReload((n) => n + 1);
           }}>Aggiorna dati</button>
         </div>
@@ -199,12 +205,13 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
         {editable && <MatchScoreEntry groups={config.groups.map((g) => ({ id: g.id, label: `Girone ${g.id}`, matches: groupGames(g).map((game) => ({
           id: game.id, left: game.left.map((a) => a.name), right: game.right.map((a) => a.name),
           score: config.results[game.id] ? [config.results[game.id]] : [], ready: true, bestOf: 1, target: 21,
-        })) }))} disabled={disabled} onDirtyChange={setScoreDrafts} onSave={(game, sets) => recordScore(game.id, sets[0])} onClear={(game) => recordScore(game.id, null)} />}
+          court: config.matchMetadata?.[game.id]?.court, time: config.matchMetadata?.[game.id]?.time, status: config.matchMetadata?.[game.id]?.status,
+        })) }))} disabled={disabled} onDirtyChange={setScoreDrafts} onSave={(game, sets, details) => recordScore(game.id, sets[0], details)} onClear={(game) => recordScore(game.id, null)} onSaveDetails={(game, details) => persist({ ...config, matchMetadata: { ...config.matchMetadata, [game.id]: validateMatchDetails(game, details) } })} />}
       {!editable && <div className="grid gap-5 lg:grid-cols-2">
         {config.groups.map((group) => <section key={group.id} className="space-y-3 rounded-2xl bg-slate-100 p-4">
           <h3 className="text-xl font-black">Girone {group.id}</h3>
           <p className="text-sm">{group.athletes.map((a) => a.name).join(" · ")}</p>
-          {groupGames(group).map((game) => <Match key={`${game.id}-${JSON.stringify(config.results[game.id])}`} game={game} score={config.results[game.id]} editable={editable} busy={disabled} onScore={recordScore} />)}
+          {groupGames(group).map((game) => <Match key={`${game.id}-${JSON.stringify(config.results[game.id])}`} game={game} score={config.results[game.id]} details={config.matchMetadata?.[game.id]} editable={editable} busy={disabled} onScore={recordScore} />)}
         </section>)}
       </div>
       }

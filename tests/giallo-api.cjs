@@ -45,6 +45,12 @@ class NextResponse extends Response {
   assert.equal((await post({ data: { ...valid, results: { 'group-A-0': [21, 20] } } })).status, 400);
   assert.equal((await post({ data: { ...valid, groups: [valid.groups[0]] } })).status, 400);
   assert.equal((await post({ slug: 'other' })).status, 404);
+  const matchMetadata = { 'group-A-0': { court: 'Sabbia A', time: '14:30', status: 'in_progress' } };
+  assert.equal((await post({ data: { ...valid, matchMetadata } })).status, 200);
+  for (const invalid of [{ time: '26:00' }, { status: 'finished' }, { court: 'x'.repeat(41) }, { status: 'unknown' }]) {
+    assert.equal((await post({ data: { ...valid, matchMetadata: { 'group-A-0': { ...matchMetadata['group-A-0'], ...invalid } } } })).status, 400);
+  }
+  assert.equal((await post({ data: { ...valid, matchMetadata: { nonexistent: matchMetadata['group-A-0'] } } })).status, 400);
   outcome = 'conflict'; assert.equal((await post()).status, 409);
   outcome = 'registrations_changed'; assert.equal((await post()).status, 409);
   outcome = 'saved'; unavailable = true;

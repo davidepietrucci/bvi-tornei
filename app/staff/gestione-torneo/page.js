@@ -123,7 +123,7 @@ export default function TournamentManagement() {
     if (next === step || navigating || (!internal && summary.busy)) return;
     setNavigating(true); setError("");
     try {
-      if (step === "groups" && summary.scoreDrafts) throw new Error("Ci sono punteggi non salvati. Salva o scarta le bozze prima di cambiare sezione.");
+      if (step === "groups" && summary.scoreDrafts) throw new Error("Ci sono modifiche alle partite non salvate. Salva o scarta le bozze prima di cambiare sezione.");
       await workspaceRef.current?.flush();
       setStep(next); updateUrl(family, selected, next);
     } catch (reason) { setError(reason.message); }
@@ -134,7 +134,7 @@ export default function TournamentManagement() {
     setNavigating(true); setError("");
     try {
       await workspaceRef.current?.flush();
-      if (family === "giallo" && selected && !window.confirm("Cambiare torneo? I punteggi digitati ma non salvati dal relativo pulsante andranno persi.")) return;
+      if (family === "giallo" && selected && !window.confirm("Cambiare torneo? Le modifiche non salvate a punteggi, campo, orario e stato andranno perse.")) return;
       setSummary({}); setFamily(nextFamily); setSelected(name); setStep("prepare");
       updateUrl(nextFamily, name, "prepare");
     } catch (reason) { setError(reason.message); }

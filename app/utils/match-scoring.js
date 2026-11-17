@@ -38,6 +38,32 @@ export function matchIdentity(match) {
   return JSON.stringify([match.id, match.left, match.right, match.bestOf || 1]);
 }
 
+export function matchStatus(match) {
+  if (completedMatch(match)) return "finished";
+  return match.ready !== false && match.status === "in_progress" ? "in_progress" : "scheduled";
+}
+
+export function validateMatchDetails(match, details, score = undefined) {
+  const court = String(details.court || "").trim();
+  const time = String(details.time || "").trim();
+  if (court.length > 40) throw new Error("Il nome del campo può contenere al massimo 40 caratteri.");
+  if (time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) throw new Error("Inserisci un orario valido nel formato HH:mm.");
+  const status = score !== undefined && score !== null ? "finished" : details.status;
+  if (!["scheduled", "in_progress", "finished"].includes(status)) throw new Error("Seleziona uno stato valido per la partita.");
+  if (status === "in_progress" && match.ready === false) throw new Error("Attendi che entrambe le squadre siano definite prima di avviare la partita.");
+  const done = score !== undefined ? score !== null : completedMatch(match);
+  if (status === "finished" && !done) throw new Error("Per terminare la partita inserisci e salva un risultato valido.");
+  if (status !== "finished" && done) throw new Error("Rimuovi prima il risultato salvato per riaprire la partita.");
+  return { court, time, status };
+}
+
+export function applyTeamMatchDetails(config, matchId, details) {
+  const match = teamGroupMatches(config).flatMap((g) => g.matches).find((m) => m.id === matchId);
+  if (!match) throw new Error("Partita non trovata.");
+  const validated = validateMatchDetails(match, details);
+  return { ...config, matchMetadata: { ...config.matchMetadata, [matchId]: { ...config.matchMetadata[matchId], ...validated } } };
+}
+
 export function teamGroupMatches(config) {
   return Array.from({ length: config.numGironi }, (_, i) => {
     const id = String.fromCharCode(65 + i);
@@ -47,7 +73,7 @@ export function teamGroupMatches(config) {
     return { id, label: `Girone ${id}`, matches: getSchedule(config.teamCounts[id], id, assignments, config.gironeTypes, config.gironeSets, config.matchMetadata).map((game, index) => {
       const meta = config.matchMetadata[`${id}-${index}`] || {};
       return { id: `${id}-${index}`, groupId: id, index, left: [game.left], right: [game.right], bestOf,
-        ready: known.has(game.left) && known.has(game.right), court: meta.court || "", time: meta.time || "",
+        ready: known.has(game.left) && known.has(game.right), court: meta.court || "", time: meta.time || "", status: meta.status,
         score: Array.from({ length: bestOf }, (_, set) => [meta[`s${set + 1}L`] ?? "", meta[`s${set + 1}R`] ?? ""]),
       };
     }) };
@@ -64,6 +90,7 @@ export function applyTeamGroupScore(config, matchId, sets) {
   const metadata = { ...(next.matchMetadata[matchId] || {}) };
   for (const key of Object.keys(metadata)) if (/^s[123][LR]$/.test(key)) delete metadata[key];
   validated.forEach((pair, i) => { metadata[`s${i + 1}L`] = String(pair[0]); metadata[`s${i + 1}R`] = String(pair[1]); });
+  metadata.status = sets === null ? "scheduled" : "finished";
   next.matchMetadata[matchId] = metadata;
   const after = teamGroupMatches(next).find((g) => g.id === group.id);
   const cleared = [];
@@ -72,6 +99,7 @@ export function applyTeamGroupScore(config, matchId, sets) {
     const old = next.matchMetadata[game.id] || {};
     if (Object.keys(old).some((key) => /^s[123][LR]$/.test(key) && old[key] !== "")) cleared.push(game.id);
     next.matchMetadata[game.id] = Object.fromEntries(Object.entries(old).filter(([key]) => !/^s[123][LR]$/.test(key)));
+    next.matchMetadata[game.id].status = "scheduled";
   });
   return { config: next, cleared };
 }

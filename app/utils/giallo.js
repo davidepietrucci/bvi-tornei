@@ -148,6 +148,7 @@ export function setGialloScore(config, gameId, score) {
   const groupIds = next.groups.flatMap(groupGames).map((g) => g.id);
   if (groupIds.includes(gameId)) {
     if (score === null) delete next.results[gameId]; else next.results[gameId] = score;
+    next.matchMetadata = { ...next.matchMetadata, [gameId]: { ...next.matchMetadata?.[gameId], status: score === null ? "scheduled" : "finished" } };
     // Ranking changes invalidate every final pairing and result, even if the old winner was unchanged.
     next.finals = null;
     return next;
@@ -169,6 +170,16 @@ export function validateGiallo(config) {
     new Set(athletes.map((a) => a.id)).size !== athletes.length) throw new Error("Gironi o atleti non validi.");
   const groupIds = new Set(config.groups.flatMap(groupGames).map((g) => g.id));
   if (!config.results || Array.isArray(config.results) || Object.entries(config.results).some(([id, score]) => !groupIds.has(id) || !validGialloScore(score))) throw new Error("Risultati dei gironi non validi.");
+  if (config.matchMetadata !== undefined) {
+    if (!config.matchMetadata || typeof config.matchMetadata !== "object" || Array.isArray(config.matchMetadata)) throw new Error("Gestione partite non valida.");
+    for (const [id, meta] of Object.entries(config.matchMetadata)) {
+      if (!groupIds.has(id) || !meta || typeof meta !== "object" || Array.isArray(meta) ||
+        (meta.court !== undefined && (typeof meta.court !== "string" || meta.court.length > 40)) ||
+        (meta.time !== undefined && (typeof meta.time !== "string" || (meta.time !== "" && !/^([01]\d|2[0-3]):[0-5]\d$/.test(meta.time)))) ||
+        !["scheduled", "in_progress", "finished"].includes(meta.status) ||
+        (meta.status === "finished") !== validGialloScore(config.results[id])) throw new Error("Campo, orario o stato della partita non valido.");
+    }
+  }
   if (config.finals) {
     const expected = startGialloFinals(config).finals.seeds;
     if (JSON.stringify(config.finals.seeds) !== JSON.stringify(expected)) throw new Error("Classifica del tabellone non aggiornata.");
