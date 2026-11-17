@@ -1,0 +1,98 @@
+/* One identity for the public site and athlete portal. Staff retains its own scoped layout. */
+.bvi-theme {
+  --bvi-blue: #0a1628;
+  --bvi-yellow: #ffd700;
+  --bvi-canvas: #f4f6f9;
+  --bvi-border: #dde4ed;
+  --bvi-muted: #607087;
+  min-height: 100vh;
+  background: var(--bvi-canvas);
+  color: var(--bvi-blue);
+  color-scheme: light;
+  font-family: var(--font-geist-sans), Arial, sans-serif;
+}
+.bvi-theme main { background-color: var(--bvi-canvas); }
+.bvi-theme :where(h1, h2, h3) { letter-spacing: -.025em; text-transform: none; font-weight: 700; }
+.bvi-theme :where(button, a)[class*="font-black"] { font-weight: 600; text-transform: none; letter-spacing: .01em; }
+.bvi-theme :where(button, a)[class*="rounded-"] { box-shadow: none; border-radius: .625rem; }
+.bvi-theme :where(button, a):focus-visible { outline: 3px solid var(--bvi-yellow); outline-offset: 3px; }
+.bvi-theme :where(button, a)[class*="scale-"]:hover,
+.bvi-theme :where(button, a)[class*="scale-"]:active { transform: none; }
+.bvi-theme :where(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="file"]) { border-radius: .625rem; border-width: 1px; border-color: #cdd7e3; min-height: 2.75rem; box-shadow: none; }
+.bvi-theme :where(input, select, textarea):focus-visible { outline: 2px solid var(--bvi-blue); outline-offset: 2px; }
+.bvi-theme :where(input[type="checkbox"], input[type="radio"]) { accent-color: var(--bvi-blue); }
+.bvi-theme :where(div, section, article, form)[class*="shadow-"] { box-shadow: none; }
+.bvi-theme :where(div, section, article, form)[class~="bg-white"][class*="shadow-"] { border: 1px solid var(--bvi-border); }
+.bvi-theme :where(div, section, article, form)[class*="rounded-[2"],
+.bvi-theme :where(div, section, article, form)[class*="rounded-[3"],
+.bvi-theme :where(div, section, article, form)[class*="rounded-[1."],
+.bvi-theme :where(div, section, article, form)[class~="rounded-3xl"] { border-radius: .875rem; }
+.bvi-theme :where(section, div)[class~="bg-[#f5f4ef]"] { background-color: var(--bvi-canvas); }
+.bvi-theme :where(a, button, div)[class~="bg-[#f5ca3e]"] { background-color: var(--bvi-yellow); }
+.bvi-theme :where(p, label)[class*="text-gray-400"] { color: var(--bvi-muted); }
+.bvi-theme :where(p, label)[class*="text-[10px]"],
+.bvi-theme :where(p, label)[class*="text-[9px]"] { font-size: .75rem; letter-spacing: .04em; }
+.bvi-theme table { font-size: .875rem; }
+.bvi-theme table th { font-weight: 600; letter-spacing: .035em; }
+.bvi-theme .bvi-public-header { background: var(--bvi-blue); color: white; border-top: 3px solid var(--bvi-yellow); }
+.bvi-theme .bvi-public-header-inner { display: flex; max-width: 1280px; margin: auto; padding: .875rem 1.5rem; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.bvi-theme .bvi-brand { display: inline-flex; align-items: center; gap: .75rem; color: white; font-size: .9375rem; font-weight: 700; }
+.bvi-theme .bvi-brand span span { color: var(--bvi-yellow); }
+.bvi-theme .bvi-public-nav { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem; }
+.bvi-theme .bvi-public-nav > a { display: inline-flex; min-height: 2.75rem; align-items: center; padding: .625rem .875rem; border-radius: .5rem; font-size: .8125rem; font-weight: 500; color: #d4deeb; }
+.bvi-theme .bvi-public-nav > a:hover, .bvi-theme .bvi-public-nav > a[aria-current="page"] { background: #ffffff0d; color: var(--bvi-yellow); }
+.bvi-theme .bvi-public-nav > a.bvi-athlete-link { background: var(--bvi-yellow); color: var(--bvi-blue); font-weight: 700; margin-left: .5rem; }
+.bvi-theme .bvi-home-hero { padding-block: 3.5rem; }
+.bvi-theme .bvi-home-hero h1 { font-size: clamp(2.5rem, 4.5vw, 4.5rem); line-height: 1.05; letter-spacing: -.045em; }
+.bvi-theme .bvi-home-hero h1 > span { color: var(--bvi-blue); }
+.bvi-theme .bvi-home-hero h1 > span > span { height: 3px; bottom: -.25rem; transform: none; background: var(--bvi-yellow); }
+.bvi-theme .bvi-hero-image { border-radius: 1rem; box-shadow: none; }
+.bvi-theme .bvi-hero-image > img { height: 460px; }
+.bvi-theme .bvi-home-hero p[class*="tracking-"] { letter-spacing: .08em; }
+.bvi-theme .bvi-athlete-sidebar { position: fixed; inset: 0 auto 0 0; z-index: 120; display: none; width: 18rem; flex-direction: column; padding: 1.5rem 1rem; background: var(--bvi-blue); color: white; }
+.bvi-theme .bvi-athlete-brand { display: flex; align-items: center; gap: .75rem; padding: .25rem .5rem 1.5rem; border-bottom: 1px solid #ffffff1a; }
+.bvi-theme .bvi-athlete-brand strong { display: block; font-size: .9375rem; font-weight: 700; }
+.bvi-theme .bvi-athlete-brand strong span { color: var(--bvi-yellow); }
+.bvi-theme .bvi-athlete-brand small { display: block; margin-top: .25rem; font-size: .6875rem; color: #93a4ba; }
+.bvi-theme .bvi-athlete-navigation { flex: 1; overflow-y: auto; padding-top: 1.5rem; }
+.bvi-theme .bvi-athlete-navigation a { display: flex; min-height: 2.875rem; align-items: center; gap: .75rem; border-radius: .5rem; padding: .625rem .875rem; margin-bottom: .25rem; color: #c4cedc; font-size: .875rem; }
+.bvi-theme .bvi-athlete-navigation a:hover { background: #ffffff0d; color: white; }
+.bvi-theme .bvi-athlete-navigation a[aria-current="page"] { background: var(--bvi-yellow); color: var(--bvi-blue); font-weight: 600; }
+.bvi-theme .bvi-athlete-topbar { position: sticky; top: 0; z-index: 100; display: flex; min-height: 4.25rem; align-items: center; justify-content: space-between; gap: 1rem; border-top: 2px solid var(--bvi-yellow); border-bottom: 1px solid var(--bvi-border); padding: .75rem 1rem; background: #fffffff5; backdrop-filter: blur(12px); }
+.bvi-theme .bvi-athlete-topbar a { display: inline-flex; align-items: center; gap: .625rem; font-size: .875rem; font-weight: 700; }
+.bvi-theme .bvi-menu-button { display: inline-flex; min-height: 2.75rem; width: 2.75rem; align-items: center; justify-content: center; border-radius: .625rem; border: 1px solid var(--bvi-border); background: white; }
+.bvi-theme .bvi-user-avatar { display: inline-flex; width: 2.25rem; height: 2.25rem; align-items: center; justify-content: center; border-radius: .625rem; background: #edf1f6; color: var(--bvi-blue); font-size: .75rem; font-weight: 700; }
+.bvi-theme .bvi-athlete-drawer { position: fixed; inset: 0; z-index: 220; background: #0a162866; }
+.bvi-theme .bvi-athlete-drawer-panel { position: absolute; inset: 0 0 0 auto; display: flex; width: 19rem; max-width: 90vw; flex-direction: column; padding: 1.25rem; background: var(--bvi-blue); color: white; }
+.bvi-theme .bvi-athlete-nav-footer { padding: 1rem .5rem; border-top: 1px solid #ffffff1a; font-size: .8125rem; color: #c4cedc; }
+.bvi-theme .bvi-athlete-bottom-nav { padding-bottom: env(safe-area-inset-bottom, 0px); border-top: 1px solid var(--bvi-border); background: #fffffff5; backdrop-filter: blur(12px); }
+.bvi-theme .bvi-athlete-bottom-nav button { display: flex; min-height: 4rem; flex: 1; align-items: center; justify-content: center; flex-direction: column; gap: .25rem; position: relative; color: var(--bvi-muted); font-size: .6875rem; border-radius: 0; }
+.bvi-theme .bvi-athlete-bottom-nav button[aria-current="page"] { color: var(--bvi-blue); font-weight: 700; }
+.bvi-theme .bvi-athlete-bottom-nav button[aria-current="page"]::before { position: absolute; top: 0; width: 2rem; height: 3px; background: var(--bvi-yellow); content: ""; }
+.bvi-theme.bvi-athlete :where(h1, h2)[class*="text-4xl"],
+.bvi-theme.bvi-athlete :where(h1, h2)[class*="text-5xl"],
+.bvi-theme.bvi-athlete :where(h1, h2)[class*="text-3xl"] { font-size: 1.625rem; line-height: 1.25; }
+.bvi-theme.bvi-athlete :where(div)[class~="absolute"][class*="rounded-full"][class*="-mr-"] { display: none; }
+.bvi-theme.bvi-athlete :where(h2, h3)[class*="text-[10px]"],
+.bvi-theme.bvi-athlete :where(h2, h3)[class*="text-[9px]"] { font-size: .875rem; color: var(--bvi-muted); letter-spacing: normal; }
+.bvi-theme.bvi-athlete p[class*="text-gray-300"] { color: var(--bvi-muted); }
+.bvi-theme :where(p)[class~="text-white/40"] { color: #b8c6d8; }
+.bvi-theme footer :where(p, div)[class*="text-gray-"] { color: #aab8c9; }
+.bvi-theme.bvi-live { --bvi-canvas: #f0f4ff; }
+.bvi-theme.bvi-live :where(header)[class*="bg-"] { border-bottom-width: 2px; }
+@media (min-width: 1280px) {
+  .bvi-theme .bvi-athlete-sidebar { display: flex; }
+  .bvi-theme .bvi-athlete-topbar { display: none; }
+}
+@media (max-width: 767px) {
+  .bvi-theme .bvi-public-header-inner { padding: .75rem 1rem; gap: .5rem; }
+  .bvi-theme .bvi-public-nav { width: 100%; justify-content: space-between; gap: 0; }
+  .bvi-theme .bvi-public-nav > a { padding-inline: .5rem; font-size: .75rem; }
+  .bvi-theme .bvi-public-nav > a.bvi-athlete-link { margin-left: 0; }
+  .bvi-theme .bvi-home-hero { padding-block: 2rem; }
+  .bvi-theme .bvi-hero-image > img { height: 350px; }
+  .bvi-theme :where(input, select, textarea):not([type="checkbox"]):not([type="radio"]) { font-size: 1rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bvi-theme *, .bvi-theme *::before, .bvi-theme *::after { animation: none; transition: none; scroll-behavior: auto; }
+}

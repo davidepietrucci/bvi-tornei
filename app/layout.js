@@ -1,5 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import "./brand.css";
+import BrandTheme from "./components/BrandTheme";
 import { Providers } from "./components/Providers";
 import CookieBanner from "./components/CookieBanner";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -44,7 +46,7 @@ export default function RootLayout({ children }) {
     >
       <body className="min-h-full flex flex-col">
         <Providers>
-          {children}
+          <BrandTheme>{children}</BrandTheme>
           <CookieBanner />
         </Providers>
         <SpeedInsights />

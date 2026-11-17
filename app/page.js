@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { getTornei, getPublicIscrizioni } from "@/app/utils/db";
 import SponsorBanner from "@/app/components/SponsorBanner";
+import PublicHeader from "@/app/components/PublicHeader";
 
 
 export default function Home() {
@@ -66,25 +67,9 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-[#f5f4ef] text-[#101d2c]">
-      <div className="h-1.5 bg-[#f5ca3e]" />
-      <header className="relative z-10 border-b border-white/10 bg-[#101d2c] text-white">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-5 py-4 sm:flex-row sm:px-8">
-          <a href="/" className="flex items-center gap-3" aria-label="BVI Tornei, home">
-            <Image src="/logo.png" alt="BVI" width={42} height={42} className="rounded-full bg-white" />
-            <span className="text-lg font-black tracking-tight">BVI <span className="text-[#f5ca3e]">/</span> TORNEI</span>
-          </a>
-          <nav className="flex flex-wrap items-center justify-center gap-2 sm:gap-5" aria-label="Navigazione principale">
-            <a href="#tornei" className="px-3 py-2 text-sm font-semibold text-white/80 transition hover:text-[#f5ca3e]">Tornei</a>
-            <a href="/gironi" className="px-3 py-2 text-sm font-semibold text-white/80 transition hover:text-[#f5ca3e]">Live</a>
-            <a href="/classifica" className="px-3 py-2 text-sm font-semibold text-white/80 transition hover:text-[#f5ca3e]">Classifiche</a>
-            <a href="/tour" className="px-3 py-2 text-sm font-semibold text-white/80 transition hover:text-[#f5ca3e]">Tour</a>
-            <a href="/atleta" className="rounded-full bg-[#f5ca3e] px-5 py-2.5 text-sm font-black text-[#101d2c] shadow-lg transition hover:bg-yellow-300">Area atleta <span aria-hidden="true">↗</span></a>
-            <a href="/staff" className="px-3 py-2 text-sm font-semibold text-white/60 transition hover:text-white">Staff</a>
-          </nav>
-        </div>
-      </header>
+      <PublicHeader active="Tornei" />
 
-      <section className="overflow-hidden bg-[#f5f4ef] px-5 py-12 sm:px-8 sm:py-16 lg:py-20">
+      <section className="bvi-home-hero overflow-hidden bg-[#f5f4ef] px-5 py-12 sm:px-8 sm:py-16 lg:py-20">
         <div className="mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-[1.05fr_.95fr] lg:gap-16">
           <div className="relative z-10">
             <p className="mb-6 flex items-center gap-3 text-[11px] font-black uppercase tracking-[0.25em] text-[#78600d]"><span className="h-[2px] w-9 bg-[#d6aa16]" /> Beach Volley Institute · Stagione tornei</p>
@@ -106,8 +91,7 @@ export default function Home() {
             onMouseEnter={() => setIsHeroPaused(true)}
             onMouseLeave={() => setIsHeroPaused(false)}
           >
-            <div className="absolute -right-5 -top-5 h-28 w-28 rounded-full border-[18px] border-[#f5ca3e]/70 sm:-right-8 sm:-top-8 sm:h-40 sm:w-40" />
-            <div className="relative overflow-hidden rounded-[2rem] bg-[#101d2c] shadow-[0_28px_70px_-28px_rgba(16,29,44,.7)]">
+            <div className="bvi-hero-image relative overflow-hidden bg-[#0a1628]">
               {/* Immagine con fallback */}
               <img 
                 key={currentHeroTorneo?.id || activeHeroIndex}
@@ -376,7 +360,8 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="flex gap-6 items-center">
+          <div className="flex flex-wrap gap-4 items-center">
+            <a href="/staff" className="inline-flex min-h-11 items-center px-3 text-sm font-medium text-white/70 hover:text-white">Area staff</a>
             <a
               href="https://www.beachvolleyinstitute.it"
               target="_blank"
@@ -389,7 +374,7 @@ export default function Home() {
               href="https://www.instagram.com/beachvolleyinstitutebvi/"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:scale-110 active:scale-95 transition-all cursor-pointer flex items-center justify-center bg-gradient-to-tr from-[#f9ce3f] via-[#e1306c] to-[#833ab4] p-3 rounded-2xl shadow-lg border border-white/10"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-white/20 text-white hover:bg-white/10"
               aria-label="Seguici su Instagram"
             >
               <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

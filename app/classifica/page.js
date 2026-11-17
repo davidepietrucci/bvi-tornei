@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import PublicHeader from "@/app/components/PublicHeader";
 import GialloTournament from "@/app/components/GialloTournament";
 import { isGiallo } from "@/app/utils/giallo";
 import { useState, useEffect } from "react";
@@ -318,21 +318,13 @@ export default function ClassificaPubblica() {
 
   const selectedGiallo = tornei.find((t) => t.nome === selectedTorneo && isGiallo(t));
   if (selectedGiallo) return <main className="min-h-screen bg-[#f8faff] pb-20">
+    <PublicHeader active="Classifiche" />
     <GialloTournament tournament={selectedGiallo} tournaments={tornei} onSelect={setSelectedTorneo} />
   </main>;
 
   return (
     <main className="min-h-screen bg-gray-50 pb-20 text-[#0a1628]">
-      <header style={{backgroundColor: "#0a1628"}} className="text-white py-6 px-8 flex justify-between items-center shadow-lg border-b-4 border-[#FFD700]">
-        <div className="flex items-center gap-4">
-          <Image src="/logo.png" alt="BVI Logo" width={50} height={50} />
-          <div>
-            <h1 className="text-2xl font-black tracking-tighter uppercase">Classifica Live</h1>
-            <p className="text-[10px] text-yellow-400 font-bold uppercase tracking-[0.3em]">Real-time Rankings</p>
-          </div>
-        </div>
-        <a href="/" className="bg-[#FFD700] text-[#0a1628] px-6 py-2 rounded-full font-black text-sm hover:scale-105 transition-transform">HOME</a>
-      </header>
+      <PublicHeader active="Classifiche" />
 
       <div className="max-w-6xl mx-auto mt-10 px-4">
         <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 mb-10 flex flex-col md:flex-row items-center justify-between gap-6">

@@ -7,6 +7,7 @@ import AthleteHeader from "@/app/components/AthleteHeader";
 import AthleteBottomNav from "@/app/components/AthleteBottomNav";
 import AthleteTourCards from "@/app/components/AthleteTourCards";
 import AthleteNameForm from "@/app/components/AthleteNameForm";
+import StaffIcon from "@/app/components/StaffIcon";
 import { getAthleteName } from "@/app/utils/athleteIdentity";
 import { fetchAthleteData, nextAthleteRegistration, sortNotifications } from "@/app/utils/athlete-area";
 import useAthleteNotifications from "@/app/components/useAthleteNotifications";
@@ -92,10 +93,8 @@ export default function AtletaDashboard() {
         {/* Hero Card */}
         <Card className="border-none bg-[#0a1628] text-white rounded-[2rem] shadow-xl overflow-hidden">
           <Card.Content className="p-6 relative z-10 flex flex-row items-center justify-between">
-            <div className="absolute top-0 right-0 w-40 h-40 bg-[#FFD700]/5 rounded-full -mr-20 -mt-20 pointer-events-none" />
-            <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/3 rounded-full -ml-16 -mb-16 pointer-events-none" />
             <div>
-              <p className="text-[10px] font-black text-[#FFD700]/70 uppercase tracking-[0.3em] mb-1">{saluto} 👋</p>
+              <p className="mb-1 text-sm font-medium text-[#FFD700]">{saluto}</p>
               <h1 className="text-3xl font-black text-white uppercase tracking-tighter leading-none">{nome}</h1>
               <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-2">Portale Atleta BVI</p>
             </div>
@@ -179,7 +178,7 @@ export default function AtletaDashboard() {
           {prossimaIscr ? (
             <Card className="border-none bg-white rounded-[1.8rem] shadow-sm">
               <Card.Content className="p-5 flex flex-row items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-[#0a1628] flex items-center justify-center text-2xl shrink-0">🏐</div>
+                <div className="w-12 h-12 rounded-xl bg-[#0a1628] text-[#FFD700] flex items-center justify-center shrink-0"><StaffIcon name="tournaments" className="h-6 w-6" /></div>
                 <div className="min-w-0 flex-1">
                   <p className="font-black text-[#0a1628] text-sm uppercase tracking-tight truncate">{prossimaIscr.torneo}</p>
                   <p className="text-[10px] text-gray-400 font-semibold mt-1 truncate">{prossimaIscr.giocatori}</p>
@@ -200,7 +199,7 @@ export default function AtletaDashboard() {
               onClick={() => router.push("/atleta/iscriviti")}
             >
               <Card.Content className="flex flex-col items-center gap-3 py-6">
-                <span className="text-4xl">🏜️</span>
+                <StaffIcon name="tournaments" className="h-7 w-7 text-slate-400" />
                 <p className="text-xs font-black text-gray-400 uppercase tracking-widest text-center">Nessun torneo in programma tra le tue iscrizioni</p>
                 <Button
                   onPress={() => router.push("/atleta/iscriviti")}
@@ -227,7 +226,7 @@ export default function AtletaDashboard() {
                   <Card.Content className="p-5 flex flex-row items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-10 h-10 rounded-xl bg-[#FFD700]/20 flex items-center justify-center shrink-0">
-                        <span className="text-lg">🏆</span>
+                        <StaffIcon name="tournaments" className="h-5 w-5" />
                       </div>
                       <div className="min-w-0 text-left">
                         <p className="font-black text-[#0a1628] text-xs uppercase tracking-tight truncate">{t.nome}</p>
@@ -257,8 +256,8 @@ export default function AtletaDashboard() {
               onClick={() => router.push("/atleta/gironi")}
             >
               <Card.Content className="p-5 flex flex-row items-center justify-center gap-3">
-                <span className="text-2xl">📊</span>
-                <span className="text-[10px] font-black text-[#0a1628] uppercase tracking-widest text-center">Gironi Live</span>
+                <StaffIcon name="management" className="h-5 w-5" />
+                <span className="text-sm font-semibold text-[#0a1628] text-center">Le mie partite e il torneo</span>
               </Card.Content>
             </Card>
             <Card
@@ -271,7 +270,7 @@ export default function AtletaDashboard() {
                     {notificheNonLette}
                   </span>
                 )}
-                <span className="text-3xl">🔔</span>
+                <StaffIcon name="notifications" className="h-5 w-5" />
                 <span className="text-[10px] font-black text-[#0a1628] uppercase tracking-widest text-center">Notifiche</span>
               </Card.Content>
             </Card>
@@ -280,7 +279,7 @@ export default function AtletaDashboard() {
               onClick={() => router.push("/atleta/profilo")}
             >
               <Card.Content className="p-5 flex flex-col items-center gap-3">
-                <span className="text-3xl">👤</span>
+                <StaffIcon name="athletes" className="h-5 w-5" />
                 <span className="text-[10px] font-black text-[#0a1628] uppercase tracking-widest text-center">Profilo</span>
               </Card.Content>
             </Card>

@@ -1,4 +1,4 @@
-import Image from "next/image";
+import PublicHeader from "@/app/components/PublicHeader";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getIscrizioni, getTornei, getGironi, getBracket } from "@/app/utils/db-server";
@@ -101,20 +101,7 @@ export default async function TournamentPage({ params }) {
 
   return (
     <main className="min-h-screen bg-[#f5f4ef] text-[#101d2c]">
-      <div className="h-1.5 bg-[#f5ca3e]" />
-      <header className="bg-[#101d2c] text-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
-          <Link href="/" className="flex items-center gap-3" aria-label="BVI Tornei, home">
-            <Image src="/logo.png" alt="BVI" width={42} height={42} className="rounded-full bg-white" />
-            <span className="text-lg font-black">BVI <span className="text-[#f5ca3e]">/</span> TORNEI</span>
-          </Link>
-          <nav className="flex items-center gap-2 sm:gap-5" aria-label="Navigazione torneo">
-            <Link href="/#tornei" className="hidden text-sm font-semibold text-white/75 hover:text-[#f5ca3e] sm:block">Calendario</Link>
-            <Link href="/classifica" className="hidden text-sm font-semibold text-white/75 hover:text-[#f5ca3e] sm:block">Classifiche</Link>
-            <Link href="/atleta" className="rounded-lg bg-[#f5ca3e] px-4 py-2.5 text-xs font-black text-[#101d2c] hover:bg-yellow-300">Area atleta ↗</Link>
-          </nav>
-        </div>
-      </header>
+      <PublicHeader active="Tornei" />
 
       {/* Vista pubblica con dettagli, anteprima, classifiche in linea e popup per tutte le iscrizioni */}
       <TournamentPublicView

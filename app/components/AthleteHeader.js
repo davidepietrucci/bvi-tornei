@@ -2,237 +2,54 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useUser, useClerk } from "@clerk/nextjs";
+import StaffIcon from "@/app/components/StaffIcon";
+
+const MENU = [
+  { name: "Dashboard", path: "/atleta/dashboard", icon: "dashboard" },
+  { name: "Le mie iscrizioni", path: "/atleta/iscrizioni", icon: "registrations" },
+  { name: "Le mie partite", path: "/atleta/gironi", icon: "management" },
+  { name: "Tour", path: "/tour", icon: "tour" },
+  { name: "Iscriviti a un torneo", path: "/atleta/iscriviti", icon: "plus" },
+  { name: "Notifiche", path: "/atleta/notifiche", icon: "notifications" },
+  { name: "Profilo", path: "/atleta/profilo", icon: "athletes" },
+];
 
 export default function AthleteHeader() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const router = useRouter();
+  const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const { user, isLoaded } = useUser();
   const { signOut } = useClerk();
-
-  const menuItems = [
-    { name: "Dashboard", path: "/atleta/dashboard", emoji: "🏠" },
-    { name: "Le Mie Iscrizioni", path: "/atleta/iscrizioni", emoji: "📋" },
-    { name: "Gironi & Calendario", path: "/atleta/gironi", emoji: "🏐" },
-    { name: "Tour", path: "/tour", emoji: "↗" },
-    { name: "Iscriviti", path: "/atleta/iscriviti", emoji: "➕" },
-    { name: "Notifiche", path: "/atleta/notifiche", emoji: "🔔" },
-    { name: "Profilo", path: "/atleta/profilo", emoji: "👤" },
-  ];
-
-  const handleLogout = () => {
-    signOut({ redirectUrl: "/" });
-  };
-
-  const userDisplayName = user?.firstName || user?.fullName || user?.username || (user?.primaryEmailAddress?.emailAddress ? user.primaryEmailAddress.emailAddress.split("@")[0] : "Atleta");
-  const initials = userDisplayName !== "Atleta"
-    ? userDisplayName.slice(0, 2).toUpperCase()
-    : "A";
-
-  return (
-    <>
-      <aside className="fixed inset-y-0 left-0 z-[120] hidden w-72 flex-col bg-[#0a1628] px-4 py-5 text-white shadow-2xl xl:flex">
-        <Link href="/atleta/dashboard" className="flex items-center gap-3 border-b border-white/10 px-2 pb-5">
-          <Image src="/logo.png" alt="BVI Logo" width={44} height={44} className="object-contain" />
-          <div>
-            <h1 className="text-lg font-black uppercase tracking-tight leading-none text-[#FFD700]">BVI Atleta</h1>
-            <p className="mt-1 text-[9px] font-bold uppercase tracking-widest text-white/50">Area personale</p>
-          </div>
-        </Link>
-
-        <nav aria-label="Navigazione atleta" className="mt-5 flex-1 space-y-1 overflow-y-auto pr-1">
-          {menuItems.map((item) => {
-            const active = pathname === item.path || pathname.startsWith(`${item.path}/`);
-            return (
-              <Link
-                key={item.path}
-                href={item.path}
-                aria-current={active ? "page" : undefined}
-                className={`flex items-center gap-3 rounded-2xl px-4 py-3.5 text-sm font-bold transition-colors ${active ? "bg-[#FFD700] text-[#0a1628] shadow-md" : "text-white/75 hover:bg-white/10 hover:text-white"}`}
-              >
-                <span aria-hidden="true" className="w-6 text-center text-lg">{item.emoji}</span>
-                <span>{item.name}</span>
-                {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#0a1628]" />}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="mt-4 border-t border-white/10 pt-4">
-          <p className="mb-3 truncate px-3 text-xs font-bold text-white/60">Ciao, {userDisplayName}</p>
-          {isLoaded && user && (user.publicMetadata?.role === "admin" || user.publicMetadata?.role === "staff") && (
-            <Link href="/staff/dashboard" className="mb-2 flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold text-[#FFD700] transition-colors hover:bg-white/10">
-              <span aria-hidden="true" className="w-6 text-center text-lg">🛠️</span>Area Staff
-            </Link>
-          )}
-          <button onClick={handleLogout} className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-bold text-red-200 transition-colors hover:bg-red-500/15 hover:text-red-100">
-            <span aria-hidden="true" className="w-6 text-center text-lg">↪</span>Esci dal portale
-          </button>
-        </div>
-      </aside>
-
-    <header
-      className="xl:hidden bg-white/95 backdrop-blur-sm py-3 px-4 md:px-8 flex justify-between items-center shadow-sm border-b sticky top-0 z-[100]"
-      style={{ borderColor: "#FFD700" }}
-    >
-      {/* Logo + Title */}
-      <div className="flex items-center gap-3 cursor-pointer" onClick={() => router.push("/atleta/dashboard")}>
-        <Image src="/logo.png" alt="BVI Logo" width={36} height={36} className="object-contain" />
-        <h1 className="text-base font-black uppercase tracking-tighter hidden sm:block" style={{ color: "#0a1628" }}>
-          BVI Atleta
-        </h1>
-      </div>
-
-      {/* Desktop Navigation — solo xl+ */}
-      <nav className="hidden xl:flex gap-1 bg-gray-50 p-1 rounded-xl border border-gray-200">
-        {menuItems.map((item) => (
-          <a
-            key={item.path}
-            href={item.path}
-            className={`px-3 py-2 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap ${
-              pathname === item.path
-                ? "bg-[#0a1628] text-white shadow-md"
-                : "text-gray-400 hover:text-gray-800 hover:bg-gray-100"
-            }`}
-          >
-            {item.name}
-          </a>
-        ))}
-      </nav>
-
-      {/* Right side */}
-      <div className="flex items-center gap-3">
-        {/* Area Staff (solo se admin o staff) */}
-        {isLoaded && user && (user.publicMetadata?.role === "admin" || user.publicMetadata?.role === "staff") && (
-          <a
-            href="/staff/dashboard"
-            className="hidden sm:inline-block px-4 py-2 bg-[#0a1628] text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-slate-800 transition-all active:scale-95 border border-[#0a1628] shadow-sm animate-pulse-once"
-          >
-            Area Staff 🛠️
-          </a>
-        )}
-
-        {/* Avatar + nome — visible su sm+ */}
-        <div
-          className="hidden sm:flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
-          onClick={() => router.push("/atleta/profilo")}
-        >
-          <div className="w-8 h-8 rounded-full bg-[#0a1628] flex items-center justify-center text-[#FFD700] font-black text-xs border-2 border-[#FFD700]">
-            {initials}
-          </div>
-          <span className="font-black text-[10px] text-[#0a1628] uppercase tracking-widest hidden md:block">
-            {userDisplayName}
-          </span>
-        </div>
-
-        <button
-          onClick={handleLogout}
-          className="hidden sm:block hover:underline font-black text-red-400 text-[10px] uppercase tracking-widest xl:block"
-        >
-          Esci
-        </button>
-
-        {/* Mobile hamburger — solo xl hidden */}
-        <button
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="xl:hidden w-9 h-9 flex items-center justify-center bg-gray-100 rounded-xl text-[#0a1628] active:scale-90 transition-transform"
-          aria-label="Menu"
-        >
-          {isMenuOpen ? (
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-            </svg>
-          )}
-        </button>
-      </div>
-
-      {/* Mobile Sidebar */}
-      {isMenuOpen && (
-        <div
-          className="fixed inset-0 bg-black/60 z-[110] xl:hidden backdrop-blur-sm"
-          onClick={() => setIsMenuOpen(false)}
-        >
-          <div
-            className="absolute right-0 top-0 h-full w-[80vw] max-w-[18rem] max-h-screen overflow-y-auto bg-white shadow-2xl flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Sidebar header */}
-            <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-[#0a1628]">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#FFD700] flex items-center justify-center text-[#0a1628] font-black text-base">
-                  {initials}
-                </div>
-                <div>
-                  <p className="font-black text-white text-xs uppercase tracking-wider">
-                    {user?.firstName || "Atleta"}
-                  </p>
-                  <p className="text-[9px] font-bold text-[#FFD700]/70 truncate max-w-[100px]">
-                    {user?.primaryEmailAddress?.emailAddress || ""}
-                  </p>
-                </div>
-              </div>
-              <button onClick={() => setIsMenuOpen(false)} className="text-white/50 hover:text-white">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Nav links */}
-            <nav className="flex flex-col gap-1 p-4 flex-1 overflow-y-auto">
-              {menuItems.map((item) => (
-                <a
-                  key={item.path}
-                  href={item.path}
-                  className={`flex items-center gap-3 p-4 rounded-2xl text-sm font-black transition-all ${
-                    pathname === item.path
-                      ? "bg-[#0a1628] text-white shadow-lg"
-                      : "text-gray-600 hover:bg-gray-50"
-                  }`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <span className="text-lg">{item.emoji}</span>
-                  {item.name}
-                </a>
-              ))}
-            </nav>
-
-            {/* Area Staff mobile (solo se admin/staff) */}
-            {isLoaded && user && (user.publicMetadata?.role === "admin" || user.publicMetadata?.role === "staff") && (
-              <div className="p-4 border-t border-gray-100">
-                <a
-                  href="/staff/dashboard"
-                  className="w-full flex items-center justify-center p-4 bg-[#0a1628] text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-colors shadow-sm"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Area Staff 🛠️
-                </a>
-              </div>
-            )}
-
-            {/* Logout */}
-            <div className="p-4 border-t border-gray-100">
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center justify-center gap-2 p-4 bg-red-50 text-red-500 rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" />
-                </svg>
-                Disconnetti
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </header>
-    </>
-  );
+  const menuButton = useRef(null), drawer = useRef(null), closeButton = useRef(null);
+  const name = user?.firstName || user?.fullName || user?.username || user?.primaryEmailAddress?.emailAddress?.split("@")[0] || "Atleta";
+  const staff = isLoaded && ["admin", "staff"].includes(user?.publicMetadata?.role);
+  const close = () => { setOpen(false); menuButton.current?.focus(); };
+  useEffect(() => {
+    if (!open) return;
+    closeButton.current?.focus();
+    const key = (event) => {
+      if (event.key === "Escape") { setOpen(false); menuButton.current?.focus(); }
+      if (event.key !== "Tab") return;
+      const controls = drawer.current?.querySelectorAll('a[href], button:not([disabled])');
+      if (!controls?.length) return;
+      const first = controls[0], last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", key);
+    const desktop = window.matchMedia("(min-width: 1280px)");
+    const resize = (event) => { if (event.matches) setOpen(false); };
+    desktop.addEventListener("change", resize);
+    return () => { document.removeEventListener("keydown", key); desktop.removeEventListener("change", resize); };
+  }, [open]);
+  const brand = <Link href="/atleta/dashboard" className="bvi-athlete-brand"><Image src="/logo.png" alt="BVI" width={38} height={38} /><div><strong>BVI <span>Atleta</span></strong><small>Il tuo spazio, dentro il torneo.</small></div></Link>;
+  const nav = <nav aria-label="Navigazione atleta" className="bvi-athlete-navigation">{MENU.map((item) => <Link key={item.path} href={item.path} onClick={() => setOpen(false)} aria-current={pathname === item.path || pathname.startsWith(`${item.path}/`) ? "page" : undefined}><StaffIcon name={item.icon} /><span>{item.name}</span></Link>)}{staff && <Link href="/staff/dashboard"><StaffIcon name="tournaments" />Area staff</Link>}</nav>;
+  const footer = <div className="bvi-athlete-nav-footer"><p className="mb-3 truncate">Ciao, {name}</p><Link href="/" className="mb-2 flex min-h-10 items-center gap-2"><StaffIcon name="external" className="h-4 w-4" />Sito pubblico</Link><button onClick={() => signOut({ redirectUrl: "/" })} className="flex min-h-10 items-center gap-2"><StaffIcon name="logout" className="h-4 w-4" />Esci dal portale</button></div>;
+  return <>
+    <aside className="bvi-athlete-sidebar">{brand}{nav}{footer}</aside>
+    <header className="bvi-athlete-topbar"><Link href="/atleta/dashboard"><Image src="/logo.png" alt="BVI" width={30} height={30} />BVI Atleta</Link><div className="flex items-center gap-3"><Link href="/atleta/profilo" aria-label={`Profilo di ${name}`}><span className="bvi-user-avatar">{name.slice(0, 2).toLocaleUpperCase("it-IT")}</span></Link><button ref={menuButton} type="button" className="bvi-menu-button" aria-label={open ? "Chiudi menu atleta" : "Apri menu atleta"} aria-expanded={open} aria-controls="athlete-menu" onClick={() => setOpen((value) => !value)}><StaffIcon name="menu" /></button></div></header>
+    {open && <div id="athlete-menu" className="bvi-athlete-drawer" onClick={close}><aside ref={drawer} role="dialog" aria-modal="true" aria-label="Menu atleta" className="bvi-athlete-drawer-panel" onClick={(event) => event.stopPropagation()}><div className="flex items-center justify-between pb-3"><strong>BVI Atleta</strong><button ref={closeButton} type="button" aria-label="Chiudi menu atleta" onClick={close} className="flex h-11 w-11 items-center justify-center"><StaffIcon name="close" /></button></div>{nav}{footer}</aside></div>}
+  </>;
 }

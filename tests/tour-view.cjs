@@ -92,6 +92,7 @@ const { renderToStaticMarkup } = require('react-dom/server');
   }
   components['@/app/components/TourJourney'] = await load('app/components/TourJourney.js');
   components['@/app/components/TourStandings'] = await load('app/components/TourStandings.js');
+  components['@/app/components/PublicHeader'] = () => null;
   const Journey = components['@/app/components/TourJourney'];
   const journeyHtml = renderToStaticMarkup(React.createElement(Journey, { stages: data.stages, finals: data.finals }));
   assert.equal((journeyHtml.match(/<li /g) || []).length, 4);
