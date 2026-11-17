@@ -62,8 +62,8 @@ export default async function TournamentPage({ params }) {
       getBracket(slug).catch(() => null)
     ]);
     registrations = Array.isArray(rawRegs) ? JSON.parse(JSON.stringify(rawRegs)) : [];
-    gironiData = rawGironi ? JSON.parse(JSON.stringify(rawGironi)) : null;
-    bracketData = rawBracket ? JSON.parse(JSON.stringify(rawBracket)) : null;
+    gironiData = rawGironi?.pubblicato === true ? JSON.parse(JSON.stringify(rawGironi)) : null;
+    bracketData = rawBracket?.tabellonePubblicato === true ? JSON.parse(JSON.stringify(rawBracket)) : null;
   } catch (e) {
     console.error("Errore nel recupero dati torneo:", e);
   }

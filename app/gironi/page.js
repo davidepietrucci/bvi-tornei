@@ -45,7 +45,7 @@ export default function GironiPubblici() {
   const [selectedTorneo, setSelectedTorneo] = useState("");
   const [config, setConfig] = useState(null);
   const [bracketConfig, setBracketConfig] = useState(null);
-  const [activeTab, setActiveTab] = useState("gironi"); // "gironi", "partite", "classifica", "finali"
+  const [requestedTab, setActiveTab] = useState("gironi"); // "gironi", "partite", "classifica", "finali"
   const [fasiFinaliCategory, setFasiFinaliCategory] = useState("gold"); // "gold" or "silver"
   const [viewMode, setViewMode] = useState("cronologico"); // "cronologico" or "girone"
   const [loading, setLoading] = useState(true);
@@ -81,7 +81,7 @@ export default function GironiPubblici() {
     const slug = selectedTorneo.toLowerCase().trim().replace(/\s+/g, "_");
 
     const fetchLive = () => {
-      Promise.all([getGironi(slug), getBracket(slug), getPublicIscrizioni()]).then(([gData, bData, iscData]) => {
+      Promise.all([getGironi(slug, { publicView: true }), getBracket(slug, { publicView: true }), getPublicIscrizioni()]).then(([gData, bData, iscData]) => {
         if (gData) {
           const syncedGAssignments = syncAssignmentsWithIscrizioni(gData.gironeAssignments || {}, iscData || []);
           setConfig({ ...gData, gironeAssignments: syncedGAssignments });
@@ -107,6 +107,7 @@ export default function GironiPubblici() {
   const isConcluso = selectedTorneoObj?.stato === "Concluso";
   const isPublished = config && config.pubblicato;
   const isBracketPublished = bracketConfig && bracketConfig.tabellonePubblicato;
+  const activeTab = !isPublished && isBracketPublished ? "finali" : requestedTab === "finali" && !isBracketPublished ? "gironi" : requestedTab;
   const rankingType = config?.rankingType || "avulsa";
 
   // 3. Calcola la lista dei gironi iniziali
@@ -1097,7 +1098,7 @@ export default function GironiPubblici() {
         <SponsorBanner />
 
         {/* Controllo Pubblicazione */}
-        {isPublished ? (
+        {isPublished || isBracketPublished ? (
           <>
             {/* 1. SEZIONE GIRONI (COMPOSIZIONE SQUADRE INIZIALI) */}
             {activeTab === "gironi" && (
@@ -1606,11 +1607,12 @@ export default function GironiPubblici() {
       </div>
 
       {/* BOTTOM NAV BAR FISSA - 4 Pulsanti */}
-      {isPublished && (
+      {(isPublished || isBracketPublished) && (
         <nav className="fixed bottom-0 left-0 right-0 z-50">
           <div className="absolute inset-0 bg-[#0a1628]/95 backdrop-blur-xl border-t border-blue-950/80 shadow-[0_-4px_30px_rgba(0,0,0,0.25)]" />
           <div className="relative flex justify-around px-1 pb-safe">
             {/* Pulsante Gironi (Composizione) */}
+            {isPublished && <>
             <button
               onClick={() => setActiveTab("gironi")}
               className={`relative flex flex-col items-center gap-1.5 py-5.5 px-3 flex-1 active:scale-95 transition-transform ${
@@ -1697,6 +1699,7 @@ export default function GironiPubblici() {
               )}
             </button>
 
+            </>}
             {/* Pulsante Fasi Finali - visibile solo se tabellone pubblicato */}
             {isBracketPublished && (
             <button

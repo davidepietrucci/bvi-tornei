@@ -80,8 +80,12 @@ export async function GET(req) {
       data = await getGiallo(slug);
       if (role !== "admin" && role !== "staff" && !data?.published) data = null;
     }
-    else if (type === "gironi") data = await getGironi(slug);
-    else if (type === "bracket") data = await getBracket(slug);
+    else if (type === "gironi" || type === "bracket") {
+      data = type === "gironi" ? await getGironi(slug) : await getBracket(slug);
+      const publicView = searchParams.get("public") === "true" || (role !== "admin" && role !== "staff");
+      const published = type === "gironi" ? data?.pubblicato : data?.tabellonePubblicato;
+      if (publicView && published !== true) data = null;
+    }
     else if (type === "notifiche") data = await getNotifiche();
     else if (type === "sponsors") data = await getSponsors();
     else {

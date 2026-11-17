@@ -51,7 +51,7 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
   const searchParams = useSearchParams();
   const urlTour = searchParams.get("tour");
 
-  const [torneiAttivi, setTorneiAttivi] = useState([]);
+  const [torneiAttivi, setTorneiAttivi] = useState(tournament ? [tournament] : []);
   const [selectedTorneo, setSelectedTorneo] = useState(tournament?.nome || "");
   const [phaseType, setPhaseType] = useState("gold_silver"); // "gold_silver", "double", or "single"
   const [subPhaseType, setSubPhaseType] = useState("direct"); // "direct" o "playoff"
@@ -73,6 +73,7 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
   const [teamsToSilver, setTeamsToSilver] = useState(8);
   const selectedGiallo = torneiAttivi.find((t) => t.nome === selectedTorneo && isGiallo(t));
   const [saveError, setSaveError] = useState("");
+  const [publishing, setPublishing] = useState(false);
   const savedFingerprint = useRef("");
   const pendingTimer = useRef(null);
   const currentConfig = useMemo(() => ({ phaseType, subPhaseType,
@@ -91,6 +92,19 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
     onSummary?.({ finalsPublished: tabellonePubblicato });
   };
   useImperativeHandle(saveRef, () => ({ flush: persist }));
+  const changeVisibility = async () => {
+    if (publishing || !isLoaded) return;
+    clearTimeout(pendingTimer.current);
+    const next = { ...currentConfig, tabellonePubblicato: !tabellonePubblicato };
+    setPublishing(true); setSaveError(""); onSummary?.({ busy: true });
+    try {
+      await saveWorkflowConfig("bracket", selectedTorneo.toLowerCase().trim().replace(/\s+/g, "_"), next);
+      savedFingerprint.current = JSON.stringify(next);
+      setTabellonePubblicato(next.tabellonePubblicato);
+      onSummary?.({ finalsPublished: next.tabellonePubblicato });
+    } catch (error) { setSaveError(error.message); }
+    finally { setPublishing(false); onSummary?.({ busy: false }); }
+  };
 
   let goldSlots = 0;
   let silverSlots = 0;
@@ -109,7 +123,7 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
   useEffect(() => {
     if (embedded) return;
     getTornei().then(parsed => {
-      const attivi = parsed.filter(t => !isGiallo(t) && (t.stato === "Iscrizioni Aperte" || t.stato === "In Programmazione"));
+      const attivi = parsed.filter(t => !isGiallo(t) && ["Iscrizioni Aperte", "In Programmazione", "Concluso"].includes(t.stato));
       if (parsed.some((t) => t.nome === urlTour && isGiallo(t))) {
         window.location.replace(`/staff/giallo?tour=${encodeURIComponent(urlTour)}`);
         return;
@@ -172,7 +186,7 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
 
   // Auto-save whenever configurations change (after they have been fully loaded)
   useEffect(() => {
-    if (!selectedTorneo || !isLoaded || selectedGiallo || !active) return;
+    if (!selectedTorneo || !isLoaded || selectedGiallo || !active || publishing) return;
     if (savedFingerprint.current === JSON.stringify(currentConfig)) return;
     if (savedFingerprint.current === "null" && !Object.keys(bracketAssignments).length) return;
     const slug = selectedTorneo.toLowerCase().trim().replace(/\s+/g, '_');
@@ -202,7 +216,7 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
 
     pendingTimer.current = handler;
     return () => clearTimeout(handler);
-  }, [phaseType, subPhaseType, bracketSize, bracketAssignments, bracketMetadata, selectedTorneo, isLoaded, numGoldGironiOpt, teamsPerGoldGirone, numSilverGironiOpt, teamsPerSilverGirone, groupCompositionMethod, teamsToGold, teamsToSilver, tabellonePubblicato, selectedGiallo, active, currentConfig, onSummary]);
+  }, [phaseType, subPhaseType, bracketSize, bracketAssignments, bracketMetadata, selectedTorneo, isLoaded, numGoldGironiOpt, teamsPerGoldGirone, numSilverGironiOpt, teamsPerSilverGirone, groupCompositionMethod, teamsToGold, teamsToSilver, tabellonePubblicato, selectedGiallo, active, currentConfig, onSummary, publishing]);
 
 
   const getTeamsCountForGroup = (groupKey) => {
@@ -1940,9 +1954,15 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
     <Container className={embedded ? "text-[#0a1628]" : "min-h-screen pb-20 bg-[#f8faff]"}>
       {!embedded && <StaffHeader />}
 
-      <div className="max-w-7xl mx-auto mt-6 md:mt-10 px-4">
+      <div className="max-w-7xl mx-auto mt-6 md:mt-10 px-4" inert={publishing || undefined} aria-busy={publishing}>
         {!embedded && <TournamentSetupHeader step="finals" tournaments={torneiAttivi} selected={selectedTorneo} onSelect={setSelectedTorneo} />}
         {saveError && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-red-800">{saveError}</p>}
+        <section aria-label="Visibilità pubblica della fase finale" className="mb-5 rounded-2xl border border-slate-200 bg-white p-5">
+          <h2 className="font-bold">Visibilità pubblica della fase finale</h2>
+          <p className="mt-2 text-sm text-slate-600">{tournament?.stato === "Concluso" ? "Torneo concluso: tabellone e risultati restano consultabili qui. " : ""}Puoi mostrarli o nasconderli al pubblico senza cambiare lo stato del torneo, i gironi o i punteggi.</p>
+          <p role="status" className="my-3 text-sm font-semibold">{publishing ? "Salvataggio visibilità…" : tabellonePubblicato ? "Fase finale visibile al pubblico" : "Fase finale nascosta al pubblico"}</p>
+          <button type="button" onClick={changeVisibility} disabled={!selectedTorneo || !isLoaded || publishing} className="rounded-xl border border-slate-300 px-4 py-3 text-sm font-bold disabled:opacity-40">{tabellonePubblicato ? "Nascondi fase finale al pubblico" : "Pubblica fase finale"}</button>
+        </section>
         <section className="mb-6 space-y-5 rounded-2xl border border-slate-200 bg-white p-5 text-[#0a1628]">
           <div><h2 className="text-xl font-bold">Scegli la fase finale</h2><p className="mt-1 text-sm leading-6 text-slate-500">Scegli la formula, controlla le qualificazioni qui sotto, poi genera gli abbinamenti dai gironi.</p></div>
           <div className="grid gap-3 sm:grid-cols-3" role="group" aria-label="Formula fase finale">
@@ -1964,9 +1984,6 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
           <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
             <button onClick={handleAutoFill} disabled={!selectedTorneo || !isLoaded} className="rounded-xl bg-[#FFD700] px-5 py-3 text-sm font-bold disabled:opacity-40">Genera abbinamenti</button>
             <button onClick={handleSave} disabled={!selectedTorneo || !isLoaded} className="rounded-xl bg-[#0a1628] px-5 py-3 text-sm font-bold text-white disabled:opacity-40">Salva tabellone</button>
-            <button onClick={() => setTabellonePubblicato((v) => !v)} disabled={!selectedTorneo || !isLoaded} className={`rounded-xl border px-4 py-3 text-sm font-semibold disabled:opacity-40 ${tabellonePubblicato ? "border-green-200 bg-green-50 text-green-800" : "border-slate-200 text-slate-600"}`}>
-              {tabellonePubblicato ? "Pubblicato · Nascondi" : "Bozza · Pubblica"}
-            </button>
           </div>
           <details className="border-t border-slate-100 pt-3"><summary className="cursor-pointer text-sm font-semibold text-slate-600">Opzioni avanzate e azzeramenti</summary>
             <p className="my-3 text-xs text-slate-500">L’eliminazione rimuove il tabellone e i risultati della fase finale del torneo selezionato.</p>
@@ -2146,9 +2163,9 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
             <div className="bg-white p-12 md:p-24 rounded-[3.5rem] shadow-2xl border border-gray-100 text-center relative overflow-hidden mt-10">
                 <div className="relative z-10">
                     <div className="text-9xl mb-10 inline-block">🏆</div>
-                    <h3 className="text-3xl md:text-5xl font-black text-[#0a1628] uppercase tracking-tighter mb-6">Nessun Torneo Attivo</h3>
+                    <h3 className="text-3xl md:text-5xl font-black text-[#0a1628] uppercase tracking-tighter mb-6">Nessun torneo selezionato</h3>
                     <p className="text-gray-400 mb-12 max-w-lg mx-auto text-sm md:text-lg font-bold uppercase tracking-widest leading-relaxed">
-                        Crea un nuovo torneo nella sezione gestione o imposta lo stato su "Iscrizioni Aperte" o "In Programmazione" per configurare il tabellone.
+                        Seleziona un torneo nella gestione. Puoi consultare anche i tabelloni dei tornei conclusi.
                     </p>
                 </div>
             </div>

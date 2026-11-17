@@ -38,7 +38,7 @@ export default function ClassificaPubblica() {
     const slug = selectedTorneo.toLowerCase().trim().replace(/\s+/g, '_');
     
     const fetchLive = () => {
-      getGironi(slug).then(data => {
+      getGironi(slug, { publicView: true }).then(data => {
         setConfig(data);
         if (data) {
           const gDisponibili = data.numGironi ? Array.from({ length: data.numGironi }, (_, i) => String.fromCharCode(65 + i)) : [];
@@ -50,7 +50,7 @@ export default function ClassificaPubblica() {
           });
         }
       });
-      getBracket(slug).then(data => {
+      getBracket(slug, { publicView: true }).then(data => {
         setBracketConfig(data);
       });
     };

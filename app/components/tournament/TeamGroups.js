@@ -56,7 +56,7 @@ export default function TeamGroups({ tournament = null, embedded = false, active
   const [numGironi, setNumGironi] = useState(4);
   const [teamCounts, setTeamCounts] = useState({ A: 4, B: 4, C: 4, D: 4, E: 4, F: 4, G: 4, H: 4 });
   
-  const [torneiAttivi, setTorneiAttivi] = useState([]);
+  const [torneiAttivi, setTorneiAttivi] = useState(tournament ? [tournament] : []);
   const [selectedTorneo, setSelectedTorneo] = useState(tournament?.nome || "");
   const [tutteLeIscrizioni, setTutteLeIscrizioni] = useState([]);
   const [gironeAssignments, setGironeAssignments] = useState({});
@@ -74,6 +74,7 @@ export default function TeamGroups({ tournament = null, embedded = false, active
   const [selectedSlot, setSelectedSlot] = useState(null);
   const selectedGiallo = torneiAttivi.find((t) => t.nome === selectedTorneo && isGiallo(t));
   const [saveError, setSaveError] = useState("");
+  const [publishing, setPublishing] = useState(false);
   const [entryMode, setEntryMode] = useState("setup");
   const [scoreDrafts, setScoreDrafts] = useState(0);
   const savedFingerprint = useRef("");
@@ -92,6 +93,18 @@ export default function TeamGroups({ tournament = null, embedded = false, active
     onSummary?.({ groupsPublished: pubblicato, groupCount: numGironi });
   };
   useImperativeHandle(saveRef, () => ({ flush: persist }));
+  const changeVisibility = async () => {
+    if (publishing || !isLoaded || scoreDrafts) return;
+    clearTimeout(pendingTimer.current);
+    const next = { ...currentConfig, pubblicato: !pubblicato };
+    setPublishing(true); setSaveError(""); onSummary?.({ busy: true });
+    try {
+      await saveWorkflowConfig("gironi", selectedTorneo.toLowerCase().trim().replace(/\s+/g, "_"), next);
+      savedFingerprint.current = JSON.stringify(next); setPubblicato(next.pubblicato);
+      onSummary?.({ groupsPublished: next.pubblicato });
+    } catch (error) { setSaveError(error.message); }
+    finally { setPublishing(false); onSummary?.({ busy: false }); }
+  };
   const scoringGroups = useMemo(() => teamGroupMatches(currentConfig), [currentConfig]);
   const recordGroupScore = async (game, score) => {
     const outcome = applyTeamGroupScore(currentConfig, game.id, score);
@@ -147,7 +160,7 @@ export default function TeamGroups({ tournament = null, embedded = false, active
   useEffect(() => {
     if (embedded) return;
     getTornei().then(parsedTornei => {
-      const attivi = parsedTornei.filter(t => !isGiallo(t) && (t.stato === "Iscrizioni Aperte" || t.stato === "In Programmazione"));
+      const attivi = parsedTornei.filter(t => !isGiallo(t) && ["Iscrizioni Aperte", "In Programmazione", "Concluso"].includes(t.stato));
       setTorneiAttivi(attivi);
       
       const params = new URLSearchParams(window.location.search);
@@ -215,7 +228,7 @@ export default function TeamGroups({ tournament = null, embedded = false, active
 
   // Auto-save whenever configurations change (after they have been fully loaded)
   useEffect(() => {
-    if (!selectedTorneo || !isLoaded || selectedGiallo || !active) return;
+    if (!selectedTorneo || !isLoaded || selectedGiallo || !active || publishing) return;
     if (savedFingerprint.current === JSON.stringify(currentConfig)) return;
     // Visiting a tournament must not create an empty configuration by itself.
     if (savedFingerprint.current === "null" && !Object.keys(gironeAssignments).length) return;
@@ -241,7 +254,7 @@ export default function TeamGroups({ tournament = null, embedded = false, active
 
     pendingTimer.current = handler;
     return () => clearTimeout(handler);
-  }, [numGironi, teamCounts, gironeTypes, gironeSets, gironeAssignments, matchMetadata, pubblicato, rankingType, selectedTorneo, isLoaded, selectedGiallo, active, currentConfig, onSummary]);
+  }, [numGironi, teamCounts, gironeTypes, gironeSets, gironeAssignments, matchMetadata, pubblicato, rankingType, selectedTorneo, isLoaded, selectedGiallo, active, currentConfig, onSummary, publishing]);
 
   const giocatoriFiltrati = tutteLeIscrizioni.filter(isc => {
     const tName = (isc.torneo || "").toLowerCase().trim();
@@ -585,9 +598,10 @@ export default function TeamGroups({ tournament = null, embedded = false, active
     <Container className={embedded ? "text-[#0a1628]" : "min-h-screen bg-[#f8faff] pb-20"}>
       {!embedded && <StaffHeader />}
 
-      <div className="max-w-[1400px] mx-auto px-4 mt-6 md:mt-10">
+      <div className="max-w-[1400px] mx-auto px-4 mt-6 md:mt-10" inert={publishing || undefined} aria-busy={publishing}>
         {!embedded && <TournamentSetupHeader tournaments={torneiAttivi} selected={selectedTorneo} onSelect={setSelectedTorneo} />}
         {saveError && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-red-800">{saveError}</p>}
+        <p role="status" className="mb-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">{tournament?.stato === "Concluso" ? "Torneo concluso. " : ""}Gironi {pubblicato ? "visibili" : "nascosti"} al pubblico. La visibilità della fase finale si sceglie separatamente nella sezione Fase finale.</p>
         <nav aria-label="Modalità gestione gironi" className="mb-6 flex flex-wrap gap-2">
           {[{ id: "setup", label: "Composizione, campi e orari" }, { id: "results", label: "Segna risultati" }].map((mode) => <button key={mode.id} type="button" aria-pressed={entryMode === mode.id} onClick={() => {
             if (scoreDrafts && mode.id === "setup") { setSaveError("Salva o scarta le bozze dei punteggi prima di cambiare composizione."); return; }
@@ -625,16 +639,17 @@ export default function TeamGroups({ tournament = null, embedded = false, active
                         <div><h3 className="text-lg font-bold text-[#0a1628]">Configurazione dei gironi</h3><p className="mt-1 text-xs text-slate-500">Numero, formato di gioco e visibilità.</p></div>
                         <div className="flex flex-wrap items-center gap-6">
                             <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-gray-500">Stato Gironi:</span>
+                                <span className="text-xs font-bold text-gray-500">Visibilità pubblica gironi:</span>
                                 <button
-                                    onClick={() => setPubblicato(!pubblicato)}
+                                    onClick={changeVisibility}
+                                    disabled={!isLoaded || publishing || Boolean(scoreDrafts)}
                                     className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
                                         pubblicato 
                                             ? 'bg-green-100 text-green-700 border border-green-200' 
                                             : 'bg-amber-100 text-amber-700 border border-amber-200'
                                     }`}
                                 >
-                                    {pubblicato ? "🟢 Pubblicati (Visibili)" : "🟡 Bozza (Nascosti)"}
+                                    {publishing ? "Salvataggio…" : pubblicato ? "Nascondi gironi al pubblico" : "Pubblica gironi"}
                                 </button>
                             </div>
                             <div className="flex items-center gap-3">

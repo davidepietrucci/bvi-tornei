@@ -198,14 +198,15 @@ export async function getPublicIscrizioni() {
 }
 
 // 3. Gironi
-export async function getGironi(slug) {
+export async function getGironi(slug, { publicView = false } = {}) {
   const key = `bvi_gironi_v2_${slug}`;
   if (typeof window === "undefined") {
     const { getGironi } = await import("./db-server");
-    return await getGironi(slug);
+    const data = await getGironi(slug);
+    return publicView && data?.pubblicato !== true ? null : data;
   }
 
-  const serverData = await fetchFromServerDb("gironi", slug);
+  const serverData = await fetchFromServerDb("gironi", slug, publicView);
   if (serverData !== null && serverData !== undefined) {
     try {
       localStorage.setItem(key, JSON.stringify(serverData));
@@ -213,8 +214,9 @@ export async function getGironi(slug) {
     return serverData;
   }
 
-  const saved = localStorage.getItem(key);
-  return safeJsonParse(saved, null);
+  // A hidden/missing configuration must not be resurrected from an old local draft.
+  try { localStorage.removeItem(key); } catch { /* Storage can be unavailable. */ }
+  return null;
 }
 
 export async function saveGironi(slug, data) {
@@ -232,14 +234,15 @@ export async function saveGironi(slug, data) {
 }
 
 // 4. Bracket
-export async function getBracket(slug) {
+export async function getBracket(slug, { publicView = false } = {}) {
   const key = `bvi_bracket_v1_${slug}`;
   if (typeof window === "undefined") {
     const { getBracket } = await import("./db-server");
-    return await getBracket(slug);
+    const data = await getBracket(slug);
+    return publicView && data?.tabellonePubblicato !== true ? null : data;
   }
 
-  const serverData = await fetchFromServerDb("bracket", slug);
+  const serverData = await fetchFromServerDb("bracket", slug, publicView);
   if (serverData !== null && serverData !== undefined) {
     try {
       localStorage.setItem(key, JSON.stringify(serverData));
@@ -247,8 +250,8 @@ export async function getBracket(slug) {
     return serverData;
   }
 
-  const saved = localStorage.getItem(key);
-  return safeJsonParse(saved, null);
+  try { localStorage.removeItem(key); } catch { /* Storage can be unavailable. */ }
+  return null;
 }
 
 export async function saveBracket(slug, data) {
