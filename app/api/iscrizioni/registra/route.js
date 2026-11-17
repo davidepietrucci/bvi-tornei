@@ -3,7 +3,7 @@ import { auth, currentUser, clerkClient } from "@clerk/nextjs/server";
 import { getAthleteName } from "@/app/utils/athleteIdentity";
 import { updateRegistrationsAtomically } from "@/app/utils/db-server";
 import { sendConfirmationEmail, sendPartnerInviteEmail } from "@/app/utils/email";
-import { findCircuitAthlete, getCircuitLeaderboard, normalizeCircuitName, registrationIncludesAthlete } from "@/app/utils/circuit";
+import { findCircuitAthlete, getCircuitFinalists, normalizeCircuitName, registrationIncludesAthlete } from "@/app/utils/circuit";
 
 export async function POST(request) {
   try {
@@ -106,15 +106,15 @@ export async function POST(request) {
     // Carica iscrizioni esistenti
 
     if (matchTorneo.circuitRole === "finale") {
-      const qualifierLimit = Number(matchTorneo.circuitQualifiers);
+      const qualification = getCircuitFinalists(tornei, iscrizioni, matchTorneo);
+      const qualifierLimit = qualification.limit;
       if (!String(matchTorneo.circuitName || "").trim() || !Number.isInteger(qualifierLimit) || qualifierLimit < 1) {
         return NextResponse.json({ error: "La finale non è ancora configurata dallo staff per il tour." }, { status: 409 });
       }
-      const standings = getCircuitLeaderboard(tornei, iscrizioni, matchTorneo.circuitName);
-      const athlete = findCircuitAthlete(standings, userId, athleteEmail);
-      if (!athlete || athlete.posizione > qualifierLimit) {
+      const athlete = findCircuitAthlete(qualification.athletes, userId, athleteEmail);
+      if (!athlete?.qualificato) {
         return NextResponse.json({
-          error: `La finale è riservata ai primi ${matchTorneo.circuitQualifiers} atleti della classifica ${matchTorneo.circuitName}. Al momento non risulti tra i qualificati.`,
+          error: athlete?.motivoQualificazione || `La finale è riservata ai ${qualifierLimit} qualificati del tour ${matchTorneo.circuitName}. Al momento non risulti tra i qualificati.`,
         }, { status: 403 });
       }
     }

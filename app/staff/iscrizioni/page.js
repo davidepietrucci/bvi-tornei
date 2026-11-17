@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import StaffHeader from "@/app/components/StaffHeader";
+import { isGialloCircuitEvent } from "@/app/utils/circuit";
 import { getTornei, getIscrizioni, saveIscrizioni, saveTornei, getGironi, saveGironi, getBracket, saveBracket, syncAssignmentsWithIscrizioni } from "@/app/utils/db";
 
 export default function StaffIscrizioni() {
@@ -46,6 +47,10 @@ export default function StaffIscrizioni() {
   };
 
   const handleSaveEdit = async () => {
+    if (Number(editFormData.piazzamentoCircuito) > 24 && tornei.some((t) => t.nome === editingIscrizione.torneo && isGialloCircuitEvent(t))) {
+      alert("Per il torneo giallo il piazzamento deve essere compreso tra 1 e 24.");
+      return;
+    }
     if (!editFormData.giocatori.trim()) {
       alert("Il campo Giocatori non può essere vuoto.");
       return;
@@ -192,7 +197,8 @@ export default function StaffIscrizioni() {
       if (isSavingRef.current || loadVersion !== loadVersionRef.current) return;
       setTornei(parsed || []);
       if (parsed && parsed.length > 0) {
-        setSelectedTorneoFilter((current) => parsed.some((t) => t.nome === current) ? current : parsed[0].nome);
+        const requested = new URLSearchParams(window.location.search).get("tour");
+        setSelectedTorneoFilter((current) => parsed.some((t) => t.nome === current) ? current : parsed.some((t) => t.nome === requested) ? requested : parsed[0].nome);
         setSelectedTorneoImport((current) => parsed.some((t) => t.nome === current) ? current : parsed[0].nome);
       }
     } catch (err) {
@@ -714,7 +720,7 @@ export default function StaffIscrizioni() {
                   <input
                     type="number"
                     min="1"
-                    max="64"
+                    max={tornei.some((t) => t.nome === editFormData.torneo && isGialloCircuitEvent(t)) ? 24 : 64}
                     step="1"
                     value={editFormData.piazzamentoCircuito}
                     onChange={(e) => setEditFormData(prev => ({ ...prev, piazzamentoCircuito: e.target.value }))}

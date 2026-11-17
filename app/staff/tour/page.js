@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import StaffHeader from "@/app/components/StaffHeader";
+import GialloTourManagement from "@/app/components/GialloTourManagement";
 import { getIscrizioni, getTornei } from "@/app/utils/db";
-import { getCircuitLeaderboard, normalizeCircuitName } from "@/app/utils/circuit";
+import { getCircuitLeaderboard, getCircuitRules, normalizeCircuitName } from "@/app/utils/circuit";
 
 export default function StaffTour() {
   const router = useRouter();
@@ -13,16 +14,18 @@ export default function StaffTour() {
   const [selectedCircuit, setSelectedCircuit] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
     const load = async () => {
       try {
         const [allTournaments, allRegistrations] = await Promise.all([getTornei(), getIscrizioni()]);
         if (cancelled) return;
         setTournaments(Array.isArray(allTournaments) ? allTournaments : []);
         setRegistrations(Array.isArray(allRegistrations) ? allRegistrations : []);
-        setSelectedCircuit((current) => current || allTournaments?.find((tournament) => tournament.circuitRole === "tappa")?.circuitName || "");
+        setSelectedCircuit((current) => current || allTournaments?.find((tournament) => ["tappa", "finale"].includes(tournament.circuitRole))?.circuitName || "");
         setError("");
       } catch (loadError) {
         if (!cancelled) setError(loadError.message || "Non è stato possibile caricare la classifica del tour.");
@@ -32,17 +35,15 @@ export default function StaffTour() {
     };
 
     load();
-    const interval = setInterval(load, 10000);
     return () => {
       cancelled = true;
-      clearInterval(interval);
     };
-  }, []);
+  }, [reload]);
 
   const circuits = useMemo(() => {
     const names = new Map();
     for (const tournament of tournaments) {
-      if (tournament.circuitRole !== "tappa" || !tournament.circuitName) continue;
+      if (!["tappa", "finale"].includes(tournament.circuitRole) || !tournament.circuitName) continue;
       const key = normalizeCircuitName(tournament.circuitName);
       if (key && !names.has(key)) names.set(key, String(tournament.circuitName).trim());
     }
@@ -57,6 +58,8 @@ export default function StaffTour() {
     [tournaments, registrations, selectedCircuit]
   );
 
+  if (!error && getCircuitRules(tournaments, selectedCircuit).giallo) return <GialloTourManagement key={selectedCircuit} refreshing={loading} tournaments={tournaments} registrations={registrations} selectedCircuit={selectedCircuit} circuits={circuits} onSelect={setSelectedCircuit} onRefresh={() => setReload((n) => n + 1)} />;
+
   return (
     <main className="min-h-screen bg-[#f8faff] pb-20">
       <StaffHeader />
@@ -68,6 +71,7 @@ export default function StaffTour() {
             <p className="mt-2 text-sm font-medium text-gray-500">I punti arrivano dalle tappe concluse con piazzamento assegnato.</p>
           </div>
           <div className="flex gap-2">
+            <button onClick={() => router.push("/staff/tornei/nuovo?categoria=Giallo&ruolo=tappa")} className="rounded-xl border border-yellow-300 bg-yellow-50 px-4 py-3 text-xs font-black uppercase tracking-wide text-[#0a1628]">Crea tour giallo</button>
             <button onClick={() => router.push("/staff/tornei/nuovo")} className="rounded-xl bg-[#0a1628] px-4 py-3 text-xs font-black uppercase tracking-wide text-white">Nuovo torneo</button>
             <button onClick={() => router.push("/staff/iscrizioni")} className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-wide text-[#0a1628]">Piazzamenti</button>
           </div>

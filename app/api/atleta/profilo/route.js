@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { getIscrizioni, getTornei } from "@/app/utils/db-server";
-import { findCircuitAthlete, getCircuitLeaderboard, getPlacementPoints, normalizeCircuitName, registrationIncludesAthlete } from "@/app/utils/circuit";
+import { findCircuitAthlete, getCircuitLeaderboard, getCircuitFinalists, getCircuitRules, getPlacementPoints, normalizeCircuitName, registrationIncludesAthlete } from "@/app/utils/circuit";
+import { isTourPublished } from "@/app/utils/tour-view";
 
 export const dynamic = "force-dynamic";
 
@@ -58,12 +59,16 @@ export async function GET() {
       const finals = safeTournaments
         .filter((tournament) => normalizeCircuitName(tournament.circuitName) === normalizeCircuitName(circuitName) && tournament.circuitRole === "finale")
         .map((tournament) => {
-          const limit = Number(tournament.circuitQualifiers) || 0;
+          const qualification = getCircuitFinalists(safeTournaments, safeRegistrations, tournament);
+          const finalAthlete = findCircuitAthlete(qualification.athletes, userId, email);
+          const limit = qualification.limit;
           return {
             torneo: tournament.nome,
             qualificati: limit,
             posizione: athlete?.posizione || null,
-            qualificato: limit > 0 && Boolean(athlete && athlete.posizione <= limit),
+            qualificato: Boolean(finalAthlete?.qualificato),
+            statoQualificazione: finalAthlete?.statoQualificazione || "excluded",
+            motivoQualificazione: finalAthlete?.motivoQualificazione || "Non risulti ancora nella classifica del tour.",
           };
         });
       return {
@@ -71,6 +76,10 @@ export async function GET() {
         punti: athlete?.punti || 0,
         tappe: athlete?.tappe || 0,
         posizione: athlete?.posizione || null,
+        regole: getCircuitRules(safeTournaments, circuitName),
+        tourPubblico: isTourPublished(safeTournaments, circuitName),
+        risultati: athlete?.risultati || [],
+        idoneo: Boolean(athlete?.idoneo),
         finali: finals,
       };
     });

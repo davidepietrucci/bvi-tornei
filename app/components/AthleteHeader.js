@@ -17,6 +17,7 @@ export default function AthleteHeader() {
     { name: "Dashboard", path: "/atleta/dashboard", emoji: "🏠" },
     { name: "Le Mie Iscrizioni", path: "/atleta/iscrizioni", emoji: "📋" },
     { name: "Gironi & Calendario", path: "/atleta/gironi", emoji: "🏐" },
+    { name: "Tour", path: "/tour", emoji: "↗" },
     { name: "Iscriviti", path: "/atleta/iscriviti", emoji: "➕" },
     { name: "Notifiche", path: "/atleta/notifiche", emoji: "🔔" },
     { name: "Profilo", path: "/atleta/profilo", emoji: "👤" },

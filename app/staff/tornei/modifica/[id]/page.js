@@ -5,7 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import StaffHeader from "@/app/components/StaffHeader";
 import { getTornei, saveTornei } from "@/app/utils/db";
 import CircuitFields from "@/app/components/CircuitFields";
-import { DEFAULT_CIRCUIT_POINT_TABLE } from "@/app/utils/circuit";
+import { getCircuitPointTable, isGialloCircuitEvent } from "@/app/utils/circuit";
 
 function removeLegacySignupSettings(torneo) {
   const cleaned = { ...torneo };
@@ -30,7 +30,7 @@ export default function ModificaTorneo() {
           circuitName: "",
           circuitRole: "",
           circuitQualifiers: "",
-          circuitPointTable: { ...DEFAULT_CIRCUIT_POINT_TABLE },
+          circuitPointTable: null,
           immagineUrl: torneoToEdit.immagineUrl || "",
           ...removeLegacySignupSettings(torneoToEdit)
         });
@@ -48,7 +48,7 @@ export default function ModificaTorneo() {
       alert("Inserisci il nome del tour per collegare questo torneo alla classifica.");
       return;
     }
-    if (formData.circuitRole === "finale" && Number(formData.circuitQualifiers) < 1) {
+    if (formData.circuitRole === "finale" && !isGialloCircuitEvent(formData) && Number(formData.circuitQualifiers) < 1) {
       alert("Indica quanti atleti si qualificano alla finale.");
       return;
     }
@@ -60,7 +60,8 @@ export default function ModificaTorneo() {
         ...formData,
         nome: (formData.nome || "").trim(),
         circuitName: String(formData.circuitName || "").trim(),
-        ...(formData.circuitRole ? { circuitPointTable: formData.circuitPointTable } : {}),
+        ...(formData.circuitRole ? { circuitPointTable: getCircuitPointTable(formData) } : {}),
+        ...(formData.circuitRole === "finale" && isGialloCircuitEvent(formData) ? { circuitQualifiers: 16, maxSquadre: 16 } : {}),
         ...(formData.circuitRole !== "finale" ? { circuitQualifiers: 0 } : {}),
       };
     });
@@ -206,7 +207,8 @@ export default function ModificaTorneo() {
                   type="number" 
                   name="maxSquadre" 
                   min={["tappa", "finale"].includes(formData.circuitRole) || String(formData.categoria || "").toLowerCase().includes("giallo") ? "1" : "2"}
-                  value={formData.maxSquadre} 
+                  value={formData.circuitRole === "finale" && isGialloCircuitEvent(formData) ? 16 : formData.maxSquadre}
+                  readOnly={formData.circuitRole === "finale" && isGialloCircuitEvent(formData)}
                   onChange={handleChange}
                   className="w-full bg-gray-50 border-none rounded-2xl px-6 py-4 font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] transition-all text-center" 
                 />

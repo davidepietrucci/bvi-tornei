@@ -6,6 +6,8 @@ const isPublicRoute = createRouteMatcher([
   '/',
   '/manifest.json',
   '/tornei(.*)',
+  '/tour',
+  '/api/tour',
   '/classifica(.*)',
   '/gironi(.*)',
   '/live(.*)',

@@ -1,10 +1,11 @@
-import { DEFAULT_CIRCUIT_POINT_TABLE } from "@/app/utils/circuit";
+import { getCircuitPointTable, GIALLO_CIRCUIT_POINT_TABLE, isGialloCircuitEvent } from "@/app/utils/circuit";
 
 const inputClass = "w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-3 font-bold text-sm text-[#0a1628] focus:outline-none focus:ring-2 focus:ring-[#0a1628]";
 
 export default function CircuitFields({ value, onChange }) {
   const circuitRole = value.circuitRole || "";
-  const pointTable = { ...DEFAULT_CIRCUIT_POINT_TABLE, ...(value.circuitPointTable || {}) };
+  const pointTable = getCircuitPointTable(value);
+  const giallo = isGialloCircuitEvent(value);
 
   const updatePoint = (place, points) => {
     onChange({
@@ -35,7 +36,7 @@ export default function CircuitFields({ value, onChange }) {
           <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Ruolo del torneo</label>
           <select
             value={circuitRole}
-            onChange={(event) => onChange({ circuitRole: event.target.value })}
+            onChange={(event) => onChange({ circuitRole: event.target.value, ...(giallo && event.target.value === "finale" ? { circuitQualifiers: 16, maxSquadre: 16 } : {}) })}
             className={inputClass}
           >
             <option value="">Torneo fuori dal tour</option>
@@ -47,6 +48,7 @@ export default function CircuitFields({ value, onChange }) {
 
       {(circuitRole === "tappa" || circuitRole === "finale") && (
         <div className="space-y-3">
+          {giallo && <p className="rounded-xl bg-white p-4 text-sm text-slate-600">Tour giallo: 3 tappe + finale per 16 atleti. Contano i migliori 2 risultati, con almeno 2 tappe disputate. A parità: più tappe, poi miglior risultato singolo; un pari merito decisivo richiede spareggio. La finale parte da zero.</p>}
           <div>
             <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Punti per piazzamento</p>
             <p className="mt-1 text-xs text-gray-500">
@@ -56,7 +58,7 @@ export default function CircuitFields({ value, onChange }) {
             </p>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
-            {Array.from({ length: 16 }, (_, index) => index + 1).map((place) => (
+            {Array.from({ length: 24 }, (_, index) => index + 1).map((place) => (
               <label key={place} className="rounded-xl bg-white p-2 border border-blue-100">
                 <span className="block text-[9px] font-black text-gray-400 uppercase">{place}° posto</span>
                 <input
@@ -71,6 +73,7 @@ export default function CircuitFields({ value, onChange }) {
               </label>
             ))}
           </div>
+          {giallo && <button type="button" onClick={() => onChange({ circuitPointTable: { ...GIALLO_CIRCUIT_POINT_TABLE } })} className="rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm font-bold">Usa la nuova scala punti per 24 atleti</button>}
         </div>
       )}
 
@@ -80,12 +83,13 @@ export default function CircuitFields({ value, onChange }) {
           <input
             type="number"
             min="1"
-            value={value.circuitQualifiers || ""}
+            value={giallo ? 16 : value.circuitQualifiers || ""}
+            readOnly={giallo}
             onChange={(event) => onChange({ circuitQualifiers: Number(event.target.value) || "" })}
             placeholder="es. 16"
             className={inputClass}
           />
-          <p className="text-xs text-gray-500">La finale è individuale: può iscriversi ogni atleta entro il limite configurato, in base alla classifica del tour.</p>
+          <p className="text-xs text-gray-500">{giallo ? "Accesso ai 16 qualificati dopo tutte e 3 le tappe concluse: almeno 2 presenze valide e spareggi decisivi risolti. Nessun ripescaggio automatico." : "La finale è individuale: può iscriversi ogni atleta entro il limite configurato, in base alla classifica del tour."}</p>
         </div>
       )}
     </section>

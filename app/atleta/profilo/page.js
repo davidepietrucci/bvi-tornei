@@ -207,9 +207,11 @@ export default function AtletaProfilo() {
                       </div>
                     </div>
                     <p className="mt-2 text-xs font-semibold text-gray-500">{circuit.punti} punti · {circuit.tappe} {circuit.tappe === 1 ? "tappa conclusa" : "tappe concluse"}</p>
+                    {circuit.regole?.giallo && <p className="mt-2 text-xs text-slate-500">Contano i migliori 2 risultati su 3. Servono almeno 2 tappe per qualificarsi; finale per 16 atleti, con punteggio iniziale azzerato.</p>}
+                    {circuit.risultati?.length > 0 && <ul className="mt-3 space-y-1 text-xs text-slate-600">{circuit.risultati.map((stage) => <li key={stage.id}>{stage.torneo}: {stage.punti} punti · {stage.conteggiata ? "conteggiata" : "scartata"}</li>)}</ul>}
                     {circuit.finali.map((final) => (
                       <div key={final.torneo} className={`mt-4 rounded-xl px-4 py-3 text-xs font-bold ${final.qualificato ? "bg-green-50 text-green-800" : "bg-gray-50 text-gray-500"}`}>
-                        {final.qualificato ? "✓ Sei qualificato/a" : "Non qualificato/a al momento"} per {final.torneo}
+                        {final.qualificato ? "✓ Sei qualificato/a" : final.motivoQualificazione || "Non qualificato/a al momento"} · {final.torneo}
                         {final.qualificati ? ` · accesso riservato ai primi ${final.qualificati}` : ""}
                       </div>
                     ))}

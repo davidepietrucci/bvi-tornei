@@ -77,6 +77,7 @@ export default function Home() {
             <a href="#tornei" className="px-3 py-2 text-sm font-semibold text-white/80 transition hover:text-[#f5ca3e]">Tornei</a>
             <a href="/gironi" className="px-3 py-2 text-sm font-semibold text-white/80 transition hover:text-[#f5ca3e]">Live</a>
             <a href="/classifica" className="px-3 py-2 text-sm font-semibold text-white/80 transition hover:text-[#f5ca3e]">Classifiche</a>
+            <a href="/tour" className="px-3 py-2 text-sm font-semibold text-white/80 transition hover:text-[#f5ca3e]">Tour</a>
             <a href="/atleta" className="rounded-full bg-[#f5ca3e] px-5 py-2.5 text-sm font-black text-[#101d2c] shadow-lg transition hover:bg-yellow-300">Area atleta <span aria-hidden="true">↗</span></a>
             <a href="/staff" className="px-3 py-2 text-sm font-semibold text-white/60 transition hover:text-white">Staff</a>
           </nav>

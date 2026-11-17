@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import AthleteHeader from "@/app/components/AthleteHeader";
 import AthleteBottomNav from "@/app/components/AthleteBottomNav";
+import AthleteTourCards from "@/app/components/AthleteTourCards";
 import AthleteNameForm from "@/app/components/AthleteNameForm";
 import { getAthleteName } from "@/app/utils/athleteIdentity";
 import { getTornei, getNotifiche } from "@/app/utils/db";
@@ -91,6 +92,8 @@ export default function AtletaDashboard() {
             </div>
           </Card.Content>
         </Card>
+
+        <AthleteTourCards openTournaments={torneiAperti} />
 
         {/* Notifiche Staff */}
         {notifiche.length > 0 && (

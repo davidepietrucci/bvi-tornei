@@ -55,7 +55,12 @@ export async function GET(req) {
     }
 
     let data = null;
-    if (type === "tornei") data = await getTornei();
+    if (type === "tornei") {
+      data = await getTornei();
+      if (searchParams.get("public") === "true" || (role !== "admin" && role !== "staff")) data = data.map((t) => {
+        const safe = { ...t }; delete safe.circuitPlayoffDecision; return safe;
+      });
+    }
     else if (type === "iscrizioni") {
       data = await getIscrizioni();
       const isPublicRequest = searchParams.get("public") === "true";
