@@ -93,7 +93,7 @@ const swc = require('next/dist/build/swc');
     return require(name);
   })).default;
   function renderGroups(groups, bracket, tab = 'iniziali', loaded = 'Test') {
-    states = [[{ id: 1, nome: 'Test', categoria: '2x2' }], 'Test', groups, bracket, tab, 'A', '', loaded, 0]; cursor = 0;
+    states = ['all', 'Test', [{ id: 1, nome: 'Test', categoria: '2x2' }], groups, bracket, tab, 'A', '', loaded, 0]; cursor = 0;
     return renderToStaticMarkup(React.createElement(groupsPage));
   }
   let html = renderGroups(null, publicBracket);

@@ -9,6 +9,7 @@ import AthleteHeader from "@/app/components/AthleteHeader";
 import AthleteBottomNav from "@/app/components/AthleteBottomNav";
 import { athletePhaseVisibility, fetchAthleteData } from "@/app/utils/athlete-area";
 import { getSchedule as getScheduleShared } from "@/app/utils/ranking";
+import AthletePersonalMatches from "@/app/components/AthletePersonalMatches";
 
 const capitalizeWord = (word) => {
   if (!word) return "";
@@ -73,9 +74,22 @@ const formatPlayerName = (fullName) => {
 export default function AtletaGironi() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
+  const [scope, setScope] = useState("personal");
+  const [selectedTorneo, setSelectedTorneo] = useState("");
+  useEffect(() => { if (isLoaded && !user) router.push("/atleta"); }, [isLoaded, user, router]);
+  const viewControl = <div role="group" aria-label="Vista calendario" className="my-5 grid grid-cols-2 gap-2 rounded-2xl bg-slate-200/60 p-1.5">
+    {[["personal", "Le mie partite"], ["all", "Intero torneo"]].map(([value, label]) => <button key={value} type="button" aria-pressed={scope === value} onClick={() => setScope(value)} className={`rounded-xl px-3 py-3 text-sm font-bold ${scope === value ? "bg-[#0a1628] text-white" : "text-slate-600"}`}>{label}</button>)}
+  </div>;
+  if (!isLoaded || !user) return <p role="status" className="p-6">Caricamento area atleta…</p>;
+  return scope === "personal" ? <AthletePersonalMatches key={user.id} userId={user.id} selectedTorneo={selectedTorneo} onSelect={setSelectedTorneo} viewControl={viewControl} />
+    : <TournamentView selectedTorneo={selectedTorneo} setSelectedTorneo={setSelectedTorneo} viewControl={viewControl} />;
+}
+
+function TournamentView({ selectedTorneo, setSelectedTorneo, viewControl }) {
+  const { user, isLoaded } = useUser();
+  const router = useRouter();
   
   const [torneiAttivi, setTorneiAttivi] = useState([]);
-  const [selectedTorneo, setSelectedTorneo] = useState("");
   const [config, setConfig] = useState(null);
   const [bracketConfig, setBracketConfig] = useState(null);
   const [activeTab, setActiveTab] = useState("iniziali");
@@ -84,7 +98,7 @@ export default function AtletaGironi() {
   const [loadedFor, setLoadedFor] = useState("");
   const [reload, setReload] = useState(0);
 
-  const nomeAtleta = user?.fullName || "Davide P.";
+  const nomeAtleta = user?.fullName || "";
 
   useEffect(() => {
     if (isLoaded && !user) {
@@ -101,7 +115,9 @@ export default function AtletaGironi() {
         const params = new URLSearchParams(window.location.search);
         const urlTour = params.get("tour");
         
-        if (urlTour && parsed.some(t => t.nome === urlTour)) {
+        if (selectedTorneo && parsed.some(t => t.nome === selectedTorneo)) {
+          // Preserve the tournament when switching between personal and full views.
+        } else if (urlTour && parsed.some(t => t.nome === urlTour)) {
           setSelectedTorneo(urlTour);
         } else {
           const attivi = parsed.filter(t => t.stato === "Iscrizioni Aperte" || t.stato === "In Programmazione");
@@ -114,7 +130,7 @@ export default function AtletaGironi() {
       }).catch((error) => { if (!cancelled) setLoadError(error.message); });
       return () => { cancelled = true; controller.abort(); };
     }
-  }, [router, isLoaded, user, reload]);
+  }, [router, isLoaded, user, reload, selectedTorneo, setSelectedTorneo]);
 
   useEffect(() => {
     if (!selectedTorneo || !user || torneiAttivi.some((t) => t.nome === selectedTorneo && isGiallo(t))) return;
@@ -756,7 +772,7 @@ export default function AtletaGironi() {
 
   const gironiIds = config ? Array.from({ length: config.numGironi || 0 }, (_, i) => String.fromCharCode(65 + i)) : [];
   const bracketMatches = getAllBracketMatches();
-  const isMe = (name) => name?.toLowerCase().includes(nomeAtleta.toLowerCase());
+  const isMe = (name) => Boolean(nomeAtleta && name?.toLowerCase().includes(nomeAtleta.toLowerCase()));
   const phases = athletePhaseVisibility(loadedFor === selectedTorneo ? config : null, loadedFor === selectedTorneo ? bracketConfig : null);
   const visibleTab = activeTab === "iniziali" && phases.initial || activeTab === "intermedi" && phases.intermediate || activeTab === "finali" && phases.finals
     ? activeTab : phases.initial ? "iniziali" : "finali";
@@ -770,6 +786,7 @@ export default function AtletaGironi() {
   const selectedGiallo = torneiAttivi.find((t) => t.nome === selectedTorneo && isGiallo(t));
   if (selectedGiallo && isLoaded && user) return <main className="min-h-screen bg-[#f8faff] pb-28 xl:pl-72">
     <AthleteHeader />
+    <div className="mx-auto max-w-6xl px-4">{viewControl}</div>
     <GialloTournament tournament={selectedGiallo} tournaments={torneiAttivi} onSelect={setSelectedTorneo} />
     <AthleteBottomNav />
   </main>;
@@ -779,6 +796,7 @@ export default function AtletaGironi() {
       <AthleteHeader />
 
       <div className="max-w-6xl mx-auto mt-6 md:mt-10 px-4">
+        {viewControl}
         
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-8">
             <div>
