@@ -9,7 +9,7 @@ import AthleteTourCards from "@/app/components/AthleteTourCards";
 import AthleteNameForm from "@/app/components/AthleteNameForm";
 import StaffIcon from "@/app/components/StaffIcon";
 import { getAthleteName } from "@/app/utils/athleteIdentity";
-import { fetchAthleteData, nextAthleteRegistration, sortNotifications } from "@/app/utils/athlete-area";
+import { fetchAthleteData, nextAthleteRegistration } from "@/app/utils/athlete-area";
 import useAthleteNotifications from "@/app/components/useAthleteNotifications";
 import { Card, Button, Chip } from "@heroui/react";
 
@@ -19,12 +19,12 @@ export default function AtletaDashboard() {
 
   const [iscrizioni, setIscrizioni] = useState([]);
   const [torneiAperti, setTorneiAperti] = useState([]);
-  const [notifiche, setNotifiche] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [reload, setReload] = useState(0);
   const [tornei, setTornei] = useState([]);
   const notificationSettings = useAthleteNotifications(user?.id);
+  const notifiche = notificationSettings.notifications || [];
 
   const nome = user?.firstName || "Atleta";
   const initials = user?.fullName
@@ -50,13 +50,11 @@ export default function AtletaDashboard() {
           return json.data;
         }),
         fetchAthleteData("tornei", { array: true, signal: controller.signal }),
-        fetchAthleteData("notifiche", { array: true, signal: controller.signal }),
-      ]).then(([mie, allTornei, allNotifiche]) => {
+      ]).then(([mie, allTornei]) => {
         if (cancelled) return;
         setIscrizioni(mie);
         setTornei(allTornei);
         setTorneiAperti((allTornei || []).filter((t) => t.stato === "Iscrizioni Aperte"));
-        setNotifiche(sortNotifications(allNotifiche));
       }).catch((error) => {
         if (!cancelled) setLoadError(error.message || "Non è stato possibile caricare l’area atleta.");
       }).finally(() => { if (!cancelled) setLoading(false); });
@@ -88,6 +86,7 @@ export default function AtletaDashboard() {
       <AthleteHeader />
 
       <div className="max-w-2xl mx-auto px-4 pt-6 space-y-5">
+        {notificationSettings.error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">Notifiche: {notificationSettings.error}</p>}
         {loadError ? <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-800">{loadError}<button onClick={() => setReload((n) => n + 1)} className="ml-3 font-bold underline">Riprova</button></div> : <>
 
         {/* Hero Card */}

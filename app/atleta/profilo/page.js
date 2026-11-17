@@ -243,9 +243,10 @@ export default function AtletaProfilo() {
               <div className="space-y-3">
                 <ToggleRow
                   label="Notifiche Staff"
-                  desc="Mostra riepilogo e contatori su questo browser. Gli avvisi restano consultabili in Notifiche; non modifica le email."
+                  desc="Mostra riepilogo e contatori su tutti i tuoi dispositivi. Gli avvisi restano consultabili in Notifiche; non attiva email o push."
                   value={notificationSettings.enabled}
                   onChange={notificationSettings.toggle}
+                  disabled={notificationSettings.loading || notificationSettings.saving}
                 />
                 {notificationSettings.error && <p role="alert" className="text-sm text-red-700">{notificationSettings.error}</p>}
               </div>
@@ -378,7 +379,7 @@ function InfoRow({ emoji, label, value }) {
   );
 }
 
-function ToggleRow({ label, desc, value, onChange }) {
+function ToggleRow({ label, desc, value, onChange, disabled = false }) {
   return (
     <div className="flex items-center justify-between gap-4 p-3 bg-gray-50 rounded-2xl">
       <div>
@@ -387,6 +388,9 @@ function ToggleRow({ label, desc, value, onChange }) {
       </div>
       <button
         onClick={onChange}
+        disabled={disabled}
+        role="switch"
+        aria-checked={value}
         className={`relative w-12 h-6 rounded-full transition-colors duration-200 shrink-0 ${value ? "bg-green-500" : "bg-gray-200"}`}
         aria-label={label}
       >

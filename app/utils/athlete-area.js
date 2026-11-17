@@ -32,7 +32,7 @@ export function athletePhaseVisibility(groups, bracket) {
 export async function fetchAthleteData(type, { slug, signal, array = false } = {}) {
   const query = new URLSearchParams({ type, public: "true" });
   if (slug) query.set("slug", slug);
-  const response = await fetch(`/api/db?${query}`, { cache: "no-store", signal });
+  const response = await fetch(type === "notifiche" ? "/api/atleta/notifiche" : `/api/db?${query}`, { cache: "no-store", signal });
   if (!response.ok) throw new Error("Caricamento non riuscito. Riprova tra poco.");
   const json = await response.json();
   if (!("data" in json) || (array && !Array.isArray(json.data))) throw new Error("Risposta del server non valida. Riprova.");

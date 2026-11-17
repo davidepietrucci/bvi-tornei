@@ -52,7 +52,7 @@ const swc = require('next/dist/build/swc');
   } finally { global.fetch = originalFetch; }
 
   let states = [], cursor = 0;
-  const fakeReact = { ...React, useEffect: () => {}, useState: (initial) => {
+  const fakeReact = { ...React, useEffect: () => {}, useRef: (initial) => ({ current: initial }), useState: (initial) => {
     const index = cursor++;
     if (!(index in states)) states[index] = typeof initial === 'function' ? initial() : initial;
     return [states[index], (next) => { states[index] = typeof next === 'function' ? next(states[index]) : next; }];
@@ -65,21 +65,31 @@ const swc = require('next/dist/build/swc');
     vm.runInNewContext(compiled.code, context, { filename: file });
     return context.exports;
   };
-  const hook = await compile('app/components/useAthleteNotifications.js', (name) => name === 'react' ? fakeReact : name.includes('athlete-area') ? helpers : require(name), { window: { localStorage, dispatchEvent: () => {} }, Event: class {} });
+  let cloud = { enabled: true, read: [] }, cloudFails = false;
+  const hook = await compile('app/components/useAthleteNotifications.js', (name) => name === 'react' ? fakeReact : name.includes('athlete-area') ? helpers : require(name), { window: { localStorage, dispatchEvent: () => {} }, Event: class {}, fetch: async (_, options) => {
+    if (cloudFails) throw new Error('Cloud offline');
+    const body = JSON.parse(options.body);
+    cloud = { enabled: body.enabled ?? cloud.enabled, read: [...new Set([...cloud.read, ...body.read])] };
+    return { ok: true, json: async () => ({ success: true, settings: cloud }) };
+  } });
+  states = [{ userId: 'account-A', enabled: true, read: [], notifications, loading: false }, null]; cursor = 0;
+  assert.equal(hook.default(undefined).error, '', 'Authentication-loading SSR must not dereference a missing error'); cursor = 0;
   let settings = hook.default('account-A');
-  settings.markRead([notifications[0]]);
+  await settings.markRead([notifications[0]]);
   cursor = 0; settings = hook.default('account-A');
   assert.equal(settings.isUnread(notifications[0]), false);
   assert.equal(settings.isUnread(notifications[1]), true);
-  settings.toggle(); cursor = 0;
+  await settings.toggle(); cursor = 0;
   assert.equal(hook.default('account-A').enabled, false);
   cursor = 0;
   assert.equal(hook.default('account-B').isUnread(notifications[0]), true, 'Read state must not leak across accounts');
   assert.equal(hook.readNotificationSettings(localStorage, 'account-B').enabled, true);
   assert.deepEqual(Array.from(hook.readNotificationSettings({ getItem: () => '{broken' }, 'account-A').read), []);
   localStorage.setItem = () => { throw new Error('Storage denied'); };
-  cursor = 0; hook.default('account-A').toggle(); cursor = 0;
-  assert.match(hook.default('account-A').error, /non permette/);
+  cursor = 0; await hook.default('account-A').toggle(); cursor = 0;
+  assert.equal(hook.default('account-A').enabled, true, 'A blocked browser cache must not break cloud settings');
+  cloudFails = true; cursor = 0; await hook.default('account-A').toggle(); cursor = 0;
+  assert.match(hook.default('account-A').error, /Cloud offline/);
 
   const fakeComponent = () => null;
   const groupsPage = (await compile('app/atleta/gironi/page.js', (name) => {
@@ -106,7 +116,7 @@ const swc = require('next/dist/build/swc');
   assert.ok(!html.includes('Fasi Finali'), 'Never render the previous tournament after selection changes');
   html = renderGroups(null, { ...publicBracket, tabellonePubblicato: false });
   assert.ok(!html.includes('Fasi Finali'), 'Hidden bracket must remain hidden');
-  let uiSettings = { enabled: true, error: '', isUnread: () => true, toggle: () => {}, markRead: () => {} };
+  let uiSettings = { enabled: true, error: '', notifications, loading: false, isUnread: () => true, toggle: () => {}, markRead: () => {}, refresh: () => {} };
   const wrapper = ({ children }) => React.createElement('div', null, children);
   wrapper.Content = wrapper; wrapper.Label = wrapper;
   const uiRequire = (name) => {
@@ -123,10 +133,10 @@ const swc = require('next/dist/build/swc');
   const dashboard = (await compile('app/atleta/dashboard/page.js', uiRequire)).default;
   const future = [{ id: 1, nome: 'Future beach tournament', data: '2099-11-18', stato: 'Iscrizioni Aperte' }];
   const mine = [{ torneo: 'Future beach tournament', data: '01/01/2026', stato: 'Approvata' }];
-  states = [mine, future, notifications, false, '', 0, future]; cursor = 0;
+  states = [mine, future, false, '', 0, future]; cursor = 0;
   html = renderToStaticMarkup(React.createElement(dashboard));
   assert.ok(html.includes('2099-11-18')); assert.ok(!html.includes('01/01/2026'));
-  states = [[], [], [], false, 'Network unavailable', 0, []]; cursor = 0;
+  states = [[], [], false, 'Network unavailable', 0, []]; cursor = 0;
   html = renderToStaticMarkup(React.createElement(dashboard));
   assert.ok(html.includes('role="alert"')); assert.ok(html.includes('Riprova'));
   assert.ok(!html.includes('Nessun torneo in programma'), 'A failed request must not masquerade as no registrations');
@@ -135,7 +145,8 @@ const swc = require('next/dist/build/swc');
   html = renderToStaticMarkup(React.createElement(notificationPage));
   assert.ok(html.includes('Segna tutte come lette')); assert.ok(html.includes('Segna come letta'));
   assert.ok(!html.includes('Invalid Date'));
-  states = [[], false, 'Network unavailable', 0]; cursor = 0;
+  uiSettings = { ...uiSettings, notifications: [], error: 'Network unavailable' };
+  states = []; cursor = 0;
   html = renderToStaticMarkup(React.createElement(notificationPage));
   assert.ok(html.includes('role="alert"')); assert.ok(!html.includes('Nessuna notifica'));
   console.log('Athlete area: upcoming event/date, independent finals, intermediate navigation, strict fetch errors, notification read state and account isolation passed.');

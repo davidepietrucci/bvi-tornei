@@ -33,7 +33,7 @@ const postcss = require('postcss');
     return renderToStaticMarkup(React.createElement(Header));
   };
   let html = render();
-  for (const path of ['dashboard', 'tornei', 'gestione-torneo', 'tour', 'iscrizioni', 'pagamenti', 'sponsors']) assert.ok(html.includes(`href="/staff/${path}"`));
+  for (const path of ['dashboard', 'tornei', 'gestione-torneo', 'tour', 'iscrizioni', 'pagamenti', 'notifiche', 'sponsors']) assert.ok(html.includes(`href="/staff/${path}"`));
   assert.ok(!html.includes('href="/staff/atleti"'), 'Admin-only menu item must remain hidden for staff');
   assert.match(html, /href="\/staff\/pagamenti"[^>]*aria-current="page"/);
   assert.match(html, /Sito pubblico/); assert.match(html, /Vai al contenuto/); assert.match(html, /Cloud connesso/);

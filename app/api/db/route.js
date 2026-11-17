@@ -91,7 +91,8 @@ export async function GET(req) {
       const published = type === "gironi" ? data?.pubblicato : data?.tabellonePubblicato;
       if (publicView && published !== true) data = null;
     }
-    else if (type === "notifiche") data = await getNotifiche();
+    // Only the dedicated authenticated feed may expose targeted notifications.
+    else if (type === "notifiche") data = userId && ["admin", "staff"].includes(role) && searchParams.get("public") !== "true" ? await getNotifiche() : [];
     else if (type === "sponsors") data = await getSponsors();
     else {
       return NextResponse.json({ error: "Tipo database non valido" }, { status: 400 });
@@ -127,6 +128,7 @@ export async function POST(req) {
     }
 
     // Controllo dei permessi di scrittura lato server
+    if (type === "notifiche") return NextResponse.json({ error: "Usa la gestione notifiche dedicata." }, { status: 403 });
     if (type === "giallo") {
       if (!slug || typeof slug !== "string" || slug.includes("/") || slug.length > 300 || baseline === undefined) {
         return NextResponse.json({ error: "Dati non aggiornati: ricarica il torneo." }, { status: 400 });

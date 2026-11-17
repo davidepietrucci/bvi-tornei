@@ -15,6 +15,7 @@ const MENU_ITEMS = [
   { name: "Iscrizioni", path: "/staff/iscrizioni", icon: "registrations", group: "Amministrazione" },
   { name: "Anagrafica Atleti", path: "/staff/atleti", icon: "athletes", group: "Amministrazione", adminOnly: true },
   { name: "Pagamenti", path: "/staff/pagamenti", icon: "payments", group: "Amministrazione" },
+  { name: "Notifiche", path: "/staff/notifiche", icon: "notifications", group: "Amministrazione" },
   { name: "Sponsor", path: "/staff/sponsors", icon: "sponsors", group: "Amministrazione" },
 ];
 const isCurrentPage = (pathname, path) => pathname === path || pathname.startsWith(`${path}/`);

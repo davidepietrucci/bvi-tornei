@@ -89,10 +89,10 @@ const { isDeepStrictEqual } = require('node:util');
     .replace('export async function', 'async function');
   let saved = null, registrations = athletes(24).map((a) => ({ id: a.id, giocatori: a.name, torneo: 'Giallo', stato: 'Approvata' }));
   const db = { collection: (collection) => ({ doc: (id) => `${collection}/${id}` }), runTransaction: async (callback) => callback({
-    get: async (ref) => ({ data: () => ref.startsWith('giallo/') ? { data: saved } : { list: registrations } }),
+    get: async (ref) => ({ data: () => ref.startsWith('giallo/') ? { data: saved } : ref === 'config/notification_settings' ? { automaticEnabled: false } : { list: registrations } }),
     set: (_, value) => { saved = value.data; },
   }) };
-  const context = vm.createContext({ db, isDeepStrictEqual, approvedGialloAthletes, sanitizeData: (v) => structuredClone(v) });
+  const context = vm.createContext({ db, randomUUID: () => 'operation', isDeepStrictEqual, approvedGialloAthletes, sanitizeData: (v) => structuredClone(v) });
   vm.runInContext(`${helper}\nthis.save = saveGialloIfUnchanged;`, context);
   const config = createGiallo(athletes(24));
   assert.equal(await context.save('test', config, null, 'Giallo'), 'saved');

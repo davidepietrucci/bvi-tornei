@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import AthleteHeader from "@/app/components/AthleteHeader";
 import AthleteBottomNav from "@/app/components/AthleteBottomNav";
-import { calendarDay, fetchAthleteData, sortNotifications } from "@/app/utils/athlete-area";
+import { calendarDay } from "@/app/utils/athlete-area";
 import useAthleteNotifications from "@/app/components/useAthleteNotifications";
+import Link from "next/link";
+import StaffIcon from "@/app/components/StaffIcon";
 
 const TIPO_CONFIG = {
   urgente: { emoji: "🚨", color: "bg-red-50 border-red-100", badge: "bg-red-100 text-red-700", label: "Urgente" },
@@ -18,11 +20,10 @@ export default function AtletaNotifiche() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
 
-  const [notifiche, setNotifiche] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
-  const [reload, setReload] = useState(0);
   const notificationSettings = useAthleteNotifications(user?.id);
+  const notifiche = notificationSettings.notifications || [];
+  const loading = notificationSettings.loading;
+  const loadError = notificationSettings.error || "";
   const unreadCount = notifiche.filter(notificationSettings.isUnread).length;
 
   useEffect(() => {
@@ -30,18 +31,7 @@ export default function AtletaNotifiche() {
       router.push("/atleta");
       return;
     }
-    if (user) {
-      let cancelled = false;
-      const controller = new AbortController();
-      setLoading(true); setLoadError("");
-      fetchAthleteData("notifiche", { array: true, signal: controller.signal }).then((data) => {
-        if (!cancelled) setNotifiche(sortNotifications(data));
-      }).catch((error) => {
-        if (!cancelled) setLoadError(error.message);
-      }).finally(() => { if (!cancelled) setLoading(false); });
-      return () => { cancelled = true; controller.abort(); };
-    }
-  }, [router, isLoaded, user, reload]);
+  }, [router, isLoaded, user]);
 
   if (!isLoaded || loading) {
     return (
@@ -70,10 +60,9 @@ export default function AtletaNotifiche() {
           )}
         </div>
 
-        {loadError && <div role="alert" className="mb-5 rounded-2xl bg-red-50 p-4 text-sm text-red-800">{loadError}<button onClick={() => setReload((n) => n + 1)} className="ml-3 font-bold underline">Riprova</button></div>}
-        {notificationSettings.error && <p role="alert" className="mb-4 text-sm text-red-700">{notificationSettings.error}</p>}
-        {!loadError && unreadCount > 0 && <button onClick={() => notificationSettings.markRead(notifiche)} className="mb-5 rounded-xl bg-white p-3 text-sm font-bold">Segna tutte come lette ({unreadCount})</button>}
-        <p className="mb-4 text-xs text-gray-500">Lo stato di lettura è salvato per il tuo account su questo browser.</p>
+        {loadError && <div role="alert" className="mb-5 rounded-2xl bg-red-50 p-4 text-sm text-red-800">{loadError}<button onClick={notificationSettings.refresh} className="ml-3 font-bold underline">Riprova</button></div>}
+        {!loadError && unreadCount > 0 && <button disabled={notificationSettings.saving || notificationSettings.loading} onClick={() => notificationSettings.markRead(notifiche)} className="mb-5 rounded-xl bg-white p-3 text-sm font-bold disabled:opacity-50">Segna tutte come lette ({unreadCount})</button>}
+        <p className="mb-4 text-xs text-gray-500">Letture sincronizzate tra i tuoi dispositivi. Aggiornamento automatico ogni 15 secondi. Ultimi 200 avvisi disponibili; nessun invio email o push.</p>
         {/* Lista notifiche */}
         {!loadError && (notifiche.length > 0 ? (
           <div className="space-y-3">
@@ -81,27 +70,28 @@ export default function AtletaNotifiche() {
               const cfg = TIPO_CONFIG[n.tipo] || TIPO_CONFIG.info;
               return (
                 <div
-                  key={idx}
+                  key={n.id || idx}
                   className={`rounded-[1.8rem] p-5 border shadow-sm ${cfg.color}`}
                 >
                   <div className="flex items-start gap-3">
-                    <span className="text-2xl shrink-0 mt-0.5">{cfg.emoji}</span>
+                    <StaffIcon name="notifications" className="mt-0.5 h-5 w-5 shrink-0 text-slate-500" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-1">
-                        <p className="font-black text-[#0a1628] text-sm uppercase tracking-tight truncate">
+                        <p className="break-words font-bold text-[#0a1628] text-sm">
                           {n.titolo || "Comunicazione Staff"}
                         </p>
                         <span className={`shrink-0 text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider ${cfg.badge}`}>
                           {cfg.label}
                         </span>
                       </div>
-                      <p className="text-xs text-gray-600 font-medium leading-relaxed">
+                      <p className="whitespace-pre-wrap break-words text-sm text-gray-600 leading-relaxed">
                         {n.messaggio || "Nessun contenuto."}
                       </p>
-                      {notificationSettings.isUnread(n) ? <button onClick={() => notificationSettings.markRead([n])} className="mt-3 text-xs font-bold underline">Nuova · Segna come letta</button> : <p className="mt-3 text-xs text-gray-500">Letta</p>}
+                      {n.href && <Link href={n.href} className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold underline">Apri le mie partite →</Link>}
+                      {notificationSettings.isUnread(n) ? <button disabled={notificationSettings.saving || notificationSettings.loading} onClick={() => notificationSettings.markRead([n])} className="mt-3 block min-h-11 text-xs font-bold underline disabled:opacity-50">Nuova · Segna come letta</button> : <p className="mt-3 text-xs text-gray-500">Letta</p>}
                       {n.data && (
                         <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-2">
-                          📅 {calendarDay(n.data) !== null ? new Date(calendarDay(n.data)).toLocaleDateString("it-IT", { day: "2-digit", month: "long", year: "numeric" }) : "Data non disponibile"}
+                          {calendarDay(n.data) !== null ? new Date(calendarDay(n.data)).toLocaleDateString("it-IT", { day: "2-digit", month: "long", year: "numeric" }) : "Data non disponibile"}
                         </p>
                       )}
                     </div>
@@ -113,7 +103,7 @@ export default function AtletaNotifiche() {
         ) : (
           <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
             <div className="w-20 h-20 rounded-[2rem] bg-white shadow-sm border border-gray-100 flex items-center justify-center text-4xl">
-              🔔
+              <StaffIcon name="notifications" className="h-7 w-7 text-slate-400" />
             </div>
             <div>
               <p className="font-black text-[#0a1628] text-base uppercase tracking-tighter">Nessuna notifica</p>

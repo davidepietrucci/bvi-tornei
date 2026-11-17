@@ -4,6 +4,8 @@ import fs from "fs";
 import path from "path";
 import { isDeepStrictEqual } from "node:util";
 import { approvedGialloAthletes } from "./giallo";
+import { randomUUID } from "node:crypto";
+import { tournamentNotifications } from "./notifications";
 
 let parsedServiceAccount = null;
 const jsonEnv = process.env.FIREBASE_SERVICE_ACCOUNT || process.env.FIREBASE_CONFIG_JSON || process.env.FIREBASE_CREDENTIALS;
@@ -258,9 +260,11 @@ export async function saveGialloIfUnchanged(slug, data, baseline, tournamentName
   if (!db) throw new Error("Database Firestore non disponibile");
   const ref = db.collection("giallo").doc(slug);
   const registrationsRef = db.collection("config").doc("iscrizioni");
+  const operationId = randomUUID();
   return db.runTransaction(async (transaction) => {
-    const [snapshot, registrationsSnapshot] = await Promise.all([
+    const [snapshot, registrationsSnapshot, settingsSnapshot] = await Promise.all([
       transaction.get(ref), transaction.get(registrationsRef),
+      transaction.get(db.collection("config").doc("notification_settings")),
     ]);
     if (!isDeepStrictEqual(snapshot.data()?.data ?? null, baseline)) return "conflict";
     const current = snapshot.data()?.data;
@@ -273,19 +277,105 @@ export async function saveGialloIfUnchanged(slug, data, baseline, tournamentName
       const names = new Map(approved.map((a) => [a.id, a.name]));
       if (data.groups.some((g) => g.athletes.some((a) => names.get(a.id) !== a.name))) return "registrations_changed";
     }
+    if (settingsSnapshot.data()?.automaticEnabled !== false) {
+      const notices = tournamentNotifications("giallo", current, data, tournamentName, registrationsSnapshot.data()?.list ?? [], new Date().toISOString());
+      writeAutomaticNotifications(transaction, notices, operationId);
+    }
     transaction.set(ref, { data: sanitizeData(data) });
     return "saved";
   });
 }
 export async function saveGironi(slug, data) {
-  await saveSpecificDoc("gironi", slug, data);
+  await saveTournamentWithNotifications("gironi", slug, data);
 }
 
 export async function getBracket(slug) {
   return getSpecificDoc("bracket", slug);
 }
 export async function saveBracket(slug, data) {
-  await saveSpecificDoc("bracket", slug, data);
+  await saveTournamentWithNotifications("bracket", slug, data);
+}
+
+function writeAutomaticNotifications(transaction, notices, operationId) {
+  notices.forEach((notice, index) => {
+    const id = `${operationId}-${index}`;
+    transaction.set(db.collection("notifications").doc(id), sanitizeData({ ...notice, id }));
+  });
+}
+
+async function saveTournamentWithNotifications(type, slug, data) {
+  if (!db) return saveSpecificDoc(type, slug, data);
+  const ref = db.collection(type).doc(slug), operationId = randomUUID();
+  await db.runTransaction(async (transaction) => {
+    const [snapshot, registrations, tournaments, settings] = await Promise.all([
+      transaction.get(ref), transaction.get(db.collection("config").doc("iscrizioni")),
+      transaction.get(db.collection("config").doc("tornei")), transaction.get(db.collection("config").doc("notification_settings")),
+    ]);
+    const tournament = (tournaments.data()?.list || []).find((t) => String(t.nome || "").toLowerCase().trim().replace(/\s+/g, "_") === slug);
+    if (tournament && settings.data()?.automaticEnabled !== false) {
+      writeAutomaticNotifications(transaction, tournamentNotifications(type, snapshot.data()?.data, data, tournament.nome, registrations.data()?.list || [], new Date().toISOString()), operationId);
+    }
+    transaction.set(ref, { data: sanitizeData(data) });
+  });
+  saveLocalFileDb(type, sanitizeData(data), slug);
+}
+
+export async function getNotificationEvents() {
+  if (!db) throw new Error("Database notifiche non disponibile.");
+  const snapshot = await db.collection("notifications").orderBy("data", "desc").limit(200).get();
+  return snapshot.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
+}
+
+export async function getNotificationRegistrations() {
+  if (!db) throw new Error("Database notifiche non disponibile.");
+  const doc = await db.collection("config").doc("iscrizioni").get();
+  return Array.isArray(doc.data()?.list) ? doc.data().list : [];
+}
+
+export async function createNotificationEvent(notice) {
+  if (!db) throw new Error("Database notifiche non disponibile.");
+  const id = randomUUID(), data = sanitizeData({ ...notice, id });
+  await db.collection("notifications").doc(id).create(data);
+  return data;
+}
+
+export async function archiveNotificationEvent(id, actor) {
+  if (!db || typeof id !== "string" || id.includes("/")) throw new Error("Notifica non valida.");
+  const ref = db.collection("notifications").doc(id);
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists) return false;
+    transaction.update(ref, { archived: true, archivedAt: new Date().toISOString(), archivedBy: actor });
+    return true;
+  });
+}
+
+export async function getNotificationPreferences(userId) {
+  if (!db) throw new Error("Database notifiche non disponibile.");
+  const doc = await db.collection("athlete_notification_state").doc(userId).get();
+  return { enabled: doc.data()?.enabled !== false, read: Array.isArray(doc.data()?.read) ? doc.data().read : [], initialized: doc.exists };
+}
+
+export async function updateNotificationPreferences(userId, { read = [], enabled }) {
+  if (!db) throw new Error("Database notifiche non disponibile.");
+  const ref = db.collection("athlete_notification_state").doc(userId);
+  return db.runTransaction(async (transaction) => {
+    const doc = await transaction.get(ref), current = doc.data() || {};
+    const next = { enabled: typeof enabled === "boolean" ? enabled : current.enabled !== false,
+      read: [...new Set([...(Array.isArray(current.read) ? current.read : []), ...read])].slice(-1000) };
+    transaction.set(ref, next); return { ...next, initialized: true };
+  });
+}
+
+export async function getNotificationDeliverySettings() {
+  if (!db) throw new Error("Database notifiche non disponibile.");
+  const doc = await db.collection("config").doc("notification_settings").get();
+  return { automaticEnabled: doc.data()?.automaticEnabled !== false };
+}
+
+export async function setNotificationDeliverySettings(automaticEnabled) {
+  if (!db) throw new Error("Database notifiche non disponibile.");
+  await db.collection("config").doc("notification_settings").set({ automaticEnabled }, { merge: true });
 }
 
 export async function getUsers() {
