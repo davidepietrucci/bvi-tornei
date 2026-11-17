@@ -6,6 +6,7 @@ import { useUser, useClerk } from "@clerk/nextjs";
 import AthleteHeader from "@/app/components/AthleteHeader";
 import AthleteBottomNav from "@/app/components/AthleteBottomNav";
 import { getAthleteName } from "@/app/utils/athleteIdentity";
+import useAthleteNotifications from "@/app/components/useAthleteNotifications";
 
 const TABS = ["Info", "Punteggi", "Impostazioni"];
 
@@ -14,7 +15,7 @@ export default function AtletaProfilo() {
   const { signOut } = useClerk();
   const router = useRouter();
   const [tab, setTab] = useState("Info");
-  const [notifiche, setNotifiche] = useState(true);
+  const notificationSettings = useAthleteNotifications(user?.id);
   const [scoreData, setScoreData] = useState(null);
   const [scoreLoading, setScoreLoading] = useState(true);
   const [scoreError, setScoreError] = useState("");
@@ -33,10 +34,6 @@ export default function AtletaProfilo() {
       router.replace("/atleta");
       return;
     }
-
-    // Carica preferenze da localStorage
-    const savedNotif = localStorage.getItem("bvi_notif_atleta");
-    if (savedNotif !== null) setNotifiche(savedNotif === "true");
 
     if (user) {
       setEditForm({
@@ -77,12 +74,6 @@ export default function AtletaProfilo() {
   const initials = nome !== "—"
     ? nome.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
     : "A";
-
-  const toggleNotifiche = () => {
-    const newVal = !notifiche;
-    setNotifiche(newVal);
-    localStorage.setItem("bvi_notif_atleta", String(newVal));
-  };
 
   const handleLogout = () => {
     signOut({ redirectUrl: "/" });
@@ -252,10 +243,11 @@ export default function AtletaProfilo() {
               <div className="space-y-3">
                 <ToggleRow
                   label="Notifiche Staff"
-                  desc="Avvisi su tornei e scadenze"
-                  value={notifiche}
-                  onChange={toggleNotifiche}
+                  desc="Mostra riepilogo e contatori su questo browser. Gli avvisi restano consultabili in Notifiche; non modifica le email."
+                  value={notificationSettings.enabled}
+                  onChange={notificationSettings.toggle}
                 />
+                {notificationSettings.error && <p role="alert" className="text-sm text-red-700">{notificationSettings.error}</p>}
               </div>
             </div>
 

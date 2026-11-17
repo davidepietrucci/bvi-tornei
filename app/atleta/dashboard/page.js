@@ -8,7 +8,8 @@ import AthleteBottomNav from "@/app/components/AthleteBottomNav";
 import AthleteTourCards from "@/app/components/AthleteTourCards";
 import AthleteNameForm from "@/app/components/AthleteNameForm";
 import { getAthleteName } from "@/app/utils/athleteIdentity";
-import { getTornei, getNotifiche } from "@/app/utils/db";
+import { fetchAthleteData, nextAthleteRegistration, sortNotifications } from "@/app/utils/athlete-area";
+import useAthleteNotifications from "@/app/components/useAthleteNotifications";
 import { Card, Button, Chip } from "@heroui/react";
 
 export default function AtletaDashboard() {
@@ -19,6 +20,10 @@ export default function AtletaDashboard() {
   const [torneiAperti, setTorneiAperti] = useState([]);
   const [notifiche, setNotifiche] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [reload, setReload] = useState(0);
+  const [tornei, setTornei] = useState([]);
+  const notificationSettings = useAthleteNotifications(user?.id);
 
   const nome = user?.firstName || "Atleta";
   const initials = user?.fullName
@@ -33,30 +38,36 @@ export default function AtletaDashboard() {
       return;
     }
     if (user) {
+      let cancelled = false;
+      const controller = new AbortController();
+      setLoading(true); setLoadError("");
       Promise.all([
-        fetch("/api/atleta/iscrizioni", { cache: "no-store" }).then(async (response) => {
+        fetch("/api/atleta/iscrizioni", { cache: "no-store", signal: controller.signal }).then(async (response) => {
           const json = await response.json();
           if (!response.ok) throw new Error(json.error || "Errore caricamento iscrizioni");
-          return json.data || [];
+          if (!Array.isArray(json.data)) throw new Error("Risposta iscrizioni non valida. Riprova.");
+          return json.data;
         }),
-        getTornei(),
-        getNotifiche(),
+        fetchAthleteData("tornei", { array: true, signal: controller.signal }),
+        fetchAthleteData("notifiche", { array: true, signal: controller.signal }),
       ]).then(([mie, allTornei, allNotifiche]) => {
+        if (cancelled) return;
         setIscrizioni(mie);
+        setTornei(allTornei);
         setTorneiAperti((allTornei || []).filter((t) => t.stato === "Iscrizioni Aperte"));
-        setNotifiche((allNotifiche || []).slice(0, 3));
+        setNotifiche(sortNotifications(allNotifiche));
       }).catch((error) => {
-        console.error("Errore caricamento area atleta:", error);
-      }).finally(() => setLoading(false));
+        if (!cancelled) setLoadError(error.message || "Non è stato possibile caricare l’area atleta.");
+      }).finally(() => { if (!cancelled) setLoading(false); });
+      return () => { cancelled = true; controller.abort(); };
     }
-  }, [router, isLoaded, user]);
+  }, [router, isLoaded, user, reload]);
 
   // Calcoli
   const iscrConfirmate = iscrizioni.filter((i) => i.stato === "Approvata").length;
   const iscrAttesa = iscrizioni.filter((i) => i.stato === "In Attesa").length;
-  const iscrizioniAttive = iscrizioni.filter((i) => i.stato !== "Annullata");
-  const prossimaIscr = iscrizioniAttive.find((i) => i.stato === "Approvata") || iscrizioniAttive[0] || null;
-  const notificheNonLette = notifiche.length; // semplificato
+  const prossimaIscr = nextAthleteRegistration(iscrizioni, tornei);
+  const notificheNonLette = !loadError && notificationSettings.enabled ? notifiche.filter(notificationSettings.isUnread).length : 0;
 
   if (isLoaded && user && !getAthleteName(user)) return <AthleteNameForm />;
 
@@ -76,6 +87,7 @@ export default function AtletaDashboard() {
       <AthleteHeader />
 
       <div className="max-w-2xl mx-auto px-4 pt-6 space-y-5">
+        {loadError ? <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-800">{loadError}<button onClick={() => setReload((n) => n + 1)} className="ml-3 font-bold underline">Riprova</button></div> : <>
 
         {/* Hero Card */}
         <Card className="border-none bg-[#0a1628] text-white rounded-[2rem] shadow-xl overflow-hidden">
@@ -96,7 +108,7 @@ export default function AtletaDashboard() {
         <AthleteTourCards openTournaments={torneiAperti} />
 
         {/* Notifiche Staff */}
-        {notifiche.length > 0 && (
+        {notificationSettings.enabled && notifiche.length > 0 && (
           <Card 
             className="border-none bg-white rounded-[1.8rem] shadow-sm border border-amber-100 transition-all hover:-translate-y-0.5 cursor-pointer"
             onClick={() => router.push("/atleta/notifiche")}
@@ -112,7 +124,7 @@ export default function AtletaDashboard() {
                 </svg>
               </div>
               <div className="space-y-2 w-full text-left">
-                {notifiche.map((n, idx) => (
+                {notifiche.slice(0, 3).map((n, idx) => (
                   <div key={idx} className="flex items-start gap-3">
                     <span className="text-base mt-0.5 shrink-0">
                       {n.tipo === "urgente" ? "🚨" : n.tipo === "avviso" ? "⚠️" : "ℹ️"}
@@ -171,7 +183,7 @@ export default function AtletaDashboard() {
                 <div className="min-w-0 flex-1">
                   <p className="font-black text-[#0a1628] text-sm uppercase tracking-tight truncate">{prossimaIscr.torneo}</p>
                   <p className="text-[10px] text-gray-400 font-semibold mt-1 truncate">{prossimaIscr.giocatori}</p>
-                  <p className="text-[10px] text-gray-300 font-bold mt-0.5">{prossimaIscr.data}</p>
+                  <p className="text-[10px] text-gray-300 font-bold mt-0.5">{prossimaIscr.dataTorneo}</p>
                 </div>
                 <Chip
                   variant="soft"
@@ -189,7 +201,7 @@ export default function AtletaDashboard() {
             >
               <Card.Content className="flex flex-col items-center gap-3 py-6">
                 <span className="text-4xl">🏜️</span>
-                <p className="text-xs font-black text-gray-400 uppercase tracking-widest text-center">Nessuna iscrizione attiva</p>
+                <p className="text-xs font-black text-gray-400 uppercase tracking-widest text-center">Nessun torneo in programma tra le tue iscrizioni</p>
                 <Button
                   onPress={() => router.push("/atleta/iscriviti")}
                   className="text-[10px] font-black text-white bg-[#0a1628] rounded-full uppercase tracking-widest px-6 py-2 shadow-sm"
@@ -275,6 +287,7 @@ export default function AtletaDashboard() {
           </div>
         </div>
 
+        </>}
       </div>
 
       <AthleteBottomNav notificheCount={notificheNonLette} />

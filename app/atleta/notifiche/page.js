@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import AthleteHeader from "@/app/components/AthleteHeader";
 import AthleteBottomNav from "@/app/components/AthleteBottomNav";
-import { getNotifiche } from "@/app/utils/db";
+import { calendarDay, fetchAthleteData, sortNotifications } from "@/app/utils/athlete-area";
+import useAthleteNotifications from "@/app/components/useAthleteNotifications";
 
 const TIPO_CONFIG = {
   urgente: { emoji: "🚨", color: "bg-red-50 border-red-100", badge: "bg-red-100 text-red-700", label: "Urgente" },
@@ -19,6 +20,10 @@ export default function AtletaNotifiche() {
 
   const [notifiche, setNotifiche] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [reload, setReload] = useState(0);
+  const notificationSettings = useAthleteNotifications(user?.id);
+  const unreadCount = notifiche.filter(notificationSettings.isUnread).length;
 
   useEffect(() => {
     if (isLoaded && !user) {
@@ -26,16 +31,17 @@ export default function AtletaNotifiche() {
       return;
     }
     if (user) {
-      getNotifiche().then((data) => {
-        // Ordina per data decrescente se presente
-        const sorted = [...data].sort((a, b) => {
-          if (a.data && b.data) return new Date(b.data) - new Date(a.data);
-          return 0;
-        });
-        setNotifiche(sorted);
-      }).finally(() => setLoading(false));
+      let cancelled = false;
+      const controller = new AbortController();
+      setLoading(true); setLoadError("");
+      fetchAthleteData("notifiche", { array: true, signal: controller.signal }).then((data) => {
+        if (!cancelled) setNotifiche(sortNotifications(data));
+      }).catch((error) => {
+        if (!cancelled) setLoadError(error.message);
+      }).finally(() => { if (!cancelled) setLoading(false); });
+      return () => { cancelled = true; controller.abort(); };
     }
-  }, [router, isLoaded, user]);
+  }, [router, isLoaded, user, reload]);
 
   if (!isLoaded || loading) {
     return (
@@ -64,8 +70,12 @@ export default function AtletaNotifiche() {
           )}
         </div>
 
+        {loadError && <div role="alert" className="mb-5 rounded-2xl bg-red-50 p-4 text-sm text-red-800">{loadError}<button onClick={() => setReload((n) => n + 1)} className="ml-3 font-bold underline">Riprova</button></div>}
+        {notificationSettings.error && <p role="alert" className="mb-4 text-sm text-red-700">{notificationSettings.error}</p>}
+        {!loadError && unreadCount > 0 && <button onClick={() => notificationSettings.markRead(notifiche)} className="mb-5 rounded-xl bg-white p-3 text-sm font-bold">Segna tutte come lette ({unreadCount})</button>}
+        <p className="mb-4 text-xs text-gray-500">Lo stato di lettura è salvato per il tuo account su questo browser.</p>
         {/* Lista notifiche */}
-        {notifiche.length > 0 ? (
+        {!loadError && (notifiche.length > 0 ? (
           <div className="space-y-3">
             {notifiche.map((n, idx) => {
               const cfg = TIPO_CONFIG[n.tipo] || TIPO_CONFIG.info;
@@ -88,9 +98,10 @@ export default function AtletaNotifiche() {
                       <p className="text-xs text-gray-600 font-medium leading-relaxed">
                         {n.messaggio || "Nessun contenuto."}
                       </p>
+                      {notificationSettings.isUnread(n) ? <button onClick={() => notificationSettings.markRead([n])} className="mt-3 text-xs font-bold underline">Nuova · Segna come letta</button> : <p className="mt-3 text-xs text-gray-500">Letta</p>}
                       {n.data && (
                         <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-2">
-                          📅 {new Date(n.data).toLocaleDateString("it-IT", { day: "2-digit", month: "long", year: "numeric" })}
+                          📅 {calendarDay(n.data) !== null ? new Date(calendarDay(n.data)).toLocaleDateString("it-IT", { day: "2-digit", month: "long", year: "numeric" }) : "Data non disponibile"}
                         </p>
                       )}
                     </div>
@@ -117,7 +128,7 @@ export default function AtletaNotifiche() {
               ← Torna alla Dashboard
             </button>
           </div>
-        )}
+        ))}
 
         {/* Info */}
         {notifiche.length > 0 && (
@@ -129,7 +140,7 @@ export default function AtletaNotifiche() {
         )}
       </div>
 
-      <AthleteBottomNav />
+      <AthleteBottomNav notificheCount={!loadError && notificationSettings.enabled ? unreadCount : 0} />
     </main>
   );
 }

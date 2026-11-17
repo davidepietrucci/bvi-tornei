@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import AthleteHeader from "@/app/components/AthleteHeader";
 import AthleteBottomNav from "@/app/components/AthleteBottomNav";
-import { getTornei, getGironi, getBracket } from "@/app/utils/db";
+import { athletePhaseVisibility, fetchAthleteData } from "@/app/utils/athlete-area";
 import { getSchedule as getScheduleShared } from "@/app/utils/ranking";
 
 const capitalizeWord = (word) => {
@@ -80,6 +80,9 @@ export default function AtletaGironi() {
   const [bracketConfig, setBracketConfig] = useState(null);
   const [activeTab, setActiveTab] = useState("iniziali");
   const [activeGirone, setActiveGirone] = useState("A");
+  const [loadError, setLoadError] = useState("");
+  const [loadedFor, setLoadedFor] = useState("");
+  const [reload, setReload] = useState(0);
 
   const nomeAtleta = user?.fullName || "Davide P.";
 
@@ -89,7 +92,10 @@ export default function AtletaGironi() {
     }
 
     if (user) {
-      getTornei().then(parsed => {
+      let cancelled = false;
+      const controller = new AbortController();
+      fetchAthleteData("tornei", { array: true, signal: controller.signal }).then(parsed => {
+        if (cancelled) return;
         setTorneiAttivi(parsed);
         
         const params = new URLSearchParams(window.location.search);
@@ -105,18 +111,29 @@ export default function AtletaGironi() {
             setSelectedTorneo(parsed[0].nome);
           }
         }
-      });
+      }).catch((error) => { if (!cancelled) setLoadError(error.message); });
+      return () => { cancelled = true; controller.abort(); };
     }
-  }, [router, isLoaded, user]);
+  }, [router, isLoaded, user, reload]);
 
   useEffect(() => {
-    if (!selectedTorneo) return;
+    if (!selectedTorneo || !user || torneiAttivi.some((t) => t.nome === selectedTorneo && isGiallo(t))) return;
     const slug = selectedTorneo.toLowerCase().trim().replace(/\s+/g, '_');
-    
-    const fetchLive = () => {
-      getGironi(slug).then(parsed => {
-        if (parsed) {
-          setConfig(parsed);
+    let cancelled = false;
+    let requestNumber = 0;
+    const controller = new AbortController();
+    const fetchLive = async () => {
+      const currentRequest = ++requestNumber;
+      try {
+        const [parsed, bracket] = await Promise.all([
+          fetchAthleteData("gironi", { slug, signal: controller.signal }),
+          fetchAthleteData("bracket", { slug, signal: controller.signal }),
+        ]);
+        if (cancelled || currentRequest !== requestNumber) return;
+        setConfig(parsed?.pubblicato === true ? parsed : null);
+        setBracketConfig(bracket?.tabellonePubblicato === true ? bracket : null);
+        setLoadedFor(selectedTorneo); setLoadError("");
+        if (parsed?.pubblicato === true) {
           const gDisponibili = parsed.numGironi ? Array.from({ length: parsed.numGironi }, (_, i) => String.fromCharCode(65 + i)) : [];
           setActiveGirone(prev => {
             if (gDisponibili.length > 0 && !gDisponibili.includes(prev)) {
@@ -124,20 +141,18 @@ export default function AtletaGironi() {
             }
             return prev;
           });
-        } else {
-          setConfig(null);
         }
-      });
-
-      getBracket(slug).then(bSaved => {
-        if (bSaved) setBracketConfig(bSaved); else setBracketConfig(null);
-      });
+      } catch (error) {
+        if (!cancelled && currentRequest === requestNumber) {
+          setLoadError(error.message); setConfig(null); setBracketConfig(null); setLoadedFor("");
+        }
+      }
     };
 
     fetchLive();
     const interval = setInterval(fetchLive, 10000);
-    return () => clearInterval(interval);
-  }, [selectedTorneo]);
+    return () => { cancelled = true; controller.abort(); clearInterval(interval); };
+  }, [selectedTorneo, user, torneiAttivi, reload]);
 
   const getSchedule = (numTeams, gironeId, assignments = {}) => {
     return getScheduleShared(numTeams, gironeId, assignments, config?.gironeTypes, config?.gironeSets, config?.matchMetadata);
@@ -742,6 +757,9 @@ export default function AtletaGironi() {
   const gironiIds = config ? Array.from({ length: config.numGironi || 0 }, (_, i) => String.fromCharCode(65 + i)) : [];
   const bracketMatches = getAllBracketMatches();
   const isMe = (name) => name?.toLowerCase().includes(nomeAtleta.toLowerCase());
+  const phases = athletePhaseVisibility(loadedFor === selectedTorneo ? config : null, loadedFor === selectedTorneo ? bracketConfig : null);
+  const visibleTab = activeTab === "iniziali" && phases.initial || activeTab === "intermedi" && phases.intermediate || activeTab === "finali" && phases.finals
+    ? activeTab : phases.initial ? "iniziali" : "finali";
 
   if (!isLoaded) return (
     <div className="min-h-screen bg-[#f8faff] flex items-center justify-center">
@@ -753,6 +771,7 @@ export default function AtletaGironi() {
   if (selectedGiallo && isLoaded && user) return <main className="min-h-screen bg-[#f8faff] pb-28 xl:pl-72">
     <AthleteHeader />
     <GialloTournament tournament={selectedGiallo} tournaments={torneiAttivi} onSelect={setSelectedTorneo} />
+    <AthleteBottomNav />
   </main>;
 
   return (
@@ -784,21 +803,22 @@ export default function AtletaGironi() {
             </div>
         </div>
 
-        {config && config.pubblicato ? (
+        {loadError && <div role="alert" className="mb-5 rounded-2xl bg-red-50 p-4 text-sm text-red-800">{loadError}<button onClick={() => { setLoadError(""); setReload((n) => n + 1); }} className="ml-3 font-bold underline">Riprova</button></div>}
+        {!loadError && (phases.initial || phases.finals ? (
           <>
             {/* Phase Navigation Tabs */}
             {bracketConfig && (
               <div className="flex bg-gray-200/60 p-1.5 rounded-2xl mb-8 max-w-md mx-auto border border-gray-200">
-                <button
+                {phases.initial && <button
                   onClick={() => setActiveTab("iniziali")}
-                  className={`flex-1 py-3 text-center rounded-xl font-black text-[10px] sm:text-xs uppercase tracking-wider transition-all ${activeTab === "iniziali" ? 'bg-[#0a1628] text-white shadow-md' : 'text-gray-500 hover:text-[#0a1628]'}`}
+                  className={`flex-1 py-3 text-center rounded-xl font-black text-[10px] sm:text-xs uppercase tracking-wider transition-all ${visibleTab === "iniziali" ? 'bg-[#0a1628] text-white shadow-md' : 'text-gray-500 hover:text-[#0a1628]'}`}
                 >
                   Gironi Iniziali 📋
-                </button>
-                {bracketConfig?.phaseType === "gold_silver" && bracketConfig?.subPhaseType === "groups" && (
+                </button>}
+                {phases.intermediate && (
                   <button
                     onClick={() => setActiveTab("intermedi")}
-                    className={`flex-1 py-3 text-center rounded-xl font-black text-[10px] sm:text-xs uppercase tracking-wider transition-all ${activeTab === "intermedi" ? 'bg-[#0a1628] text-white shadow-md' : 'text-gray-500 hover:text-[#0a1628]'}`}
+                    className={`flex-1 py-3 text-center rounded-xl font-black text-[10px] sm:text-xs uppercase tracking-wider transition-all ${visibleTab === "intermedi" ? 'bg-[#0a1628] text-white shadow-md' : 'text-gray-500 hover:text-[#0a1628]'}`}
                   >
                     Gironi Intermedi 🏆
                   </button>
@@ -806,7 +826,7 @@ export default function AtletaGironi() {
                 {bracketConfig?.tabellonePubblicato && (
                 <button
                   onClick={() => setActiveTab("finali")}
-                  className={`flex-1 py-3 text-center rounded-xl font-black text-[10px] sm:text-xs uppercase tracking-wider transition-all ${activeTab === "finali" ? 'bg-[#0a1628] text-white shadow-md' : 'text-gray-500 hover:text-[#0a1628]'}`}
+                  className={`flex-1 py-3 text-center rounded-xl font-black text-[10px] sm:text-xs uppercase tracking-wider transition-all ${visibleTab === "finali" ? 'bg-[#0a1628] text-white shadow-md' : 'text-gray-500 hover:text-[#0a1628]'}`}
                 >
                   Fasi Finali ⚔️
                 </button>
@@ -815,7 +835,7 @@ export default function AtletaGironi() {
             )}
 
             {/* Gironi Iniziali */}
-            {activeTab === "iniziali" && (
+            {visibleTab === "iniziali" && phases.initial && (
               <>
                 {/* Tab Gironi */}
                 <div className="flex gap-2 mb-6 overflow-x-auto pb-2 justify-start sm:justify-center no-scrollbar px-2">
@@ -936,7 +956,7 @@ export default function AtletaGironi() {
             )}
 
             {/* Gironi Intermedi */}
-            {activeTab === "intermedi" && bracketConfig?.phaseType === "gold_silver" && (bracketConfig?.subPhaseType === "groups" || bracketConfig?.subPhaseType === "custom_18") && (() => {
+            {visibleTab === "intermedi" && phases.intermediate && (() => {
               let goldSlots = 0;
               let silverSlots = 0;
               if (config && config.numGironi) {
@@ -988,7 +1008,7 @@ export default function AtletaGironi() {
             })()}
 
             {/* Fasi Finali */}
-            {activeTab === "finali" && bracketConfig && bracketConfig.tabellonePubblicato && (
+            {visibleTab === "finali" && phases.finals && (
               <div className="space-y-6 text-left">
                 {bracketMatches.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1052,7 +1072,7 @@ export default function AtletaGironi() {
               {config ? "Lo staff sta completando la composizione dei gironi e dei calendari. Saranno visibili a breve!" : "I gironi per questo torneo non sono ancora stati configurati dallo staff."}
             </p>
           </div>
-        )}
+        ))}
       </div>
       
       <button 
