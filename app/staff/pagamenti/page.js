@@ -1,384 +1,121 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import StaffHeader from "@/app/components/StaffHeader";
-import { getTornei, getIscrizioni, saveIscrizioni } from "@/app/utils/db";
+import { euro, paymentModel, paymentVersion } from "@/app/utils/payments";
+
+const labels = { unpaid: "Da pagare", partial: "Acconto", paid: "Saldato", review: "Da verificare" };
+const colors = { unpaid: "bg-red-50 text-red-800", partial: "bg-amber-50 text-amber-800", paid: "bg-green-50 text-green-800", review: "bg-orange-50 text-orange-800" };
+const inputClass = "mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-base text-[#0a1628]";
+
+function PaymentEditor({ model, tournaments, busy, error, onClose, onSave }) {
+  const [mode, setMode] = useState(model.needsReview ? "allocate" : "add");
+  const [amounts, setAmounts] = useState(model.players.map(() => "0"));
+  const [reason, setReason] = useState("");
+  const dialog = useRef(null);
+  useEffect(() => { dialog.current?.showModal(); }, []);
+  const chooseMode = (next) => { setMode(next); setAmounts(next === "correct" ? model.paid.map((p) => (p / 100).toFixed(2)) : model.players.map(() => "0")); };
+  return <dialog ref={dialog} aria-labelledby="payment-title" onCancel={(event) => { event.preventDefault(); if (!busy) onClose(); }} className="m-auto max-h-[90dvh] w-[calc(100%-3rem)] max-w-3xl overflow-y-auto rounded-2xl p-6 text-[#0a1628] shadow-xl backdrop:bg-slate-950/50">
+    <form onSubmit={(event) => {
+      event.preventDefault();
+      if (mode === "correct" && !window.confirm("Confermi la correzione degli importi già registrati? L’operazione resterà nello storico.")) return;
+      onSave({ id: model.registration.id, version: paymentVersion(model.registration, tournaments), mode, amounts, reason });
+    }}>
+      <div className="flex items-start justify-between gap-3"><div><h2 id="payment-title" className="text-xl font-black">Registra pagamento</h2><p className="mt-1 text-sm text-slate-600">{model.registration.giocatori} · {model.registration.torneo}</p></div><button type="button" aria-label="Chiudi pagamento" disabled={busy} onClick={onClose} className="min-h-11 px-3 text-xl">×</button></div>
+      <p className="my-4 rounded-xl bg-slate-50 p-3 text-sm">Quota {euro(model.due ?? 0)} · Incassato {euro(model.total)} · Residuo {euro(model.remaining ?? 0)}</p>
+      {model.needsReview && <p className="mb-4 rounded-xl bg-orange-50 p-3 text-sm text-orange-900">Il pagamento precedente richiede verifica. Attribuisci l’importo già incassato ai singoli atleti senza cambiare il totale, oppure usa una correzione motivata. Nessun importo verrà attribuito automaticamente.</p>}
+      <label className="block text-sm font-bold">Operazione<select className={inputClass} value={mode} disabled={busy} onChange={(e) => chooseMode(e.target.value)}>{!model.needsReview && <option value="add">Nuovo versamento</option>}{model.needsReview && <option value="allocate">Attribuisci importo già incassato</option>}<option value="correct">Correggi importi registrati</option></select></label>
+      <div className={`mt-4 grid gap-4 ${model.individual ? "grid-cols-1" : "md:grid-cols-2"}`}>{model.players.map((name, i) => <div key={i} className="rounded-xl border border-slate-200 p-4">
+        <p className="font-bold">{name}</p><p className="mt-1 text-xs text-slate-600">Quota {euro(model.shares[i])} · Versato {euro(model.paid[i])} · Residuo {euro(Math.max(0, model.shares[i] - model.paid[i]))}</p>
+        <label className="mt-3 block text-xs font-bold">{mode === "add" ? "Importo che versa ora (€)" : "Totale già versato da attribuire (€)"}<input autoFocus={i === 0} className={inputClass} inputMode="decimal" type="number" min="0" step="0.01" required disabled={busy} value={amounts[i]} onChange={(e) => setAmounts((old) => old.map((value, j) => j === i ? e.target.value : value))} /></label>
+        {mode === "add" && <button type="button" disabled={busy} onClick={() => setAmounts((old) => old.map((value, j) => j === i ? (Math.max(0, model.shares[i] - model.paid[i]) / 100).toFixed(2) : value))} className="mt-2 min-h-11 text-xs font-bold underline">Inserisci saldo di {name}</button>}
+      </div>)}</div>
+      {mode === "correct" && <label className="mt-4 block text-sm font-bold">Motivo della correzione<textarea required maxLength={500} disabled={busy} className={`${inputClass} py-2`} value={reason} onChange={(e) => setReason(e.target.value)} /></label>}
+      {error && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
+      <div className="mt-5 flex justify-end gap-3 border-t border-slate-200 pt-4"><button type="button" disabled={busy} className="min-h-11 rounded-xl border px-5 font-bold" onClick={onClose}>Annulla</button><button disabled={busy} className="min-h-11 rounded-xl bg-[#0a1628] px-6 font-bold text-white disabled:opacity-50">{busy ? "Salvataggio…" : mode === "add" ? "Conferma versamento" : "Salva attribuzione / correzione"}</button></div>
+    </form>
+  </dialog>;
+}
 
 export default function StaffPagamenti() {
-  const router = useRouter();
-  const [iscrizioni, setIscrizioni] = useState([]);
-  const [tornei, setTornei] = useState([]);
-  const [filtroTorneo, setFiltroTorneo] = useState("Tutti");
-  const [cercaTeam, setCercaTeam] = useState("");
-  const isSavingRef = useRef(false);
-  const loadVersionRef = useRef(0);
-
-  const caricaDati = async () => {
-    if (isSavingRef.current) return;
-    const loadVersion = loadVersionRef.current;
-    try {
-      const [iscrizioniList, torneiList] = await Promise.all([getIscrizioni(), getTornei()]);
-      if (isSavingRef.current || loadVersion !== loadVersionRef.current) return;
-      setTornei(torneiList || []);
-      const data = (iscrizioniList || []).map(isc => {
-        const torneoInfo = (torneiList || []).find(t => (isc.torneo || "").toLowerCase().trim() === t.nome.toLowerCase().trim()) || (torneiList || []).find(t => isc.torneo && t.nome && isc.torneo.toLowerCase().includes(t.nome.toLowerCase()));
-        const quotaTorneo = torneoInfo?.quota !== undefined ? torneoInfo.quota : 40;
-
-        const players = (isc.giocatori || "").split("-").map(p => p.trim()).filter(Boolean);
-        const numPlayers = players.length;
-
-        let pagatoPlayer1 = isc.pagatoPlayer1;
-        let pagatoPlayer2 = isc.pagatoPlayer2;
-
-        if (pagatoPlayer1 === undefined && pagatoPlayer2 === undefined) {
-          if (numPlayers <= 1) {
-            pagatoPlayer1 = (isc.quotaPagata || 0) >= quotaTorneo;
-          } else {
-            if ((isc.quotaPagata || 0) >= quotaTorneo) {
-              pagatoPlayer1 = true;
-              pagatoPlayer2 = true;
-            } else if ((isc.quotaPagata || 0) >= quotaTorneo / 2) {
-              pagatoPlayer1 = true;
-              pagatoPlayer2 = false;
-            } else {
-              pagatoPlayer1 = false;
-              pagatoPlayer2 = false;
-            }
-          }
-        } else {
-          pagatoPlayer1 = pagatoPlayer1 || false;
-          pagatoPlayer2 = pagatoPlayer2 || false;
-        }
-
-        return {
-          ...isc,
-          quotaTotale: quotaTorneo, 
-          quotaPagata: isc.quotaPagata || 0,
-          pagatoPlayer1,
-          pagatoPlayer2
-        };
-      });
-      setIscrizioni(data);
-    } catch (err) {
-      console.error("Errore nel caricamento dei dati pagamenti:", err);
-    }
-  };
-
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [tournament, setTournament] = useState("");
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("all");
+  const [inactive, setInactive] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [reload, setReload] = useState(0);
+  const version = useRef(0);
+  const locked = useRef(false);
   useEffect(() => {
-    caricaDati();
-    const handleFocus = () => caricaDati();
-    window.addEventListener("focus", handleFocus);
-
-    // Poll every 4 seconds for instant real-time sync across devices
-    const interval = setInterval(() => {
-      caricaDati();
-    }, 4000);
-
-    return () => {
-      window.removeEventListener("focus", handleFocus);
-      clearInterval(interval);
+    const controller = new AbortController(); let cancelled = false;
+    const load = async () => {
+      if (locked.current) return;
+      const current = ++version.current;
+      try {
+        const response = await fetch("/api/staff/pagamenti", { cache: "no-store", signal: controller.signal });
+        const json = await response.json();
+        if (!response.ok || !Array.isArray(json.registrations) || !Array.isArray(json.tournaments)) throw new Error(json.error || "Dati pagamenti non validi.");
+        if (!cancelled && current === version.current && !locked.current) { setData(json); setError(""); }
+      } catch (reason) { if (!cancelled && current === version.current) setError(reason.message); }
     };
-  }, []);
-
-  const salvaModifiche = async (newData) => {
-    loadVersionRef.current += 1;
-    isSavingRef.current = true;
+    load(); const timer = setInterval(load, 10000); window.addEventListener("focus", load);
+    return () => { cancelled = true; controller.abort(); clearInterval(timer); window.removeEventListener("focus", load); };
+  }, [reload]);
+  const open = (model) => { locked.current = true; ++version.current; setSaveError(""); setMessage(""); setEditing(model); };
+  const close = () => { locked.current = false; setEditing(null); setSaveError(""); setReload((n) => n + 1); };
+  const save = async (body) => {
+    if (busy) return;
+    setBusy(true); setSaveError("");
     try {
-      setIscrizioni(newData);
-      await saveIscrizioni(newData);
-    } catch (e) {
-      console.error("Errore nel salvataggio dei pagamenti:", e);
-    } finally {
-      isSavingRef.current = false;
-    }
+      const response = await fetch("/api/staff/pagamenti", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const json = await response.json();
+      if (!response.ok || !json.success) throw new Error(json.error || "Salvataggio non confermato.");
+      setData((old) => ({ ...old, registrations: old.registrations.map((r) => String(r.id) === String(json.registration.id) ? json.registration : r) }));
+      setMessage("Pagamento salvato sul server."); close();
+    } catch (reason) { setSaveError(reason.message); }
+    finally { setBusy(false); }
   };
-
-  const segnaSaldato = (id) => {
-    const newData = iscrizioni.map(isc => 
-      String(isc.id) === String(id) 
-        ? { ...isc, quotaPagata: isc.quotaTotale, pagatoPlayer1: true, pagatoPlayer2: true } 
-        : isc
-    );
-    salvaModifiche(newData);
-  };
-
-  const registraAcconto = (id, importo) => {
-    const newData = iscrizioni.map(isc => {
-      if (String(isc.id) === String(id)) {
-        const players = (isc.giocatori || "").split("-").map(p => p.trim()).filter(Boolean);
-        const numPlayers = players.length;
-
-        let p1 = isc.pagatoPlayer1;
-        let p2 = isc.pagatoPlayer2;
-
-        if (numPlayers <= 1) {
-          p1 = true;
-        } else {
-          // Mark the first unpaid player as paid
-          if (!p1) {
-            p1 = true;
-          } else if (!p2) {
-            p2 = true;
-          }
-        }
-
-        let nuovaQuotaPagata = 0;
-        if (numPlayers <= 1) {
-          nuovaQuotaPagata = p1 ? isc.quotaTotale : 0;
-        } else {
-          const quotaMezzo = isc.quotaTotale / 2;
-          if (p1) nuovaQuotaPagata += quotaMezzo;
-          if (p2) nuovaQuotaPagata += quotaMezzo;
-        }
-
-        return {
-          ...isc,
-          pagatoPlayer1: p1,
-          pagatoPlayer2: p2,
-          quotaPagata: nuovaQuotaPagata
-        };
-      }
-      return isc;
-    });
-    salvaModifiche(newData);
-  };
-
-  const togglePlayerPayment = (id, playerIndex) => {
-    const newData = iscrizioni.map(isc => {
-      if (String(isc.id) === String(id)) {
-        const players = (isc.giocatori || "").split("-").map(p => p.trim()).filter(Boolean);
-        const numPlayers = players.length;
-
-        let p1 = isc.pagatoPlayer1;
-        let p2 = isc.pagatoPlayer2;
-
-        if (playerIndex === 0) {
-          p1 = !p1;
-        } else if (playerIndex === 1) {
-          p2 = !p2;
-        }
-
-        let nuovaQuotaPagata = 0;
-        if (numPlayers <= 1) {
-          nuovaQuotaPagata = p1 ? isc.quotaTotale : 0;
-        } else {
-          const quotaMezzo = isc.quotaTotale / 2;
-          if (p1) nuovaQuotaPagata += quotaMezzo;
-          if (p2) nuovaQuotaPagata += quotaMezzo;
-        }
-
-        return {
-          ...isc,
-          pagatoPlayer1: p1,
-          pagatoPlayer2: p2,
-          quotaPagata: nuovaQuotaPagata
-        };
-      }
-      return isc;
-    });
-    salvaModifiche(newData);
-  };
-
-  const azzeraPagamento = (id) => {
-    const newData = iscrizioni.map(isc => 
-      String(isc.id) === String(id) 
-        ? { ...isc, quotaPagata: 0, pagatoPlayer1: false, pagatoPlayer2: false } 
-        : isc
-    );
-    salvaModifiche(newData);
-  };
-
-  const torneiDisponibili = ["Tutti", ...tornei.map(t => t.nome)];
-  const validTorneiLower = tornei.map(t => (t.nome || "").toLowerCase().trim());
-
-  const iscrizioniFiltrate = iscrizioni.filter(isc => {
-    const tNomeLower = (isc.torneo || "").toLowerCase().trim();
-    const isTorneoValido = validTorneiLower.length === 0 || validTorneiLower.includes(tNomeLower);
-    if (!isTorneoValido) return false;
-
-    const matchesTorneo = filtroTorneo === "Tutti" || tNomeLower === filtroTorneo.toLowerCase().trim();
-    const matchesCerca = !cercaTeam.trim() ||
-      (isc.giocatori || "").toLowerCase().includes(cercaTeam.toLowerCase()) ||
-      (isc.id && String(isc.id).includes(cercaTeam)) ||
-      (isc.torneo || "").toLowerCase().includes(cercaTeam.toLowerCase());
-    return matchesTorneo && matchesCerca;
-  });
-
-  const totaleAtteso = iscrizioniFiltrate.reduce((acc, curr) => acc + curr.quotaTotale, 0);
-  const totaleIncassato = iscrizioniFiltrate.reduce((acc, curr) => acc + curr.quotaPagata, 0);
-  const totaleDaIncassare = totaleAtteso - totaleIncassato;
-
-  return (
-    <main className="min-h-screen bg-[#f8faff] pb-20">
-      <StaffHeader />
-
-      <div className="max-w-6xl mx-auto mt-6 md:mt-10 px-4">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
-            <div className="flex items-center justify-between w-full md:w-auto gap-4">
-                <div>
-                    <h2 className="text-3xl md:text-5xl font-black text-[#0a1628] uppercase tracking-tighter leading-none">Pagamenti 💰</h2>
-                    <p className="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-widest mt-2">Gestione Incassi e Saldi</p>
-                </div>
-                <button
-                    onClick={caricaDati}
-                    className="px-4 py-2.5 bg-white text-[#0a1628] border border-gray-200 hover:bg-gray-50 rounded-xl text-xs font-black uppercase tracking-wider shadow-sm hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
-                    title="Forza aggiornamento dal server"
-                >
-                    🔄 Sincronizza
-                </button>
-            </div>
-            
-            <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
-                {/* CERCA TEAM */}
-                <div className="w-full sm:w-64 bg-white px-6 py-4 rounded-2xl shadow-xl border border-gray-100 flex flex-col gap-1">
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Cerca Team</span>
-                    <input 
-                        type="text"
-                        value={cercaTeam}
-                        onChange={(e) => setCercaTeam(e.target.value)}
-                        placeholder="Nome team o giocatore..."
-                        className="bg-transparent text-sm font-bold focus:outline-none text-[#0a1628] placeholder-gray-300 w-full"
-                    />
-                </div>
-
-                {/* FILTRA TORNEO */}
-                <div className="w-full sm:w-48 bg-white px-6 py-4 rounded-2xl shadow-xl border border-gray-100 flex flex-col gap-1">
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Filtra Torneo</span>
-                    <select 
-                        value={filtroTorneo} 
-                        onChange={(e) => setFiltroTorneo(e.target.value)}
-                        className="bg-transparent text-sm font-black focus:outline-none cursor-pointer text-[#0a1628] w-full"
-                    >
-                        {torneiDisponibili.map(t => (
-                            <option key={t} value={t}>{t}</option>
-                        ))}
-                    </select>
-                </div>
-            </div>
+  const all = data ? data.registrations.map((r) => paymentModel(r, data.tournaments)) : [];
+  const filtered = all.filter((m) => (inactive ? m.inactive : !m.inactive) && (!tournament || m.registration.torneo === tournament) && (!search.trim() || `${m.registration.giocatori} ${m.registration.id} ${m.registration.torneo}`.toLocaleLowerCase("it-IT").includes(search.trim().toLocaleLowerCase("it-IT"))));
+  const shown = filtered.filter((m) => status === "all" || m.status === status);
+  const totals = filtered.reduce((sum, m) => ({ due: sum.due + (m.due ?? 0), paid: sum.paid + m.total, remaining: sum.remaining + (m.remaining ?? 0) }), { due: 0, paid: 0, remaining: 0 });
+  const tournaments = [...new Set([...(data?.tournaments.map((t) => t.nome) || []), ...all.map((m) => m.registration.torneo)])];
+  return <main className="min-h-screen bg-[#f8faff] pb-10"><StaffHeader /><div className="mx-auto max-w-[1600px] space-y-4 px-6 py-6 lg:px-8">
+    <div className="flex items-center justify-between gap-3"><div><h1 className="text-3xl font-black text-[#0a1628]">Pagamenti</h1><p className="mt-2 text-sm text-slate-600">Gialli: quota individuale. Coppie: quota totale divisa tra i due atleti.</p></div><button className="min-h-11 rounded-xl border bg-white px-3 text-sm font-bold" disabled={!!editing} onClick={() => setReload((n) => n + 1)}>Aggiorna</button></div>
+    {error && <div role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{error} I dati precedenti non sono confermati come aggiornati.<button className="ml-2 underline" onClick={() => setReload((n) => n + 1)}>Riprova</button></div>}
+    {message && <p role="status" className="rounded-xl bg-green-50 p-3 text-sm text-green-800">{message}</p>}
+    <div className="grid gap-4 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-[minmax(220px,1fr)_minmax(260px,2fr)]"><label className="text-sm font-bold">Torneo<select value={tournament} onChange={(e) => setTournament(e.target.value)} className={inputClass}><option value="">Tutti i tornei</option>{tournaments.map((name) => <option key={name}>{name}</option>)}</select></label><label className="text-sm font-bold">Cerca atleta o coppia<input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Nome, cognome o iscrizione…" className={inputClass} /></label></div>
+    {!data && !error && <p role="status">Caricamento pagamenti…</p>}
+    {data && <><div className="grid grid-cols-3 gap-2">{[["Previsto", totals.due], ["Incassato", totals.paid], ["Residuo", totals.remaining]].map(([label, amount]) => <div key={label} className="rounded-xl border border-slate-200 bg-white p-3 sm:p-5"><p className="text-xs text-slate-600">{label}</p><p className="mt-2 break-words text-lg font-black text-[#0a1628] sm:text-2xl">{euro(amount)}</p></div>)}</div><p className="text-xs text-slate-500">Totali riferiti a torneo e ricerca, indipendenti dal filtro pagamento. Quote mancanti escluse dal previsto.</p>
+      <div role="group" aria-label="Stato pagamento" className="flex flex-wrap gap-2">{[["all", "Tutti"], ...Object.entries(labels)].map(([value, label]) => <button key={value} aria-pressed={status === value} onClick={() => setStatus(value)} className={`min-h-11 rounded-xl border px-3 text-sm font-bold ${status === value ? "bg-[#0a1628] text-white" : "bg-white text-slate-600"}`}>{label} ({value === "all" ? filtered.length : filtered.filter((m) => m.status === value).length})</button>)}</div>
+      <label className="flex min-h-11 items-center gap-2 text-sm text-slate-600"><input type="checkbox" checked={inactive} onChange={(e) => setInactive(e.target.checked)} />Mostra solo annullate e rifiutate (consultazione)</label>
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 text-sm"><h2 className="font-bold">Registro pagamenti</h2><span className="text-slate-500">{shown.length} iscrizioni · {shown.reduce((sum, m) => sum + m.players.length, 0)} atleti</span></div>
+        <div role="region" aria-label="Registro pagamenti scorrevole" tabIndex={0} className="max-h-[65vh] overflow-auto focus-visible:outline-2 focus-visible:outline-[#0a1628]">
+          <table className="w-full min-w-[1040px] border-separate border-spacing-0 text-sm">
+            <caption className="sr-only">Pagamenti per iscrizione e singolo atleta. Gli importi della coppia si riferiscono all’intera iscrizione.</caption>
+            <thead className="sticky top-0 z-20 bg-slate-100 text-xs text-slate-600"><tr>{["Iscrizione / torneo", "Atleta", "Quota atleta", "Versato atleta", "Residuo atleta", "Incassato / quota totale", "Stato", "Operazioni"].map((heading, i) => <th scope="col" key={heading} className={`border-b border-slate-200 px-4 py-3 font-bold ${i >= 2 && i <= 5 ? "text-right" : "text-left"}`}>{heading}</th>)}</tr></thead>
+            {shown.map((model) => <tbody key={model.registration.id} className="group">{model.players.map((name, i) => <tr key={i} className="hover:bg-slate-50">
+              {i === 0 && <th scope="rowgroup" rowSpan={model.players.length} className="w-64 min-w-48 border-b border-slate-200 px-4 py-3 text-left align-top font-normal"><p className="font-bold text-[#0a1628]">{model.registration.giocatori}</p><p className="mt-1 text-xs text-slate-500">{model.registration.torneo} · #{model.registration.id}</p><p className="mt-1 text-xs text-slate-500">{model.registration.stato}</p>
+                {!!model.registration.paymentHistory?.length && <details className="mt-2 text-xs text-slate-500"><summary className="min-h-8 cursor-pointer font-semibold">Storico operazioni</summary><ul className="max-h-48 space-y-2 overflow-auto pt-2">{[...model.registration.paymentHistory].reverse().map((entry, j) => <li key={j}>{new Date(entry.at).toLocaleString("it-IT")} · {entry.mode === "add" ? "Versamento" : entry.mode === "allocate" ? "Attribuzione" : "Correzione"} · {euro(Math.round(entry.before * 100))} → {euro(Math.round(entry.after * 100))}{entry.reason && ` · ${entry.reason}`}</li>)}</ul></details>}
+              </th>}
+              <th scope="row" className="min-w-36 border-b border-slate-200 px-4 py-3 text-left font-semibold">{name}</th>
+              <td className="whitespace-nowrap border-b border-slate-200 px-4 py-3 text-right tabular-nums">{model.due === null ? "Da configurare" : euro(model.shares[i])}</td>
+              <td className="whitespace-nowrap border-b border-slate-200 px-4 py-3 text-right font-semibold tabular-nums">{euro(model.paid[i])}</td>
+              <td className="whitespace-nowrap border-b border-slate-200 px-4 py-3 text-right tabular-nums">{model.needsReview ? <span className="text-xs text-orange-800">Da verificare</span> : euro(Math.max(0, model.shares[i] - model.paid[i]))}</td>
+              {i === 0 && <><td rowSpan={model.players.length} className="whitespace-nowrap border-b border-slate-200 px-4 py-3 text-right align-top tabular-nums"><strong>{euro(model.total)}</strong><span className="text-slate-500"> / {model.due === null ? "—" : euro(model.due)}</span>{model.remaining !== null && <p className="mt-1 text-xs text-slate-500">Residuo {euro(model.remaining)}</p>}</td>
+                <td rowSpan={model.players.length} className="border-b border-slate-200 px-4 py-3 align-top"><span className={`inline-block whitespace-nowrap rounded-full px-3 py-1 text-xs font-bold ${colors[model.status]}`}>{labels[model.status]}</span></td>
+                <td rowSpan={model.players.length} className="sticky right-0 border-b border-l border-slate-200 bg-white px-4 py-3 align-top"><button disabled={!!error || model.inactive || model.due === null} className="min-h-11 whitespace-nowrap rounded-lg bg-[#0a1628] px-3 text-xs font-bold text-white disabled:opacity-40" onClick={() => open(model)}>{model.needsReview ? "Verifica pagamento" : "Registra pagamento"}</button></td></>}
+            </tr>)}</tbody>)}
+          </table>
+          {!shown.length && <p className="p-6 text-sm text-slate-500">Nessuna iscrizione con questi filtri.</p>}
         </div>
-
-        {/* Dashboard Statistiche */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-          <div className="bg-white rounded-[2rem] p-8 shadow-xl border-b-8 border-blue-500 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50 rounded-full -mr-12 -mt-12 group-hover:scale-150 transition-transform duration-500"></div>
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2 relative z-10">Totale Atteso</span>
-            <span className="text-4xl font-black text-blue-600 relative z-10">€{totaleAtteso}</span>
-          </div>
-          <div className="bg-white rounded-[2rem] p-8 shadow-xl border-b-8 border-green-500 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-green-50 rounded-full -mr-12 -mt-12 group-hover:scale-150 transition-transform duration-500"></div>
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2 relative z-10">Totale Incassato</span>
-            <span className="text-4xl font-black text-green-600 relative z-10">€{totaleIncassato}</span>
-          </div>
-          <div className="bg-white rounded-[2rem] p-8 shadow-xl border-b-8 border-red-500 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-red-50 rounded-full -mr-12 -mt-12 group-hover:scale-150 transition-transform duration-500"></div>
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2 relative z-10">Da Incassare</span>
-            <span className="text-4xl font-black text-red-600 relative z-10">€{totaleDaIncassare}</span>
-          </div>
-        </div>
-
-        {/* Mobile-Friendly List */}
-        <div className="space-y-6">
-          {iscrizioniFiltrate.map((isc) => {
-            const saldoMancante = isc.quotaTotale - isc.quotaPagata;
-            const isSaldato = saldoMancante === 0;
-            const isAcconto = isc.quotaPagata > 0 && isc.quotaPagata < isc.quotaTotale;
-            
-            return (
-              <div key={isc.id} className="bg-white rounded-[2.5rem] p-8 shadow-xl border border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all hover:shadow-2xl">
-                <div className="flex-1">
-                  <div className="flex items-center gap-4 mb-4">
-                    <span className="bg-gray-100 text-gray-400 text-[10px] font-black px-3 py-1 rounded-lg">#{isc.id}</span>
-                    {isSaldato ? (
-                      <span className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">Saldato ✓</span>
-                    ) : isAcconto ? (
-                      <span className="bg-yellow-100 text-yellow-700 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">Acconto</span>
-                    ) : (
-                      <span className="bg-red-100 text-red-700 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">Da Pagare</span>
-                    )}
-                  </div>
-                  
-                  <h3 className="text-2xl font-black text-[#0a1628] leading-tight mb-3">{isc.giocatori}</h3>
-                  
-                  {/* Divisione dei due giocatori */}
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {(() => {
-                      const players = (isc.giocatori || "").split("-").map(p => p.trim()).filter(Boolean);
-                      return players.map((player, idx) => {
-                        const isPaid = idx === 0 ? isc.pagatoPlayer1 : isc.pagatoPlayer2;
-                        return (
-                          <button
-                            key={idx}
-                            onClick={() => togglePlayerPayment(isc.id, idx)}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${
-                              isPaid 
-                                ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100" 
-                                : "bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100"
-                            }`}
-                          >
-                            <svg className="w-3 h-3 text-current" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
-                            {player} ({isPaid ? "PAGATO" : "DA PAGARE"})
-                          </button>
-                        );
-                      });
-                    })()}
-                  </div>
-                  
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{isc.torneo}</p>
-                </div>
-
-                <div className="flex flex-col md:items-end gap-1">
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Stato Contabile</span>
-                    <div className="flex items-baseline gap-2">
-                        <span className="text-3xl font-black text-[#0a1628]">€{isc.quotaPagata}</span>
-                        <span className="text-gray-300 font-bold text-lg">/ €{isc.quotaTotale}</span>
-                    </div>
-                </div>
-
-                <div className="flex gap-2">
-                  {isc.quotaPagata > 0 && (
-                    <button 
-                      onClick={() => {
-                        if (window.confirm(`Sei sicuro di voler azzerare il pagamento per "${isc.giocatori}"?`)) {
-                          azzeraPagamento(isc.id);
-                        }
-                      }}
-                      className="flex-1 md:flex-none bg-red-50 text-red-600 hover:bg-red-100 px-6 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95"
-                    >
-                      Azzera 🔄
-                    </button>
-                  )}
-                  {!isSaldato && (
-                    <>
-                      <button 
-                        onClick={() => registraAcconto(isc.id, Math.ceil(isc.quotaTotale / 2))}
-                        className="flex-1 md:flex-none bg-gray-50 text-[#0a1628] px-6 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all active:scale-95"
-                      >
-                        +€{Math.ceil(isc.quotaTotale / 2)}
-                      </button>
-                      <button 
-                        onClick={() => segnaSaldato(isc.id)}
-                        className="flex-1 md:flex-none bg-[#0a1628] text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:scale-105 active:scale-95 transition-all"
-                      >
-                        Salda Ora
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-          
-          {iscrizioniFiltrate.length === 0 && (
-            <div className="text-center py-20">
-              <span className="text-6xl block mb-6">📉</span>
-              <h4 className="text-2xl font-black text-gray-300 uppercase tracking-tighter">Nessun dato trovato</h4>
-            </div>
-          )}
-        </div>
-      </div>
-    </main>
-  );
+      </div><p className="text-xs text-slate-500">Su tablet puoi scorrere la tabella orizzontalmente; il pulsante di pagamento resta visibile sulla destra.</p></>}
+    {editing && <PaymentEditor key={editing.registration.id} model={editing} tournaments={data.tournaments} busy={busy} error={saveError} onClose={close} onSave={save} />}
+  </div></main>;
 }
