@@ -5,6 +5,9 @@ import { readWorkflowConfig, saveWorkflowConfig } from "@/app/utils/tournament-w
 import { useRouter, useSearchParams } from "next/navigation";
 import StaffHeader from "@/app/components/StaffHeader";
 import TournamentSetupHeader from "@/app/components/TournamentSetupHeader";
+import FinalsSetupPanel from "@/app/components/tournament/FinalsSetupPanel";
+import MatchScoreEntry from "@/app/components/tournament/MatchScoreEntry";
+import { finalMatchGroups, applyFinalScore, applyFinalDetails, applyFinalAssignment } from "@/app/utils/final-scoring";
 import GialloTournament from "@/app/components/GialloTournament";
 import { isGiallo } from "@/app/utils/giallo";
 import { getTornei, getGironi, getIscrizioni, syncAssignmentsWithIscrizioni } from "@/app/utils/db";
@@ -74,6 +77,9 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
   const selectedGiallo = torneiAttivi.find((t) => t.nome === selectedTorneo && isGiallo(t));
   const [saveError, setSaveError] = useState("");
   const [publishing, setPublishing] = useState(false);
+  const [entryMode, setEntryMode] = useState("setup");
+  const [scoreDrafts, setScoreDrafts] = useState(0);
+  const [resultBusy, setResultBusy] = useState(false);
   const savedFingerprint = useRef("");
   const pendingTimer = useRef(null);
   const currentConfig = useMemo(() => ({ phaseType, subPhaseType,
@@ -84,6 +90,7 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
   [phaseType, subPhaseType, bracketSize, bracketAssignments, bracketMetadata, numGoldGironiOpt,
     teamsPerGoldGirone, numSilverGironiOpt, teamsPerSilverGirone, groupCompositionMethod, teamsToGold, teamsToSilver, tabellonePubblicato]);
   const persist = async (force = false) => {
+    if (scoreDrafts) throw new Error("Salva o scarta le modifiche alle partite prima di cambiare sezione.");
     if (!isLoaded) throw new Error("Attendi il caricamento della fase finale.");
     if (!force && savedFingerprint.current === "null" && !Object.keys(bracketAssignments).length && !tabellonePubblicato) return;
     if (savedFingerprint.current === JSON.stringify(currentConfig)) return;
@@ -92,8 +99,43 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
     onSummary?.({ finalsPublished: tabellonePubblicato });
   };
   useImperativeHandle(saveRef, () => ({ flush: persist }));
+  useEffect(() => { onSummary?.({ scoreDrafts }); }, [scoreDrafts, onSummary]);
+  const switchMode = async (mode) => {
+    if (resultBusy || mode === entryMode) return;
+    if (scoreDrafts) { setSaveError("Salva o scarta le bozze delle partite prima di cambiare vista."); return; }
+    try { await persist(); setEntryMode(mode); setSaveError(""); } catch (error) { setSaveError(error.message); }
+  };
+  const changeSetting = (key, value) => {
+    const setters = { phaseType: setPhaseType, subPhaseType: setSubPhaseType, bracketSize: setBracketSize, teamsToGold: setTeamsToGold, teamsToSilver: setTeamsToSilver,
+      numGoldGironi: setNumGoldGironiOpt, numSilverGironi: setNumSilverGironiOpt, teamsPerGoldGirone: setTeamsPerGoldGirone, teamsPerSilverGirone: setTeamsPerSilverGirone, groupCompositionMethod: setGroupCompositionMethod };
+    setters[key]?.(value);
+  };
+  const changeAssignment = (key, value) => {
+    if (value.trim() === (bracketAssignments[key] || "")) return true;
+    try {
+      const outcome = applyFinalAssignment(currentConfig, key, value, gConfigData || { numGironi, teamCounts });
+      if (outcome.cleared.length && !window.confirm(`La correzione annulla ${outcome.cleared.length} risultati dipendenti, mantenendo campo e orario. Continuare?`)) return false;
+      setBracketAssignments(outcome.config.bracketAssignments); setBracketMetadata(outcome.config.bracketMetadata); return true;
+    } catch (error) { setSaveError(error.message); return false; }
+  };
+  const saveResultConfig = async (next) => {
+    clearTimeout(pendingTimer.current); setResultBusy(true); onSummary?.({ busy: true });
+    try {
+      await saveWorkflowConfig("bracket", selectedTorneo.toLowerCase().trim().replace(/\s+/g, "_"), next);
+      savedFingerprint.current = JSON.stringify(next);
+      setBracketAssignments(next.bracketAssignments); setBracketMetadata(next.bracketMetadata); setSaveError("");
+      return true;
+    } catch (error) { setSaveError(error.message); throw error; }
+    finally { setResultBusy(false); onSummary?.({ busy: false }); }
+  };
+  const recordScore = async (game, score, details) => {
+    const outcome = applyFinalScore(currentConfig, game.id, score, details, gConfigData || { numGironi, teamCounts });
+    if (outcome.cleared.length && !window.confirm(`Questa modifica annulla ${outcome.cleared.length} risultati dei turni dipendenti. Campo e orario saranno mantenuti. Continuare?`)) return false;
+    return saveResultConfig(outcome.config);
+  };
+  const recordDetails = (game, details) => saveResultConfig(applyFinalDetails(currentConfig, game.id, details));
   const changeVisibility = async () => {
-    if (publishing || !isLoaded) return;
+    if (publishing || !isLoaded || resultBusy || scoreDrafts) return;
     clearTimeout(pendingTimer.current);
     const next = { ...currentConfig, tabellonePubblicato: !tabellonePubblicato };
     setPublishing(true); setSaveError(""); onSummary?.({ busy: true });
@@ -186,7 +228,7 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
 
   // Auto-save whenever configurations change (after they have been fully loaded)
   useEffect(() => {
-    if (!selectedTorneo || !isLoaded || selectedGiallo || !active || publishing) return;
+    if (!selectedTorneo || !isLoaded || selectedGiallo || !active || publishing || resultBusy) return;
     if (savedFingerprint.current === JSON.stringify(currentConfig)) return;
     if (savedFingerprint.current === "null" && !Object.keys(bracketAssignments).length) return;
     const slug = selectedTorneo.toLowerCase().trim().replace(/\s+/g, '_');
@@ -216,7 +258,7 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
 
     pendingTimer.current = handler;
     return () => clearTimeout(handler);
-  }, [phaseType, subPhaseType, bracketSize, bracketAssignments, bracketMetadata, selectedTorneo, isLoaded, numGoldGironiOpt, teamsPerGoldGirone, numSilverGironiOpt, teamsPerSilverGirone, groupCompositionMethod, teamsToGold, teamsToSilver, tabellonePubblicato, selectedGiallo, active, currentConfig, onSummary, publishing]);
+  }, [phaseType, subPhaseType, bracketSize, bracketAssignments, bracketMetadata, selectedTorneo, isLoaded, numGoldGironiOpt, teamsPerGoldGirone, numSilverGironiOpt, teamsPerSilverGirone, groupCompositionMethod, teamsToGold, teamsToSilver, tabellonePubblicato, selectedGiallo, active, currentConfig, onSummary, publishing, resultBusy]);
 
 
   const getTeamsCountForGroup = (groupKey) => {
@@ -422,395 +464,7 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
     });
   };
 
-  useEffect(() => {
-    if (!isLoaded || selectedGiallo || !active) return;
-    const newAssignments = { ...bracketAssignments };
-    let changed = false;
 
-    // Keep the propagation helpers inside the effect so they always use its current inputs.
-    const getTeamsCountForGroup = (groupKey) => {
-      if (subPhaseType === "custom_18") return groupKey.startsWith("pool-gold-") ? 4 : 3;
-      return groupKey.startsWith("gold-") ? (teamsPerGoldGirone || 4) : (teamsPerSilverGirone || 4);
-    };
-    const getIntermediateGroupTeamsList = (groupKey) =>
-      Array.from({ length: getTeamsCountForGroup(groupKey) }, (_, i) => bracketAssignments[`${groupKey}-${i}`]);
-
-    const getMatchTeams = (matchId) => {
-      let left = bracketAssignments[`${matchId}-L`];
-      let right = bracketAssignments[`${matchId}-R`];
-      const match = matchId.match(/^(.+)-m([0-4])$/);
-      if (match && (!left || !right)) {
-        const [, groupKey, number] = match;
-        const index = Number(number);
-        if (index < 2) {
-          left ||= bracketAssignments[`${groupKey}-${index * 2}`];
-          right ||= bracketAssignments[`${groupKey}-${index * 2 + 1}`];
-        } else if (index === 2 || index === 3) {
-          const resolve = index === 2 ? resolveWinner : resolveLoser;
-          left ||= resolve(`${groupKey}-m0`);
-          right ||= resolve(`${groupKey}-m1`);
-        } else {
-          left ||= resolveLoser(`${groupKey}-m2`);
-          right ||= resolveWinner(`${groupKey}-m3`);
-        }
-      }
-      return { left, right };
-    };
-    const resolveOutcome = (matchId, loser = false) => {
-      const { left, right } = getMatchTeams(matchId);
-      if (left === "—" && right && right !== "—") return loser ? "—" : right;
-      if (right === "—" && left && left !== "—") return loser ? "—" : left;
-      const meta = bracketMetadata[matchId] || {};
-      if (!left || !right || meta.scoreL === undefined || meta.scoreL === "" || meta.scoreR === undefined || meta.scoreR === "") return null;
-      const scoreL = parseInt(meta.scoreL, 10);
-      const scoreR = parseInt(meta.scoreR, 10);
-      if (!Number.isFinite(scoreL) || !Number.isFinite(scoreR) || scoreL === scoreR) return null;
-      if ([meta.s1L, meta.s1R, meta.s2L, meta.s2R, meta.s3L, meta.s3R].some(v => v !== undefined && v !== "") && Math.max(scoreL, scoreR) < 2) return null;
-      return (scoreL > scoreR) !== loser ? left : right;
-    };
-    const resolveWinner = (matchId) => resolveOutcome(matchId);
-    const resolveLoser = (matchId) => resolveOutcome(matchId, true);
-
-    const getIntermediateRanking = (groupKey) => {
-      if (subPhaseType === "pool_stepladder") {
-        const winM2 = resolveWinner(`${groupKey}-m2`);
-        const losM2 = resolveLoser(`${groupKey}-m2`);
-        const winM3 = resolveWinner(`${groupKey}-m3`);
-        const losM3 = resolveLoser(`${groupKey}-m3`);
-
-        return [
-          winM2 || `1° ${groupKey}`,
-          losM2 || `2° ${groupKey}`,
-          winM3 || `3° ${groupKey}`,
-          losM3 || `4° ${groupKey}`
-        ];
-      }
-
-      const stats = {};
-      const numTeams = getTeamsCountForGroup(groupKey);
-      const teams = getIntermediateGroupTeamsList(groupKey);
-
-      teams.forEach(t => {
-        if (t && t !== "—" && t !== "Slot Libero") {
-          stats[t] = { nome: t, punti: 0, pf: 0, ps: 0 };
-        }
-      });
-
-      const pairMaps = getRoundRobinPairs(numTeams);
-
-      if (subPhaseType === "groups") {
-        const complete = pairMaps.every((pair, idx) => {
-          const teamL = teams[pair.l];
-          const teamR = teams[pair.r];
-          if (!teamL || !teamR || teamL === "—" || teamR === "—" || teamL === "Slot Libero" || teamR === "Slot Libero") return false;
-          const meta = bracketMetadata[`${groupKey}-m${idx}`] || {};
-          return meta.scoreL !== undefined && meta.scoreL !== "" && meta.scoreR !== undefined && meta.scoreR !== "";
-        });
-        if (!complete) return [];
-      }
-
-      pairMaps.forEach((pair, idx) => {
-        const teamL = teams[pair.l];
-        const teamR = teams[pair.r];
-        if (!teamL || !teamR || !stats[teamL] || !stats[teamR]) return;
-
-        const mKey = `${groupKey}-m${idx}`;
-        const meta = bracketMetadata[mKey] || {};
-        const s1L = parseInt(meta.scoreL || 0);
-        const s1R = parseInt(meta.scoreR || 0);
-        if (s1L === 0 && s1R === 0) return;
-
-        stats[teamL].pf += s1L;
-        stats[teamR].pf += s1R;
-        stats[teamL].ps += s1R;
-        stats[teamR].ps += s1L;
-
-        if (s1L > s1R) {
-          stats[teamL].punti++;
-        } else {
-          stats[teamR].punti++;
-        }
-      });
-
-      return Object.values(stats).sort((a, b) => {
-        if (b.punti !== a.punti) return b.punti - a.punti;
-        const qzA = a.ps === 0 ? a.pf : a.pf / a.ps;
-        const qzB = b.ps === 0 ? b.pf : b.pf / b.ps;
-        return qzB - qzA;
-      }).map(s => s.nome);
-    };
-
-    const update = (targetKey, value) => {
-      if (value && newAssignments[targetKey] !== value) {
-        newAssignments[targetKey] = value;
-        changed = true;
-      } else if (!value && subPhaseType === "groups" && /^(gold|silver)-s[12]-[LR]$/.test(targetKey) && newAssignments[targetKey]) {
-        newAssignments[targetKey] = "";
-        changed = true;
-      }
-    };
-
-    const updateFromMatch = (targetKey, matchId, loser = false) => {
-      const sourceExists = bracketAssignments[`${matchId}-L`] !== undefined || bracketAssignments[`${matchId}-R`] !== undefined;
-      if (!sourceExists) return;
-      const value = loser ? resolveLoser(matchId) : resolveWinner(matchId);
-      if (value) update(targetKey, value);
-      else if (newAssignments[targetKey] !== undefined && newAssignments[targetKey] !== "") {
-        newAssignments[targetKey] = "";
-        changed = true;
-      }
-    };
-
-    // Propagation within Pool Groups
-    if (subPhaseType === "pool_stepladder") {
-      ["gold-A", "gold-B", "gold-C", "gold-D", "silver-A", "silver-B", "silver-C", "silver-D"].forEach(groupKey => {
-        const winM0 = resolveWinner(`${groupKey}-m0`);
-        const winM1 = resolveWinner(`${groupKey}-m1`);
-        const losM0 = resolveLoser(`${groupKey}-m0`);
-        const losM1 = resolveLoser(`${groupKey}-m1`);
-
-        update(`${groupKey}-m2-L`, winM0);
-        update(`${groupKey}-m2-R`, winM1);
-
-        update(`${groupKey}-m3-L`, losM0);
-        update(`${groupKey}-m3-R`, losM1);
-
-        const losM2 = resolveLoser(`${groupKey}-m2`);
-        const winM3 = resolveWinner(`${groupKey}-m3`);
-
-        update(`${groupKey}-m4-L`, losM2);
-        update(`${groupKey}-m4-R`, winM3);
-      });
-    }
-
-    if ((phaseType === "gold_silver" && subPhaseType === "direct") || phaseType === "single") {
-      const parts = phaseType === "single" ? ["gold"] : ["gold", "silver"];
-      parts.forEach(p => {
-          const hasOttavi = bracketAssignments[`${p}-o1-L`] !== undefined;
-          const is16Teams = bracketAssignments[`${p}-o5-L`] !== undefined;
-          if (hasOttavi) {
-              if (is16Teams) {
-                  updateFromMatch(`${p}-q1-L`, `${p}-o1`);
-                  updateFromMatch(`${p}-q1-R`, `${p}-o2`);
-                  updateFromMatch(`${p}-q2-L`, `${p}-o3`);
-                  updateFromMatch(`${p}-q2-R`, `${p}-o4`);
-                  updateFromMatch(`${p}-q3-L`, `${p}-o5`);
-                  updateFromMatch(`${p}-q3-R`, `${p}-o6`);
-                  updateFromMatch(`${p}-q4-L`, `${p}-o7`);
-                  updateFromMatch(`${p}-q4-R`, `${p}-o8`);
-              } else {
-                  updateFromMatch(`${p}-q1-R`, `${p}-o4`);
-                  updateFromMatch(`${p}-q2-R`, `${p}-o3`);
-                  updateFromMatch(`${p}-q3-R`, `${p}-o2`);
-                  updateFromMatch(`${p}-q4-R`, `${p}-o1`);
-              }
-          }
-          updateFromMatch(`${p}-s1-L`, `${p}-q1`);
-          updateFromMatch(`${p}-s1-R`, `${p}-q2`);
-          updateFromMatch(`${p}-s2-L`, `${p}-q3`);
-          updateFromMatch(`${p}-s2-R`, `${p}-q4`);
-          updateFromMatch(`${p}-f1-L`, `${p}-s1`);
-          updateFromMatch(`${p}-f1-R`, `${p}-s2`);
-          updateFromMatch(`${p}-f3-L`, `${p}-s1`, true);
-          updateFromMatch(`${p}-f3-R`, `${p}-s2`, true);
-      });
-    }
-
-    if (phaseType === "gold_silver" && (subPhaseType === "groups" || subPhaseType === "pool_stepladder" || subPhaseType === "custom_18")) {
-      let currentGoldSlots = 0;
-      let currentSilverSlots = 0;
-      for (let i = 0; i < numGironi; i++) {
-        const gid = String.fromCharCode(65 + i);
-        const count = teamCounts[gid] || 0;
-        currentGoldSlots += Math.min(2, count);
-        currentSilverSlots += Math.max(0, count - 2);
-      }
-      const currentNumGoldGironi = subPhaseType === "custom_18" ? 4 : (numGoldGironiOpt > 0 ? numGoldGironiOpt : (currentGoldSlots > 4 ? 2 : 1));
-      const currentNumSilverGironi = subPhaseType === "custom_18" ? 2 : (numSilverGironiOpt > 0 ? numSilverGironiOpt : (currentSilverSlots > 4 ? 2 : 1));
-
-      const gA_rank = getIntermediateRanking("gold-A");
-      const gB_rank = currentNumGoldGironi >= 2 ? getIntermediateRanking("gold-B") : [];
-      const gC_rank = currentNumGoldGironi >= 3 ? getIntermediateRanking("gold-C") : [];
-      const gD_rank = currentNumGoldGironi >= 4 ? getIntermediateRanking("gold-D") : [];
-
-      const sA_rank = getIntermediateRanking("silver-A");
-      const sB_rank = currentNumSilverGironi >= 2 ? getIntermediateRanking("silver-B") : [];
-      const sC_rank = currentNumSilverGironi >= 3 ? getIntermediateRanking("silver-C") : [];
-      const sD_rank = currentNumSilverGironi >= 4 ? getIntermediateRanking("silver-D") : [];
-
-      const getRankedInt = (rankArr, pos, fallback) => subPhaseType === "groups" ? (rankArr?.[pos] || null) : (rankArr?.[pos] || fallback);
-
-      const isStepladder = subPhaseType === "pool_stepladder";
-
-      if (isStepladder) {
-        if (currentNumGoldGironi === 4) {
-          update("gold-o1-L", getRankedInt(gA_rank, 2, "3° Gold A"));
-          update("gold-o1-R", getRankedInt(gB_rank, 2, "3° Gold B"));
-          update("gold-o2-L", getRankedInt(gC_rank, 2, "3° Gold C"));
-          update("gold-o2-R", getRankedInt(gD_rank, 2, "3° Gold D"));
-
-          update("gold-q1-L", getRankedInt(gA_rank, 1, "2° Gold A"));
-          update("gold-q1-R", resolveWinner("gold-o1") || "Vincente Ottavo 1");
-          update("gold-q2-L", getRankedInt(gB_rank, 1, "2° Gold B"));
-          update("gold-q2-R", resolveWinner("gold-o2") || "Vincente Ottavo 2");
-          update("gold-q3-L", getRankedInt(gC_rank, 1, "2° Gold C"));
-          update("gold-q3-R", resolveWinner("gold-o2") || "Vincente Ottavo 2");
-          update("gold-q4-L", getRankedInt(gD_rank, 1, "2° Gold D"));
-          update("gold-q4-R", resolveWinner("gold-o1") || "Vincente Ottavo 1");
-
-          update("gold-s1-L", getRankedInt(gA_rank, 0, "1° Gold A"));
-          update("gold-s1-R", resolveWinner("gold-q2") || "Vincente Quarto 2");
-          update("gold-s2-L", getRankedInt(gB_rank, 0, "1° Gold B"));
-          update("gold-s2-R", resolveWinner("gold-q1") || "Vincente Quarto 1");
-        } else if (currentNumGoldGironi === 2) {
-          // Nessun ottavo: quarti a croce (2°A vs 3°B, 2°B vs 3°A)
-          // 1° di ogni girone va diretto in semifinale incrociato con il vincente del quarto opposto
-          update("gold-q1-L", getRankedInt(gA_rank, 1, "2° Gold A"));
-          update("gold-q1-R", getRankedInt(gB_rank, 2, "3° Gold B"));
-          update("gold-q2-L", getRankedInt(gB_rank, 1, "2° Gold B"));
-          update("gold-q2-R", getRankedInt(gA_rank, 2, "3° Gold A"));
-
-          update("gold-s1-L", getRankedInt(gA_rank, 0, "1° Gold A"));
-          update("gold-s1-R", resolveWinner("gold-q2") || "Vincente Quarto 2");
-          update("gold-s2-L", getRankedInt(gB_rank, 0, "1° Gold B"));
-          update("gold-s2-R", resolveWinner("gold-q1") || "Vincente Quarto 1");
-        } else if (currentNumGoldGironi === 1) {
-          update("gold-s1-L", getRankedInt(gA_rank, 0, "1° Gold"));
-          update("gold-s1-R", getRankedInt(gA_rank, 3, "4° Gold"));
-          update("gold-s2-L", getRankedInt(gA_rank, 1, "2° Gold"));
-          update("gold-s2-R", getRankedInt(gA_rank, 2, "3° Gold"));
-        }
-      } else if (subPhaseType === "custom_18") {
-        // Custom 18 squadre Gold:
-        // 1. Popola i 2 gironi POOL Gold con i primi (1°) e secondi (2°) dei gironi Gold A, B, C, D
-        update("pool-gold-1-0", getRankedInt(gA_rank, 0, "1° Gold A"));
-        update("pool-gold-1-1", getRankedInt(gB_rank, 1, "2° Gold B"));
-        update("pool-gold-1-2", getRankedInt(gC_rank, 0, "1° Gold C"));
-        update("pool-gold-1-3", getRankedInt(gD_rank, 1, "2° Gold D"));
-
-        update("pool-gold-2-0", getRankedInt(gB_rank, 0, "1° Gold B"));
-        update("pool-gold-2-1", getRankedInt(gA_rank, 1, "2° Gold A"));
-        update("pool-gold-2-2", getRankedInt(gD_rank, 0, "1° Gold D"));
-        update("pool-gold-2-3", getRankedInt(gC_rank, 1, "2° Gold C"));
-
-        // 2. Quarti di Finale Gold (2° e 3° da Pool OPPOSTE si sfidano a croce)
-        update("gold-q1-L", resolveLoser("pool-gold-1-m2") || "2° Pool Gold 1");
-        update("gold-q1-R", resolveWinner("pool-gold-2-m3") || "3° Pool Gold 2");
-        update("gold-q2-L", resolveLoser("pool-gold-2-m2") || "2° Pool Gold 2");
-        update("gold-q2-R", resolveWinner("pool-gold-1-m3") || "3° Pool Gold 1");
-        // 3. Semifinali Gold (1° Pool vs Vincente Quarto da Pool opposta)
-        update("gold-s1-L", resolveWinner("pool-gold-1-m2") || "1° Pool Gold 1");
-        update("gold-s1-R", resolveWinner("gold-q2") || "Vincente Quarto 2");
-        update("gold-s2-L", resolveWinner("pool-gold-2-m2") || "1° Pool Gold 2");
-        update("gold-s2-R", resolveWinner("gold-q1") || "Vincente Quarto 1");
-      } else {
-        // Standard Intermediate Groups (1° e 2° vanno in Semifinale)
-        if (currentNumGoldGironi === 4) {
-          update("gold-s1-L", getRankedInt(gA_rank, 0, "1° Gold A"));
-          update("gold-s1-R", getRankedInt(gB_rank, 0, "1° Gold B"));
-          update("gold-s2-L", getRankedInt(gC_rank, 0, "1° Gold C"));
-          update("gold-s2-R", getRankedInt(gD_rank, 0, "1° Gold D"));
-        } else if (currentNumGoldGironi === 2) {
-          update("gold-s1-L", getRankedInt(gA_rank, 0, "1° Gold A"));
-          update("gold-s1-R", getRankedInt(gB_rank, 1, "2° Gold B"));
-          update("gold-s2-L", getRankedInt(gB_rank, 0, "1° Gold B"));
-          update("gold-s2-R", getRankedInt(gA_rank, 1, "2° Gold A"));
-        } else if (currentNumGoldGironi === 1) {
-          update("gold-s1-L", getRankedInt(gA_rank, 0, "1° Gold"));
-          update("gold-s1-R", getRankedInt(gA_rank, 3, "4° Gold"));
-          update("gold-s2-L", getRankedInt(gA_rank, 1, "2° Gold"));
-          update("gold-s2-R", getRankedInt(gA_rank, 2, "3° Gold"));
-        }
-      }
-
-      updateFromMatch("gold-f1-L", "gold-s1");
-      updateFromMatch("gold-f1-R", "gold-s2");
-      updateFromMatch("gold-f3-L", "gold-s1", true);
-      updateFromMatch("gold-f3-R", "gold-s2", true);
-
-      if (isStepladder) {
-        if (currentNumSilverGironi === 4) {
-          update("silver-o1-L", getRankedInt(sA_rank, 2, "3° Silver A"));
-          update("silver-o1-R", getRankedInt(sB_rank, 2, "3° Silver B"));
-          update("silver-o2-L", getRankedInt(sC_rank, 2, "3° Silver C"));
-          update("silver-o2-R", getRankedInt(sD_rank, 2, "3° Silver D"));
-
-          update("silver-q1-L", getRankedInt(sA_rank, 1, "2° Silver A"));
-          update("silver-q1-R", resolveWinner("silver-o1") || "Vincente Ottavo 1");
-          update("silver-q2-L", getRankedInt(sB_rank, 1, "2° Silver B"));
-          update("silver-q2-R", resolveWinner("silver-o2") || "Vincente Ottavo 2");
-          update("silver-q3-L", getRankedInt(sC_rank, 1, "2° Silver C"));
-          update("silver-q3-R", resolveWinner("silver-o2") || "Vincente Ottavo 2");
-          update("silver-q4-L", getRankedInt(sD_rank, 1, "2° Silver D"));
-          update("silver-q4-R", resolveWinner("silver-o1") || "Vincente Ottavo 1");
-
-          update("silver-s1-L", getRankedInt(sA_rank, 0, "1° Silver A"));
-          update("silver-s1-R", resolveWinner("silver-q2") || "Vincente Quarto 2");
-          update("silver-s2-L", getRankedInt(sB_rank, 0, "1° Silver B"));
-          update("silver-s2-R", resolveWinner("silver-q1") || "Vincente Quarto 1");
-        } else if (currentNumSilverGironi === 2) {
-          // Nessun ottavo: quarti a croce (2°A vs 3°B, 2°B vs 3°A)
-          // 1° di ogni girone va diretto in semifinale incrociato con il vincente del quarto opposto
-          update("silver-q1-L", getRankedInt(sA_rank, 1, "2° Silver A"));
-          update("silver-q1-R", getRankedInt(sB_rank, 2, "3° Silver B"));
-          update("silver-q2-L", getRankedInt(sB_rank, 1, "2° Silver B"));
-          update("silver-q2-R", getRankedInt(sA_rank, 2, "3° Silver A"));
-
-          update("silver-s1-L", getRankedInt(sA_rank, 0, "1° Silver A"));
-          update("silver-s1-R", resolveWinner("silver-q2") || "Vincente Quarto 2");
-          update("silver-s2-L", getRankedInt(sB_rank, 0, "1° Silver B"));
-          update("silver-s2-R", resolveWinner("silver-q1") || "Vincente Quarto 1");
-        } else if (currentNumSilverGironi === 1) {
-          update("silver-s1-L", getRankedInt(sA_rank, 0, "1° Silver"));
-          update("silver-s1-R", getRankedInt(sA_rank, 3, "4° Silver"));
-          update("silver-s2-L", getRankedInt(sA_rank, 1, "2° Silver"));
-          update("silver-s2-R", getRankedInt(sA_rank, 2, "3° Silver"));
-        }
-      } else if (subPhaseType === "custom_18") {
-        // Custom 18 squadre Silver: 2 Gironi all'italiana da 3 squadre.
-        // Semifinali incrociate: 1°A vs 2°B, 1°B vs 2°A
-        // Vincenti → Finale 1°/2°, Perdenti → Finale 3°/4°
-        update("silver-s1-L", getRankedInt(sA_rank, 0, "1° Silver A"));
-        update("silver-s1-R", getRankedInt(sB_rank, 1, "2° Silver B"));
-        update("silver-s2-L", getRankedInt(sB_rank, 0, "1° Silver B"));
-        update("silver-s2-R", getRankedInt(sA_rank, 1, "2° Silver A"));
-      } else {
-        // Standard Intermediate Groups (1° e 2° vanno in Semifinale)
-        if (currentNumSilverGironi === 4) {
-          update("silver-s1-L", getRankedInt(sA_rank, 0, "1° Silver A"));
-          update("silver-s1-R", getRankedInt(sB_rank, 0, "1° Silver B"));
-          update("silver-s2-L", getRankedInt(sC_rank, 0, "1° Silver C"));
-          update("silver-s2-R", getRankedInt(sD_rank, 0, "1° Silver D"));
-        } else if (currentNumSilverGironi === 2) {
-          update("silver-s1-L", getRankedInt(sA_rank, 0, "1° Silver A"));
-          update("silver-s1-R", getRankedInt(sB_rank, 1, "2° Silver B"));
-          update("silver-s2-L", getRankedInt(sB_rank, 0, "1° Silver B"));
-          update("silver-s2-R", getRankedInt(sA_rank, 1, "2° Silver A"));
-        } else if (currentNumSilverGironi === 1) {
-          update("silver-s1-L", getRankedInt(sA_rank, 0, "1° Silver"));
-          update("silver-s1-R", getRankedInt(sA_rank, 3, "4° Silver"));
-          update("silver-s2-L", getRankedInt(sA_rank, 1, "2° Silver"));
-          update("silver-s2-R", getRankedInt(sA_rank, 2, "3° Silver"));
-        }
-      }
-
-      updateFromMatch("silver-f1-L", "silver-s1");
-      updateFromMatch("silver-f1-R", "silver-s2");
-      updateFromMatch("silver-f3-L", "silver-s1", true);
-      updateFromMatch("silver-f3-R", "silver-s2", true);
-    }
-
-    if (phaseType === "double") {
-      update(`wb-s1-L`, resolveWinner(`wb-q1`)); update(`wb-s1-R`, resolveWinner(`wb-q2`));
-      update(`wb-s2-L`, resolveWinner(`wb-q3`)); update(`wb-s2-R`, resolveWinner(`wb-q4`));
-      update(`wb-f-L`, resolveWinner(`wb-s1`)); update(`wb-f-R`, resolveWinner(`wb-s2`));
-      update(`lb-f-L`, resolveWinner(`lb-s1`)); update(`lb-f-R`, resolveWinner(`lb-s2`));
-      update(`grand-final-L`, resolveWinner(`wb-f`));
-      update(`grand-final-R`, resolveWinner(`lb-f`));
-    }
-
-    if (changed) setBracketAssignments(newAssignments);
-  }, [bracketMetadata, bracketAssignments, isLoaded, phaseType, subPhaseType, numGironi, teamCounts, numGoldGironiOpt, numSilverGironiOpt, teamsPerGoldGirone, teamsPerSilverGirone, selectedGiallo, active]);
 
   // Calcola la Classifica Avulsa Gold per custom_18 (12 team: 1° e 2° dei gironi iniziali A-F)
   const getClassificaAvulsaGoldCustom18 = () => {
@@ -885,6 +539,8 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
   };
 
   const handleAutoFill = async () => {
+    if (scoreDrafts) { setSaveError("Salva o scarta le bozze prima di rigenerare gli abbinamenti."); return; }
+    if (Object.keys(bracketAssignments).length && !window.confirm("Rigenerare gli abbinamenti della fase finale? I risultati degli incontri rigenerati saranno azzerati. Nessun altro torneo sarà modificato.")) return;
     const slug = selectedTorneo.toLowerCase().trim().replace(/\s+/g, '_');
     const gConfig = await getGironi(slug);
     if (!gConfig) { alert("Nessuna configurazione gironi!"); return; }
@@ -1462,171 +1118,18 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
     alert("Tabellone eliminato con successo! 🗑️");
   };
 
-  const handleMetadataChange = (matchId, field, value) => {
-    setBracketMetadata(prev => {
-      const currentMeta = { ...(prev[matchId] || {}), [field]: value };
-      const isMultiSet = (matchId.startsWith("gold-") || matchId.startsWith("silver-")) && (
-        (subPhaseType !== "custom_18" && (
-          matchId.endsWith("-q1") || matchId.endsWith("-q2") || matchId.endsWith("-q3") || matchId.endsWith("-q4") ||
-          matchId.endsWith("-s1") || matchId.endsWith("-s2")
-        )) ||
-        matchId.endsWith("-f1") || matchId.endsWith("-f3")
-      );
-      if (isMultiSet && ['s1L', 's1R', 's2L', 's2R', 's3L', 's3R'].includes(field)) {
-        const getSetWinner = (sL, sR) => {
-          if (sL === undefined || sL === "" || sR === undefined || sR === "") return null;
-          const pL = parseInt(sL);
-          const pR = parseInt(sR);
-          if (isNaN(pL) || isNaN(pR)) return null;
-          return pL > pR ? 'L' : pL < pR ? 'R' : null;
-        };
-
-        let winL = 0;
-        let winR = 0;
-        
-        const w1 = getSetWinner(currentMeta.s1L, currentMeta.s1R);
-        if (w1 === 'L') winL++; else if (w1 === 'R') winR++;
-        
-        const w2 = getSetWinner(currentMeta.s2L, currentMeta.s2R);
-        if (w2 === 'L') winL++; else if (w2 === 'R') winR++;
-        
-        const w3 = getSetWinner(currentMeta.s3L, currentMeta.s3R);
-        if (w3 === 'L') winL++; else if (w3 === 'R') winR++;
-        
-        currentMeta.scoreL = (winL > 0 || winR > 0) ? winL.toString() : "";
-        currentMeta.scoreR = (winL > 0 || winR > 0) ? winR.toString() : "";
-      }
-      return { ...prev, [matchId]: currentMeta };
-    });
-  };
-
   const renderMatch = (matchId, label, color = "blue") => {
     const meta = bracketMetadata[matchId] || {};
-    const borderClass = color === "gold" ? "hover:border-yellow-500" : color === "silver" ? "hover:border-gray-400" : "hover:border-blue-600";
-    
-    const isMultiSetMatch = (matchId.startsWith("gold-") || matchId.startsWith("silver-")) && (
-      (subPhaseType !== "custom_18" && (
-        matchId.endsWith("-q1") || matchId.endsWith("-q2") || matchId.endsWith("-q3") || matchId.endsWith("-q4") ||
-        matchId.endsWith("-s1") || matchId.endsWith("-s2")
-      )) ||
-      matchId.endsWith("-f1") || matchId.endsWith("-f3")
-    );
-
-    return (
-      <div className={`bg-white border-2 border-gray-100 rounded-2xl p-4 shadow-sm group ${borderClass} transition-all min-w-[200px]`}>
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{label}</span>
-          <div className="flex gap-2">
-            <input type="text" placeholder="Ora" value={meta.time || ""} onChange={(e) => handleMetadataChange(matchId, 'time', e.target.value)} className="w-12 text-[10px] border border-gray-200 rounded px-1 py-0.5 text-center focus:outline-none bg-white text-gray-900" />
-            <input type="text" placeholder="C." value={meta.court || ""} onChange={(e) => handleMetadataChange(matchId, 'court', e.target.value)} className="w-8 text-[10px] border border-gray-200 rounded px-1 py-0.5 text-center focus:outline-none bg-white text-gray-900" />
-          </div>
-        </div>
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <input 
-              type="text" 
-              placeholder="Team A" 
-              value={bracketAssignments[`${matchId}-L`] || ""} 
-              onChange={(e) => setBracketAssignments(p => ({...p, [`${matchId}-L`]: e.target.value}))} 
-              onBlur={(e) => {
-                const val = e.target.value;
-                if (val && val !== "—" && !val.includes(".") && val !== "Slot Libero" && !val.startsWith("TBD")) {
-                  const formatted = splitNames(val).map(formatPlayerName).join(" - ");
-                  setBracketAssignments(p => ({...p, [`${matchId}-L`]: formatted}));
-                }
-              }}
-              className="flex-1 text-xs font-bold border-b border-gray-100 outline-none py-1 bg-white text-gray-900" 
-            />
-            <input 
-              type="text" 
-              placeholder="-" 
-              value={meta.scoreL || ""} 
-              onChange={(e) => !isMultiSetMatch && handleMetadataChange(matchId, 'scoreL', e.target.value)} 
-              readOnly={isMultiSetMatch}
-              className={`w-8 h-8 rounded text-center text-xs font-black focus:outline-none ${isMultiSetMatch ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-50 text-gray-900 focus:bg-[#0a1628] focus:text-white'}`} 
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <input 
-              type="text" 
-              placeholder="Team B" 
-              value={bracketAssignments[`${matchId}-R`] || ""} 
-              onChange={(e) => setBracketAssignments(p => ({...p, [`${matchId}-R`]: e.target.value}))} 
-              onBlur={(e) => {
-                const val = e.target.value;
-                if (val && val !== "—" && !val.includes(".") && val !== "Slot Libero" && !val.startsWith("TBD")) {
-                  const formatted = splitNames(val).map(formatPlayerName).join(" - ");
-                  setBracketAssignments(p => ({...p, [`${matchId}-R`]: formatted}));
-                }
-              }}
-              className="flex-1 text-xs font-bold border-b border-gray-100 outline-none py-1 bg-white text-gray-900" 
-            />
-            <input 
-              type="text" 
-              placeholder="-" 
-              value={meta.scoreR || ""} 
-              onChange={(e) => !isMultiSetMatch && handleMetadataChange(matchId, 'scoreR', e.target.value)} 
-              readOnly={isMultiSetMatch}
-              className={`w-8 h-8 rounded text-center text-xs font-black focus:outline-none ${isMultiSetMatch ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-50 text-gray-900 focus:bg-[#0a1628] focus:text-white'}`} 
-            />
-          </div>
-        </div>
-        
-        {isMultiSetMatch && (
-          <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
-            <div className="grid grid-cols-4 gap-1 items-center text-center text-[9px] font-black text-gray-400 uppercase tracking-wider">
-              <div>Set</div>
-              <div>S1</div>
-              <div>S2</div>
-              <div>S3</div>
-            </div>
-            <div className="grid grid-cols-4 gap-1 items-center">
-              <span className="text-[9px] font-bold text-gray-500 truncate text-center">A</span>
-              <input type="text" placeholder="0" value={meta.s1L || ""} onChange={(e) => handleMetadataChange(matchId, 's1L', e.target.value)} className="w-full text-center text-[11px] border border-gray-200 rounded py-0.5 focus:outline-none bg-gray-50 text-gray-900 font-bold" />
-              <input type="text" placeholder="0" value={meta.s2L || ""} onChange={(e) => handleMetadataChange(matchId, 's2L', e.target.value)} className="w-full text-center text-[11px] border border-gray-200 rounded py-0.5 focus:outline-none bg-gray-50 text-gray-900 font-bold" />
-              <input type="text" placeholder="0" value={meta.s3L || ""} onChange={(e) => handleMetadataChange(matchId, 's3L', e.target.value)} className="w-full text-center text-[11px] border border-gray-200 rounded py-0.5 focus:outline-none bg-gray-50 text-gray-900 font-bold" />
-            </div>
-            <div className="grid grid-cols-4 gap-1 items-center">
-              <span className="text-[9px] font-bold text-gray-500 truncate text-center">B</span>
-              <input type="text" placeholder="0" value={meta.s1R || ""} onChange={(e) => handleMetadataChange(matchId, 's1R', e.target.value)} className="w-full text-center text-[11px] border border-gray-200 rounded py-0.5 focus:outline-none bg-gray-50 text-gray-900 font-bold" />
-              <input type="text" placeholder="0" value={meta.s2R || ""} onChange={(e) => handleMetadataChange(matchId, 's2R', e.target.value)} className="w-full text-center text-[11px] border border-gray-200 rounded py-0.5 focus:outline-none bg-gray-50 text-gray-900 font-bold" />
-              <input type="text" placeholder="0" value={meta.s3R || ""} onChange={(e) => handleMetadataChange(matchId, 's3R', e.target.value)} className="w-full text-center text-[11px] border border-gray-200 rounded py-0.5 focus:outline-none bg-gray-50 text-gray-900 font-bold" />
-            </div>
-          </div>
-        )}
-      </div>
-    );
+    return <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-4">
+      <p className={`mb-3 text-xs font-bold uppercase tracking-wider ${color === "gold" ? "text-yellow-700" : "text-slate-500"}`}>{label}</p>
+      {["L", "R"].map((side) => <label key={side} className="mb-2 block text-xs text-slate-500">Squadra {side === "L" ? "1" : "2"}
+        <input key={bracketAssignments[`${matchId}-${side}`] || ""} aria-label={`${label} squadra ${side === "L" ? "1" : "2"}`} defaultValue={bracketAssignments[`${matchId}-${side}`] || ""} placeholder="In attesa di qualificazione" onBlur={(e) => { if (!changeAssignment(`${matchId}-${side}`, e.target.value)) e.target.value = bracketAssignments[`${matchId}-${side}`] || ""; }} className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 p-2 text-sm font-bold text-[#0a1628]" />
+      </label>)}
+      <p className="mt-3 text-xs text-slate-500">{[meta.court && `Campo ${meta.court}`, meta.time && `Ore ${meta.time}`].filter(Boolean).join(" · ") || "Programmazione in Partite e risultati"}</p>
+      {(meta.scoreL !== undefined && meta.scoreL !== "") && <p className="mt-2 text-sm font-bold">Risultato salvato: {meta.scoreL}–{meta.scoreR}</p>}
+    </div>;
   };
-
-  const renderGroupMatch = (groupKey, matchIdx, label, teamL, teamR) => {
-    const matchId = `${groupKey}-m${matchIdx}`;
-    const meta = bracketMetadata[matchId] || {};
-    return (
-      <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm hover:border-blue-400 transition-all min-w-[200px]">
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{label}</span>
-          <div className="flex gap-2">
-            <input type="text" placeholder="Ora" value={meta.time || ""} onChange={(e) => handleMetadataChange(matchId, 'time', e.target.value)} className="w-12 text-[10px] border border-gray-200 rounded px-1 py-0.5 text-center focus:outline-none bg-white text-gray-900" />
-            <input type="text" placeholder="C." value={meta.court || ""} onChange={(e) => handleMetadataChange(matchId, 'court', e.target.value)} className="w-8 text-[10px] border border-gray-200 rounded px-1 py-0.5 text-center focus:outline-none bg-white text-gray-900" />
-          </div>
-        </div>
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <span className="flex-1 text-xs font-bold truncate text-[#0a1628]" title={teamL}>
-              {teamL && teamL !== "—" && teamL !== "Slot Libero" ? splitNames(teamL).map(formatPlayerName).join(" - ") : (teamL || "Slot Libero")}
-            </span>
-            <input type="text" placeholder="-" value={meta.scoreL || ""} onChange={(e) => handleMetadataChange(matchId, 'scoreL', e.target.value)} className="w-8 h-8 bg-gray-50 text-gray-900 rounded text-center text-xs font-black focus:bg-[#0a1628] focus:text-white" />
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="flex-1 text-xs font-bold truncate text-[#0a1628]" title={teamR}>
-              {teamR && teamR !== "—" && teamR !== "Slot Libero" ? splitNames(teamR).map(formatPlayerName).join(" - ") : (teamR || "Slot Libero")}
-            </span>
-            <input type="text" placeholder="-" value={meta.scoreR || ""} onChange={(e) => handleMetadataChange(matchId, 'scoreR', e.target.value)} className="w-8 h-8 bg-gray-50 text-gray-900 rounded text-center text-xs font-black focus:bg-[#0a1628] focus:text-white" />
-          </div>
-        </div>
-      </div>
-    );
-  };
+  const renderGroupMatch = (groupKey, index, label, left, right) => <div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><p className="mb-2 text-xs font-bold text-slate-500">{label}</p><p className="text-sm font-semibold">{left || "In attesa"} · {right || "In attesa"}</p></div>;
 
   const renderIntermediateGroup = (groupKey, title, color) => {
     const isPoolMode = subPhaseType === "pool_stepladder" || (subPhaseType === "custom_18" && groupKey.startsWith("pool-gold-"));
@@ -1652,15 +1155,9 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
                 <span className="text-[10px] font-black text-gray-400">#{idx + 1}</span>
                 <input
                   type="text"
-                  value={bracketAssignments[`${groupKey}-${idx}`] || ""}
-                  onChange={(e) => setBracketAssignments(p => ({ ...p, [`${groupKey}-${idx}`]: e.target.value }))}
-                  onBlur={(e) => {
-                    const val = e.target.value;
-                    if (val && val !== "—" && !val.includes(".") && val !== "Slot Libero" && !val.startsWith("TBD")) {
-                      const formatted = splitNames(val).map(formatPlayerName).join(" - ");
-                      setBracketAssignments(p => ({...p, [`${groupKey}-${idx}`]: formatted}));
-                    }
-                  }}
+                  key={bracketAssignments[`${groupKey}-${idx}`] || ""}
+                  defaultValue={bracketAssignments[`${groupKey}-${idx}`] || ""}
+                  onBlur={(e) => { if (!changeAssignment(`${groupKey}-${idx}`, e.target.value)) e.target.value = bracketAssignments[`${groupKey}-${idx}`] || ""; }}
                   className="flex-1 bg-transparent border-none text-xs font-bold focus:outline-none text-[#0a1628] w-full"
                   placeholder="Slot Libero"
                 />
@@ -1961,199 +1458,17 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
           <h2 className="font-bold">Visibilità pubblica della fase finale</h2>
           <p className="mt-2 text-sm text-slate-600">{tournament?.stato === "Concluso" ? "Torneo concluso: tabellone e risultati restano consultabili qui. " : ""}Puoi mostrarli o nasconderli al pubblico senza cambiare lo stato del torneo, i gironi o i punteggi.</p>
           <p role="status" className="my-3 text-sm font-semibold">{publishing ? "Salvataggio visibilità…" : tabellonePubblicato ? "Fase finale visibile al pubblico" : "Fase finale nascosta al pubblico"}</p>
-          <button type="button" onClick={changeVisibility} disabled={!selectedTorneo || !isLoaded || publishing} className="rounded-xl border border-slate-300 px-4 py-3 text-sm font-bold disabled:opacity-40">{tabellonePubblicato ? "Nascondi fase finale al pubblico" : "Pubblica fase finale"}</button>
+          <button type="button" onClick={changeVisibility} disabled={!selectedTorneo || !isLoaded || publishing || resultBusy || Boolean(scoreDrafts)} className="rounded-xl border border-slate-300 px-4 py-3 text-sm font-bold disabled:opacity-40">{tabellonePubblicato ? "Nascondi fase finale al pubblico" : "Pubblica fase finale"}</button>
         </section>
-        <section className="mb-6 space-y-5 rounded-2xl border border-slate-200 bg-white p-5 text-[#0a1628]">
-          <div><h2 className="text-xl font-bold">Scegli la fase finale</h2><p className="mt-1 text-sm leading-6 text-slate-500">Scegli la formula, controlla le qualificazioni qui sotto, poi genera gli abbinamenti dai gironi.</p></div>
-          <div className="grid gap-3 sm:grid-cols-3" role="group" aria-label="Formula fase finale">
-            {[{ id: "single", title: "Eliminazione diretta", text: "Un solo tabellone: chi vince avanza." },
-              { id: "gold_silver", title: "Gold e Silver", text: "Due percorsi in base ai risultati iniziali." },
-              { id: "double", title: "Doppia eliminazione", text: "Tabellone vincenti e recupero perdenti." }].map((format) => <button key={format.id} type="button" aria-pressed={phaseType === format.id} disabled={!selectedTorneo || !isLoaded}
-                onClick={() => setPhaseType(format.id)} className={`rounded-xl border p-4 text-left disabled:opacity-40 ${phaseType === format.id ? "border-[#0a1628] bg-slate-50 ring-1 ring-[#0a1628]" : "border-slate-200 hover:border-slate-400"}`}>
-                <span className="block text-sm font-bold">{format.title}</span><span className="mt-2 block text-xs leading-5 text-slate-500">{format.text}</span>
-              </button>)}
-          </div>
-          {phaseType === "gold_silver" && <label className="block max-w-xl text-sm font-bold">Percorso Gold e Silver
-            <select className="mt-2 w-full rounded-xl border border-slate-300 bg-slate-50 p-3 text-sm" value={subPhaseType} onChange={(e) => setSubPhaseType(e.target.value)}>
-              <option value="direct">Accesso diretto ai tabelloni finali</option>
-              <option value="groups">Gironi intermedi standard</option>
-              <option value="pool_stepladder">Pool e turni progressivi</option>
-              <option value="custom_18">Personalizzato 18 squadre</option>
-            </select>
-          </label>}
-          <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
-            <button onClick={handleAutoFill} disabled={!selectedTorneo || !isLoaded} className="rounded-xl bg-[#FFD700] px-5 py-3 text-sm font-bold disabled:opacity-40">Genera abbinamenti</button>
-            <button onClick={handleSave} disabled={!selectedTorneo || !isLoaded} className="rounded-xl bg-[#0a1628] px-5 py-3 text-sm font-bold text-white disabled:opacity-40">Salva tabellone</button>
-          </div>
-          <details className="border-t border-slate-100 pt-3"><summary className="cursor-pointer text-sm font-semibold text-slate-600">Opzioni avanzate e azzeramenti</summary>
-            <p className="my-3 text-xs text-slate-500">L’eliminazione rimuove il tabellone e i risultati della fase finale del torneo selezionato.</p>
-            <button onClick={handleDeleteBracket} disabled={!selectedTorneo || !isLoaded} className="rounded-lg border border-red-200 px-3 py-2 text-sm text-red-700">Elimina tabellone</button>
-          </details>
+        <nav aria-label="Modalità gestione fase finale" className="mb-5 flex flex-wrap gap-2">
+          {[{ id: "setup", label: "Configurazione tabellone" }, { id: "results", label: "Partite e risultati" }].map((mode) => <button key={mode.id} type="button" aria-pressed={entryMode === mode.id} disabled={resultBusy} onClick={() => switchMode(mode.id)} className={`rounded-xl border px-5 py-3 text-sm font-bold ${entryMode === mode.id ? "border-[#0a1628] bg-[#0a1628] text-white" : "border-slate-200 bg-white"}`}>{mode.label}</button>)}
+        </nav>
+        <section hidden={entryMode !== "results"} aria-label="Partite e risultati della fase finale">
+          {isLoaded ? <MatchScoreEntry groups={finalMatchGroups(currentConfig)} contextLabel="Risultati della fase finale" selectorLabel="Scegli il turno" emptyMessage="Il tabellone non è ancora generato. Apri Configurazione tabellone per preparare gli abbinamenti." disabled={resultBusy || publishing} onDirtyChange={setScoreDrafts} onSave={recordScore} onSaveDetails={recordDetails} onClear={(game) => recordScore(game, null)} /> : <p role="status">Caricamento partite…</p>}
         </section>
-
-        {isLoaded && torneiAttivi.length > 0 && (phaseType === "gold_silver" || phaseType === "single") && (
-          <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-xl mb-8 flex flex-col md:flex-row gap-6 items-stretch md:items-center justify-between">
-            <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-6">
-              {phaseType === "gold_silver" && (subPhaseType === "groups" || subPhaseType === "pool_stepladder") ? (
-                <>
-                  {/* Gold Config */}
-                  <div className="space-y-2">
-                    <span className="text-[10px] font-black text-yellow-600 uppercase tracking-widest block">Configurazione Gironi Gold</span>
-                    <div className="flex gap-2">
-                      <div className="flex-1 space-y-1">
-                        <label className="text-[9px] font-bold text-gray-400 uppercase">Numero Gironi</label>
-                        <select 
-                          className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] cursor-pointer"
-                          value={numGoldGironiOpt}
-                          onChange={(e) => setNumGoldGironiOpt(parseInt(e.target.value))}
-                        >
-                          <option value={0}>Auto (Calcolato: {autoNumGoldGironi})</option>
-                          <option value={1}>1 Girone</option>
-                          <option value={2}>2 Gironi</option>
-                          <option value={3}>3 Gironi</option>
-                          <option value={4}>4 Gironi</option>
-                        </select>
-                      </div>
-                      <div className="flex-1 space-y-1">
-                        <label className="text-[9px] font-bold text-gray-400 uppercase">Squadre per Girone</label>
-                        <select 
-                          className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] cursor-pointer"
-                          value={teamsPerGoldGirone}
-                          onChange={(e) => setTeamsPerGoldGirone(parseInt(e.target.value))}
-                        >
-                          <option value={3}>3 Squadre</option>
-                          <option value={4}>4 Squadre</option>
-                          <option value={5}>5 Squadre</option>
-                          <option value={6}>6 Squadre</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Silver Config */}
-                  <div className="space-y-2">
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Configurazione Gironi Silver</span>
-                    <div className="flex gap-2">
-                      <div className="flex-1 space-y-1">
-                        <label className="text-[9px] font-bold text-gray-400 uppercase">Numero Gironi</label>
-                        <select 
-                          className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] cursor-pointer"
-                          value={numSilverGironiOpt}
-                          onChange={(e) => setNumSilverGironiOpt(parseInt(e.target.value))}
-                        >
-                          <option value={0}>Auto (Calcolato: {autoNumSilverGironi})</option>
-                          <option value={1}>1 Girone</option>
-                          <option value={2}>2 Gironi</option>
-                          <option value={3}>3 Gironi</option>
-                          <option value={4}>4 Gironi</option>
-                        </select>
-                      </div>
-                      <div className="flex-1 space-y-1">
-                        <label className="text-[9px] font-bold text-gray-400 uppercase">Squadre per Girone</label>
-                        <select 
-                          className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] cursor-pointer"
-                          value={teamsPerSilverGirone}
-                          onChange={(e) => setTeamsPerSilverGirone(parseInt(e.target.value))}
-                        >
-                          <option value={3}>3 Squadre</option>
-                          <option value={4}>4 Squadre</option>
-                          <option value={5}>5 Squadre</option>
-                          <option value={6}>6 Squadre</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              ) : phaseType === "single" ? (
-                <>
-                  {/* Single bracket size configuration */}
-                  <div className="space-y-2">
-                    <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest block font-sans">Squadre in Tabellone</span>
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-bold text-gray-400 uppercase">Avanzano al Tabellone</label>
-                      <select 
-                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] cursor-pointer"
-                        value={bracketSize}
-                        onChange={(e) => setBracketSize(parseInt(e.target.value))}
-                      >
-                        <option value={4}>4 Squadre (Semifinali)</option>
-                        <option value={8}>8 Squadre (Quarti)</option>
-                        <option value={12}>12 Squadre (4 Ottavi + 4 Bye)</option>
-                        <option value={16}>16 Squadre (8 Ottavi)</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="hidden sm:block"></div>
-                </>
-              ) : (
-                <>
-                  {/* Teams to Gold Config */}
-                  <div className="space-y-2">
-                    <span className="text-[10px] font-black text-yellow-600 uppercase tracking-widest block">Squadre al Gold</span>
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-bold text-gray-400 uppercase">Avanzano al Gold</label>
-                      <select 
-                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] cursor-pointer"
-                        value={teamsToGold}
-                        onChange={(e) => setTeamsToGold(parseInt(e.target.value))}
-                      >
-                        <option value={4}>4 Squadre (Semifinali)</option>
-                        <option value={8}>8 Squadre (Quarti)</option>
-                        <option value={12}>12 Squadre (4 Ottavi + 4 Bye)</option>
-                        <option value={16}>16 Squadre (8 Ottavi)</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Teams to Silver Config */}
-                  <div className="space-y-2">
-                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest block">Squadre al Silver</span>
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-bold text-gray-400 uppercase">Avanzano al Silver</label>
-                      <select 
-                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] cursor-pointer"
-                        value={teamsToSilver}
-                        onChange={(e) => setTeamsToSilver(parseInt(e.target.value))}
-                      >
-                        <option value={4}>4 Squadre (Semifinali)</option>
-                        <option value={8}>8 Squadre (Quarti)</option>
-                        <option value={12}>12 Squadre (4 Ottavi + 4 Bye)</option>
-                        <option value={16}>16 Squadre (8 Ottavi)</option>
-                      </select>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* Composition Method Config */}
-              <div className="space-y-2">
-                <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest block">Metodo Composizione</span>
-                <div className="space-y-1">
-                  <label className="text-[9px] font-bold text-gray-400 uppercase">
-                    {subPhaseType === "groups" ? "Composizione Gironi" : "Composizione Tabellone"}
-                  </label>
-                  <select 
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-[#0a1628] focus:ring-2 focus:ring-[#0a1628] cursor-pointer"
-                    value={groupCompositionMethod}
-                    onChange={(e) => setGroupCompositionMethod(e.target.value)}
-                  >
-                    <option value="girone">
-                      {subPhaseType === "groups" ? "Serpente per Gironi (Standard)" : "Classifica dei Gironi (Standard)"}
-                    </option>
-                    <option value="classifica">Classifica Avulsa (Complessiva)</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-[#FFD700]/10 border border-[#FFD700]/30 rounded-2xl p-4 md:max-w-xs flex items-center gap-3">
-              <span className="text-xl shrink-0">⚠️</span>
-              <p className="text-[9px] font-black text-[#0a1628]/80 uppercase tracking-wide leading-normal">
-                Dopo aver modificato la configurazione o il metodo, clicca su <strong>GENERA</strong> per aggiornare il tabellone e riassegnare le squadre.
-              </p>
-            </div>
-          </div>
-        )}
+        <div hidden={entryMode !== "setup"}>
+          <FinalsSetupPanel config={currentConfig} onChange={changeSetting} disabled={!isLoaded || resultBusy || publishing} onGenerate={handleAutoFill} onSave={handleSave} onDelete={handleDeleteBracket} onResults={() => switchMode("results")} hasBracket={Object.keys(bracketAssignments).length > 0} />
+          <details className="mt-5 rounded-2xl border border-slate-200 bg-white p-5" open><summary className="cursor-pointer font-bold">Anteprima e correzione abbinamenti</summary><p className="my-3 text-sm text-slate-500">I risultati si inseriscono nella vista Partite e risultati. Le correzioni ai partecipanti si applicano quando esci dal campo e chiedono conferma se annullano risultati dipendenti.</p>
 
         {!isLoaded ? (
             <div className="min-h-[400px] flex items-center justify-center">
@@ -2171,13 +1486,7 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
             </div>
         ) : phaseType === "double" ? (
             <div className="space-y-16">
-                {renderSection("wb", "Winners Bracket 🏆", "blue")}
-                <div className="bg-gray-100/30 p-6 md:p-10 rounded-[2.5rem] border border-gray-100">{renderSection("lb", "Losers Bracket 🔄", "silver")}</div>
-                <section className="bg-[#0a1628] p-8 md:p-12 rounded-[3rem] text-white shadow-2xl relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-yellow-400/10 rounded-full -mr-32 -mt-32"></div>
-                    <h3 className="text-2xl md:text-4xl font-black text-[#FFD700] uppercase mb-8 text-center relative z-10 tracking-tighter">GRAND FINAL 👑</h3>
-                    <div className="max-w-xl mx-auto relative z-10">{renderMatch('grand-final', 'Finalissima', 'gold')}</div>
-                </section>
+                {finalMatchGroups(currentConfig).map((round) => <section key={round.id}><h3 className="mb-4 text-xl font-bold">{round.label}</h3><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{round.matches.map((game) => <div key={game.id}>{renderMatch(game.id, game.label)}</div>)}</div></section>)}
             </div>
         ) : phaseType === "single" ? (
             <div className="space-y-16">
@@ -2301,6 +1610,8 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
                 {renderSection("silver", "🥈 Tabellone SILVER (Eliminazione Diretta)", "silver")}
             </div>
         )}
+          </details>
+        </div>
       </div>
     </Container>
   );

@@ -51,6 +51,17 @@ class NextResponse extends Response {
     assert.equal((await post({ data: { ...valid, matchMetadata: { 'group-A-0': { ...matchMetadata['group-A-0'], ...invalid } } } })).status, 400);
   }
   assert.equal((await post({ data: { ...valid, matchMetadata: { nonexistent: matchMetadata['group-A-0'] } } })).status, 400);
+  let completedGroups = valid;
+  for (const group of valid.groups) for (const game of rules.groupGames(group)) completedGroups = rules.setGialloScore(completedGroups, game.id, [21, 15]);
+  const finals = rules.startGialloFinals(completedGroups);
+  const finalGame = rules.gialloStages(finals)[0].games[0];
+  let withFinalScore = rules.setGialloScore(finals, finalGame.id, [21, 16]);
+  withFinalScore.matchMetadata[finalGame.id] = { court: '4', time: '18:00', status: 'finished' };
+  assert.equal((await post({ data: withFinalScore })).status, 200);
+  const regenerated = rules.startGialloFinals(withFinalScore);
+  assert.equal(regenerated.matchMetadata[finalGame.id].status, 'scheduled');
+  assert.equal(regenerated.matchMetadata[finalGame.id].court, '4');
+  assert.equal((await post({ data: regenerated })).status, 200);
   outcome = 'conflict'; assert.equal((await post()).status, 409);
   outcome = 'registrations_changed'; assert.equal((await post()).status, 409);
   outcome = 'saved'; unavailable = true;

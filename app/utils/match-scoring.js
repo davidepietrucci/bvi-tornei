@@ -30,6 +30,7 @@ export function validateMatchSets(sets, bestOf = 1, target = null) {
 
 export function completedMatch(match) {
   if (match.ready === false) return false;
+  if (match.legacyResult) return true;
   try { validateMatchSets(match.score || [], match.bestOf || 1, match.target || null); return true; }
   catch { return false; }
 }

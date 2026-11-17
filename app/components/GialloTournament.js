@@ -58,11 +58,13 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
   const [reload, setReload] = useState(0);
   const [conflict, setConflict] = useState(false);
   const [scoreDrafts, setScoreDrafts] = useState(0);
+  const [finalMode, setFinalMode] = useState("setup");
+  const [finalScoreDrafts, setFinalScoreDrafts] = useState(0);
   const slug = gialloSlug(tournament.nome);
   useEffect(() => {
     onSummary?.({ groupsPublished: Boolean(config?.published), finalsPublished: Boolean(config?.published),
-      busy: loading || busy, scoreDrafts, groupCount: config?.groups.length || 0, approvedCount: athletes.length });
-  }, [onSummary, config, loading, busy, athletes.length, scoreDrafts]);
+      busy: loading || busy, scoreDrafts: scoreDrafts + finalScoreDrafts, groupCount: config?.groups.length || 0, approvedCount: athletes.length });
+  }, [onSummary, config, loading, busy, athletes.length, scoreDrafts, finalScoreDrafts]);
 
   useEffect(() => {
     let cancelled = false;
@@ -227,6 +229,16 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
       </section>
       <section hidden={!show("finals")} className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
         <h3 className="text-2xl font-black">{editable ? "4. " : ""}Tabellone a eliminazione diretta</h3>
+        {editable && <nav aria-label="Modalità gestione finale giallo" className="flex flex-wrap gap-2">{[{ id: "setup", label: "Configurazione tabellone" }, { id: "results", label: "Partite e risultati" }].map((mode) => <button key={mode.id} type="button" aria-pressed={finalMode === mode.id} disabled={disabled} onClick={() => {
+          if (finalScoreDrafts) { setError("Salva o scarta le bozze delle partite prima di cambiare vista."); return; }
+          setFinalMode(mode.id); setError("");
+        }} className={`rounded-xl border px-4 py-3 text-sm font-bold ${finalMode === mode.id ? "bg-[#0a1628] text-white" : "border-slate-200"}`}>{mode.label}</button>)}</nav>}
+        {editable && <div hidden={finalMode !== "results"}><MatchScoreEntry contextLabel="Risultati della fase finale giallo" selectorLabel="Scegli il turno" emptyMessage="Completa i gironi e genera il tabellone dalla vista Configurazione tabellone." groups={stages.map((stage) => ({ id: stage.id, label: stage.title, matches: stage.games.map((game) => ({
+          id: game.id, left: game.left.map((a) => a.name), right: game.right.map((a) => a.name), ready: true, bestOf: 1, target: 21,
+          score: config.finals.results[game.id] ? [config.finals.results[game.id]] : [], court: config.matchMetadata?.[game.id]?.court, time: config.matchMetadata?.[game.id]?.time, status: config.matchMetadata?.[game.id]?.status,
+        })) }))} disabled={disabled} onDirtyChange={setFinalScoreDrafts} onSave={(game, sets, details) => recordScore(game.id, sets[0], details)} onClear={(game) => recordScore(game.id, null)} onSaveDetails={(game, details) => persist({ ...config, matchMetadata: { ...config.matchMetadata, [game.id]: validateMatchDetails(game, details) } })} /></div>}
+        <div hidden={editable && finalMode !== "setup"} className="space-y-5">
+        {editable && <p className="rounded-xl bg-slate-50 p-4 text-sm leading-6">La formula giallo usa la classifica unica: migliore con peggiore, coppie riformate a ogni turno e fisse dalle semifinali. Qui generi e controlli il percorso; campo, orario e punteggi si gestiscono in Partite e risultati.</p>}
         {editable && <p className="text-sm leading-6 text-slate-500">Genera gli abbinamenti dalla classifica completa. Poi salva i risultati: i turni successivi compariranno solo quando tutti gli incontri precedenti sono conclusi.</p>}
         {editable && <button className={buttonClass} disabled={disabled || !groupsComplete(config)} onClick={() => {
           if (config.finals && !window.confirm("Rigenerare il tabellone cancellando tutti i risultati delle finali?")) return;
@@ -236,13 +248,14 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
         {stages.map((stage) => <section key={stage.id} className="space-y-3">
           <h4 className="text-xl font-bold">{stage.title}</h4>
           {stage.byes && <p className="text-sm">Qualificati direttamente: {stage.byes.map((a) => a.name).join(" · ")}</p>}
-          <div className="grid gap-3 md:grid-cols-2">{stage.games.map((game) => <Match key={`${game.id}-${JSON.stringify(config.finals.results[game.id])}-${game.left.map((a) => a.id).join()}`} game={game} score={config.finals.results[game.id]} editable={editable} busy={disabled} onScore={recordScore} />)}</div>
+          <div className="grid gap-3 md:grid-cols-2">{stage.games.map((game) => <Match key={`${game.id}-${JSON.stringify(config.finals.results[game.id])}-${game.left.map((a) => a.id).join()}`} game={game} score={config.finals.results[game.id]} details={config.matchMetadata?.[game.id]} editable={false} busy={disabled} onScore={recordScore} />)}</div>
         </section>)}
         {config.finals && <p className="text-sm text-gray-600">Il turno successivo appare solo dopo il completamento di tutte le partite del turno precedente. Le semifinali non sono precompilate.</p>}
         {config.finals?.results["final-0"] && <p className="text-lg font-black">Vincitori: {(() => {
           const final = stages.find((s) => s.id === "final").games[0];
           return (config.finals.results["final-0"][0] > config.finals.results["final-0"][1] ? final.left : final.right).map((a) => a.name).join(" + ");
         })()}</p>}
+        </div>
       </section>
     </>}
   </div>;

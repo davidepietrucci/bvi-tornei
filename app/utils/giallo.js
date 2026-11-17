@@ -76,7 +76,9 @@ export function groupsComplete(config) {
 
 export function startGialloFinals(config) {
   if (!groupsComplete(config)) throw new Error("Completa e salva tutti i risultati dei gironi prima di generare il tabellone.");
-  return { ...config, finals: { seeds: gialloRanking(config).map(({ id, name }) => ({ id, name })), results: {} } };
+  const groupIds = new Set(config.groups.flatMap(groupGames).map((game) => game.id));
+  const matchMetadata = Object.fromEntries(Object.entries(config.matchMetadata || {}).map(([id, meta]) => [id, groupIds.has(id) ? meta : { ...meta, status: "scheduled" }]));
+  return { ...config, matchMetadata, finals: { seeds: gialloRanking(config).map(({ id, name }) => ({ id, name })), results: {} } };
 }
 
 function seededGames(athletes, stage, previousGames = []) {
@@ -151,14 +153,19 @@ export function setGialloScore(config, gameId, score) {
     next.matchMetadata = { ...next.matchMetadata, [gameId]: { ...next.matchMetadata?.[gameId], status: score === null ? "scheduled" : "finished" } };
     // Ranking changes invalidate every final pairing and result, even if the old winner was unchanged.
     next.finals = null;
+    next.matchMetadata = Object.fromEntries(Object.entries(next.matchMetadata).filter(([id]) => groupIds.includes(id)));
     return next;
   }
   const stages = gialloStages(next);
   const index = stages.findIndex((stage) => stage.games.some((g) => g.id === gameId));
   if (index < 0) throw new Error("Partita non ancora disponibile.");
   if (score === null) delete next.finals.results[gameId]; else next.finals.results[gameId] = score;
+  next.matchMetadata = { ...next.matchMetadata, [gameId]: { ...next.matchMetadata?.[gameId], status: score === null ? "scheduled" : "finished" } };
   // Changing a score clears all subsequent rounds: no stale winners or prefilled semis.
-  for (const stage of stages.slice(index + 1)) for (const game of stage.games) delete next.finals.results[game.id];
+  for (const stage of stages.slice(index + 1)) for (const game of stage.games) {
+    delete next.finals.results[game.id];
+    if (next.matchMetadata[game.id]) next.matchMetadata[game.id].status = "scheduled";
+  }
   return next;
 }
 
@@ -173,11 +180,12 @@ export function validateGiallo(config) {
   if (config.matchMetadata !== undefined) {
     if (!config.matchMetadata || typeof config.matchMetadata !== "object" || Array.isArray(config.matchMetadata)) throw new Error("Gestione partite non valida.");
     for (const [id, meta] of Object.entries(config.matchMetadata)) {
-      if (!groupIds.has(id) || !meta || typeof meta !== "object" || Array.isArray(meta) ||
+      const finalId = Boolean(config.finals) && /^(playoff|quarters|semis|final)-[0-5]$/.test(id);
+      if ((!groupIds.has(id) && !finalId) || !meta || typeof meta !== "object" || Array.isArray(meta) ||
         (meta.court !== undefined && (typeof meta.court !== "string" || meta.court.length > 40)) ||
         (meta.time !== undefined && (typeof meta.time !== "string" || (meta.time !== "" && !/^([01]\d|2[0-3]):[0-5]\d$/.test(meta.time)))) ||
         !["scheduled", "in_progress", "finished"].includes(meta.status) ||
-        (meta.status === "finished") !== validGialloScore(config.results[id])) throw new Error("Campo, orario o stato della partita non valido.");
+        (meta.status === "finished") !== validGialloScore(groupIds.has(id) ? config.results[id] : config.finals?.results[id])) throw new Error("Campo, orario o stato della partita non valido.");
     }
   }
   if (config.finals) {

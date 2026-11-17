@@ -6,6 +6,11 @@ const swc = require('next/dist/build/swc');
 
 (async () => {
   await swc.loadBindings();
+  const dataUrl = (source) => `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
+  const rankingUrl = dataUrl(fs.readFileSync('app/utils/ranking.js', 'utf8'));
+  const scoringUrl = dataUrl(fs.readFileSync('app/utils/match-scoring.js', 'utf8').replace('"./ranking"', JSON.stringify(rankingUrl)));
+  const progressionUrl = dataUrl(fs.readFileSync('app/utils/final-progression.js', 'utf8'));
+  const finalRules = await import(dataUrl(fs.readFileSync('app/utils/final-scoring.js', 'utf8').replace('"./match-scoring"', JSON.stringify(scoringUrl)).replace('"./final-progression"', JSON.stringify(progressionUrl))));
   let states = [], cursor = 0, jobs = [], saves = [], failSave = false;
   const tournament = { id: 'closed', nome: 'Torneo concluso', stato: 'Concluso', categoria: '2x2' };
   const assignments = { 'gold-s1-L': 'Squadra salvata A', 'gold-s1-R': 'Squadra salvata B' };
@@ -27,6 +32,7 @@ const swc = require('next/dist/build/swc');
         if (id === '@/app/utils/tournament-workflow') return { saveWorkflowConfig: async (...args) => { if (failSave) throw new Error('Salvataggio fallito'); saves.push(structuredClone(args)); }, readWorkflowConfig: async () => null };
         if (id === '@/app/utils/ranking') return { calculateUnifiedRanking: () => [], getSchedule: () => [] };
         if (id === '@/app/utils/match-scoring') return { teamGroupMatches: () => [] };
+        if (id === '@/app/utils/final-scoring') return finalRules;
         if (id.startsWith('@/')) return {};
         return require(id);
       },
@@ -40,7 +46,7 @@ const swc = require('next/dist/build/swc');
   states = []; states[2] = 'single'; states[4] = 4; states[5] = assignments; states[6] = metadata; states[7] = true;
   let tree = renderFinals();
   assert.doesNotMatch(text(tree), /Nessun torneo selezionato|Nessun Torneo Attivo/);
-  assert.ok(nodes(tree).some((n) => n.type === 'input' && n.props.value === 'Squadra salvata A') || text(tree).includes('Squadra salvata A'));
+  assert.ok(nodes(tree).some((n) => n.type === 'input' && (n.props.value || n.props.defaultValue) === 'Squadra salvata A') || text(tree).includes('Squadra salvata A'));
   assert.match(text(tree), /Torneo concluso: tabellone e risultati restano consultabili/);
   await nodes(tree).find((n) => n.type === 'button' && text(n) === 'Pubblica fase finale').props.onClick();
   assert.equal(saves[0][2].tabellonePubblicato, true);

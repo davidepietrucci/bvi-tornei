@@ -9,7 +9,7 @@ const seedDetails = (match) => ({ court: match.court || "", time: match.time || 
 const detailsChanged = (details, match) => JSON.stringify(details) !== JSON.stringify(seedDetails(match));
 const statusLabel = (status) => ({ scheduled: "Da giocare", in_progress: "In corso", finished: "Terminata" })[status];
 
-export default function MatchScoreEntry({ groups, onSave, onClear, onSaveDetails, disabled = false, onDirtyChange }) {
+export default function MatchScoreEntry({ groups, onSave, onClear, onSaveDetails, disabled = false, onDirtyChange, contextLabel = "Risultati dei gironi", selectorLabel = "Scegli il girone", emptyMessage = "Non ci sono partite da segnare. Completa prima la composizione dei gironi." }) {
   const [groupId, setGroupId] = useState(groups[0]?.id || "");
   const [matchId, setMatchId] = useState("");
   const [drafts, setDrafts] = useState({});
@@ -46,7 +46,7 @@ export default function MatchScoreEntry({ groups, onSave, onClear, onSaveDetails
     const currentGroup = groups.find((g) => g.id === advanceFrom.group);
     const next = currentGroup?.matches.find((m) => m.id !== advanceFrom.id && m.ready !== false && !completedMatch(m));
     if (next) { setMatchId(next.id); setMessage("Risultato salvato. Puoi inserire la prossima partita."); }
-    else setMessage(currentGroup?.matches.every(completedMatch) ? "Girone completato: tutti i risultati sono salvati." : "Risultato salvato. Seleziona un’altra partita o un altro girone.");
+    else setMessage(currentGroup?.matches.every(completedMatch) ? "Tutti i risultati di questa sezione sono salvati." : "Risultato salvato. Seleziona un’altra partita o un altro turno/girone.");
     setAdvanceFrom(null);
   }, [groups, advanceFrom]);
 
@@ -99,13 +99,13 @@ export default function MatchScoreEntry({ groups, onSave, onClear, onSaveDetails
     finally { saveLock.current = false; setSaving(false); }
   };
 
-  if (!match) return <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-sm text-slate-600">Non ci sono partite da segnare. Completa prima la composizione dei gironi.</div>;
+  if (!match) return <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-sm text-slate-600">{emptyMessage}</div>;
   return <section aria-label="Segna risultati delle partite" className="space-y-5 text-[#0a1628]">
     <div className="flex flex-wrap items-end justify-between gap-4">
-      <div><p className="text-xs font-bold uppercase tracking-[.18em] text-slate-500">Risultati dei gironi</p><h2 className="mt-2 text-2xl font-black sm:text-3xl">Segna risultati</h2><p className="mt-2 text-sm text-slate-500">Una partita alla volta. La classifica cambia solo dopo il salvataggio.</p></div>
+      <div><p className="text-xs font-bold uppercase tracking-[.18em] text-slate-500">{contextLabel}</p><h2 className="mt-2 text-2xl font-black sm:text-3xl">Segna risultati</h2><p className="mt-2 text-sm text-slate-500">Una partita alla volta. Risultati e qualificazioni cambiano solo dopo il salvataggio.</p></div>
       <span className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm"><strong>{completed} / {matches.length}</strong> salvate in {group.label}</span>
     </div>
-    <nav aria-label="Scegli il girone" className="flex flex-wrap gap-2">{groups.map((g) => <button key={g.id} type="button" disabled={saving || disabled} aria-pressed={group.id === g.id} onClick={() => select(g.id)}
+    <nav aria-label={selectorLabel} className="flex flex-wrap gap-2">{groups.map((g) => <button key={g.id} type="button" disabled={saving || disabled} aria-pressed={group.id === g.id} onClick={() => select(g.id)}
       className={`rounded-xl border px-4 py-3 text-sm font-bold disabled:opacity-40 ${group.id === g.id ? "border-[#0a1628] bg-[#0a1628] text-white" : "border-slate-200 bg-white text-slate-600"}`}>{g.label}<span className="ml-2 text-xs opacity-60">{g.matches.filter(completedMatch).length}/{g.matches.length}</span></button>)}</nav>
     {dirtyCount > 0 && <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
       <span>{dirtyCount === 1 ? "Una partita ha modifiche non salvate." : `${dirtyCount} partite hanno modifiche non salvate.`} Le bozze restano disponibili cambiando partita o girone.</span>
@@ -121,14 +121,14 @@ export default function MatchScoreEntry({ groups, onSave, onClear, onSaveDetails
         const hasDraft = (drafts[matchIdentity(m)] && serialize(drafts[matchIdentity(m)]) !== serialize(seedDraft(m))) || (detailDrafts[matchIdentity(m)] && detailsChanged(detailDrafts[matchIdentity(m)], m));
         return <button type="button" key={m.id} disabled={saving || disabled} aria-pressed={match.id === m.id} onClick={() => select(group.id, m.id)}
           className={`min-w-36 rounded-xl border p-4 text-left disabled:opacity-40 ${match.id === m.id ? "border-[#0a1628] bg-slate-100 ring-1 ring-[#0a1628]" : "border-slate-200 bg-white"}`}>
-          <span className="block text-sm font-bold">Partita {i + 1}</span><span className={`mt-2 block text-xs ${hasDraft ? "text-amber-800" : done ? "text-green-700" : "text-slate-500"}`}>{hasDraft ? "Bozza da salvare" : m.ready === false ? "In attesa di squadre" : statusLabel(matchStatus(m))}</span>
+          <span className="block text-sm font-bold">{m.label || `Partita ${i + 1}`}</span><span className={`mt-2 block text-xs ${hasDraft ? "text-amber-800" : done ? "text-green-700" : "text-slate-500"}`}>{hasDraft ? "Bozza da salvare" : m.ready === false ? "In attesa di squadre" : statusLabel(matchStatus(m))}</span>
           {(m.court || m.time) && <span className="mt-2 block text-xs text-slate-500">{[m.court && `Campo ${m.court}`, m.time].filter(Boolean).join(" · ")}</span>}
           {done && <span className="mt-2 block text-sm font-black">{m.score.filter((s) => s.every((n) => n !== "" && n !== null && n !== undefined)).map((s) => s.join("–")).join(" · ")}</span>}
         </button>;
       })}</nav>
       <form noValidate onSubmit={(event) => { event.preventDefault(); return save(true); }} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-7">
-          <div><h3 className="text-lg font-bold">{group.label} · Partita {matches.indexOf(match) + 1} di {matches.length}</h3><p className="mt-1 text-xs text-slate-500">{match.bestOf === 3 ? "Due set su tre" : "Set unico"}{match.target ? ` a ${match.target} · vantaggio di 2` : " · punteggio secondo il regolamento del torneo"}</p></div>
+          <div><h3 className="text-lg font-bold">{group.label} · {match.label || `Partita ${matches.indexOf(match) + 1} di ${matches.length}`}</h3><p className="mt-1 text-xs text-slate-500">{match.bestOf === 3 ? "Due set su tre" : "Set unico"}{match.target ? ` a ${match.target} · vantaggio di 2` : " · punteggio secondo il regolamento del torneo"}</p></div>
           <span className={`rounded-full px-3 py-2 text-xs font-bold ${dirty || detailsDirty ? "bg-amber-50 text-amber-800" : saved ? "bg-green-50 text-green-800" : "bg-slate-100 text-slate-500"}`}>{saving ? "Salvataggio…" : dirty || detailsDirty ? "Modifiche non salvate" : statusLabel(matchStatus(match))}</span>
         </div>
         <div className="space-y-6 p-5 sm:p-7">
@@ -151,6 +151,7 @@ export default function MatchScoreEntry({ groups, onSave, onClear, onSaveDetails
             <span aria-hidden="true" className="col-start-2 row-start-1 self-center text-xs font-black text-slate-400">VS</span>
           </div>
           {match.ready === false && <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-800">Le coppie non sono ancora definite. Completa la composizione o le partite precedenti prima di inserire il risultato.</p>}
+          {match.legacyResult && <p className="rounded-xl bg-blue-50 p-4 text-sm text-blue-800">Risultato storico: {match.legacyResult}. Il dettaglio dei set non è presente. Puoi mantenere questo risultato o sostituirlo compilando tutti i set; nessun punteggio viene inventato.</p>}
           <fieldset disabled={saving || disabled || match.ready === false} className="space-y-3">
             <legend className="mb-3 text-sm font-bold">Punteggio finale</legend>
             {draft.map((pair, set) => <div key={set} className="grid grid-cols-[minmax(0,1fr)_72px_minmax(0,1fr)] items-center gap-3 rounded-xl bg-slate-50 p-3 sm:px-8">
