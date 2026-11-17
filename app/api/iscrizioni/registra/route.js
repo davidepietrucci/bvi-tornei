@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser, clerkClient } from "@clerk/nextjs/server";
+import { getAthleteName } from "@/app/utils/athleteIdentity";
 import { updateRegistrationsAtomically } from "@/app/utils/db-server";
 import { sendConfirmationEmail, sendPartnerInviteEmail } from "@/app/utils/email";
 import { findCircuitAthlete, getCircuitLeaderboard, normalizeCircuitName, registrationIncludesAthlete } from "@/app/utils/circuit";
@@ -18,7 +19,6 @@ export async function POST(request) {
     const body = await request.json();
     const { 
       torneo, 
-      giocatore1,
       giocatore2,
       email2,
       atletaUserId2,
@@ -26,16 +26,10 @@ export async function POST(request) {
       note, 
     } = body;
 
-    const athleteName = String(
-      user?.fullName ||
-      `${user?.firstName || ""} ${user?.lastName || ""}`.trim() ||
-      giocatore1 ||
-      user?.username ||
-      (athleteEmail ? athleteEmail.split("@")[0] : "")
-    ).trim();
+    const athleteName = getAthleteName(user);
 
     if (!athleteEmail || !athleteName) {
-      return NextResponse.json({ error: "Indica nome, cognome ed email prima di iscriverti." }, { status: 400 });
+      return NextResponse.json({ error: "Completa nome e cognome nel tuo profilo prima di iscriverti.", code: "ATHLETE_PROFILE_INCOMPLETE" }, { status: 400 });
     }
 
     if (!torneo || !tel || !String(tel).trim()) {
@@ -48,6 +42,7 @@ export async function POST(request) {
     const notificationEmail = athleteEmail;
 
     let verifiedPartnerId = "";
+    let verifiedPartnerName = "";
     if (atletaUserId2) {
       const client = await clerkClient();
       let partner;
@@ -62,6 +57,10 @@ export async function POST(request) {
         return NextResponse.json({ error: "Il profilo del compagno non corrisponde all'email indicata. Selezionalo nuovamente." }, { status: 400 });
       }
       verifiedPartnerId = partner.id;
+      verifiedPartnerName = getAthleteName(partner);
+      if (!verifiedPartnerName) {
+        return NextResponse.json({ error: "Il compagno deve completare nome e cognome nel proprio profilo prima dell'iscrizione." }, { status: 400 });
+      }
     }
 
     const outcome = await updateRegistrationsAtomically(async (iscrizioni, tornei) => {
@@ -146,7 +145,8 @@ export async function POST(request) {
     const dataFormatted = `${oggi.getDate().toString().padStart(2, "0")}/${(oggi.getMonth() + 1).toString().padStart(2, "0")}/${oggi.getFullYear()}`;
 
     // L'atleta registrato deriva sempre dall'account Clerk verificato.
-    const giocatori = isIndividualTournament ? athleteName : `${athleteName} & ${String(giocatore2).trim()}`;
+    const partnerName = verifiedPartnerName || String(giocatore2 || "").trim();
+    const giocatori = isIndividualTournament ? athleteName : `${athleteName} & ${partnerName}`;
     const nuovaIscrizione = {
         id: newId.toString(),
         data: dataFormatted,
@@ -157,7 +157,7 @@ export async function POST(request) {
         atletaUserId1: userId,
         atletaEmail1: athleteEmail,
         ...(!isIndividualTournament ? {
-          atleta2Nome: String(giocatore2).trim(),
+          atleta2Nome: partnerName,
           atletaEmail2: partnerEmail,
           atletaUserId2: verifiedPartnerId,
           statoInvitoCompagno: verifiedPartnerId ? "Confermato" : "Invitato",
@@ -207,7 +207,7 @@ export async function POST(request) {
       try {
         const result = await sendPartnerInviteEmail({
           email: partnerEmail,
-          partnerName: String(giocatore2).trim(),
+          partnerName: verifiedPartnerName || String(giocatore2).trim(),
           inviterName: athleteName,
           torneo: matchTorneo.nome,
           data: matchTorneo.data,

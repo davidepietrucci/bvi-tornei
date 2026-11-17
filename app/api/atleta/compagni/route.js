@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
+import { getAthleteName } from "@/app/utils/athleteIdentity";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -30,12 +31,13 @@ export async function GET(request) {
         const firstName = u.firstName || "";
         const lastName = u.lastName || "";
         const email = getEmail(u);
-        const fullName = `${firstName} ${lastName}`.trim() || u.username || email.split("@")[0] || "Atleta";
+        const fullName = getAthleteName(u);
         return {
           id: u.id,
           nome: firstName,
           cognome: lastName,
-          fullName,
+          fullName: fullName || "Profilo da completare",
+          profileComplete: Boolean(fullName),
           email,
           imageUrl: u.imageUrl || null,
         };

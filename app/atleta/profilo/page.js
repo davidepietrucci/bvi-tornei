@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useUser, useClerk } from "@clerk/nextjs";
 import AthleteHeader from "@/app/components/AthleteHeader";
 import AthleteBottomNav from "@/app/components/AthleteBottomNav";
+import { getAthleteName } from "@/app/utils/athleteIdentity";
 
 const TABS = ["Info", "Punteggi", "Impostazioni"];
 
@@ -89,6 +90,10 @@ export default function AtletaProfilo() {
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
+    if (!getAthleteName(editForm)) {
+      alert("Inserisci sia il nome sia il cognome, non solo spazi.");
+      return;
+    }
     setSaving(true);
     try {
       await user.update({

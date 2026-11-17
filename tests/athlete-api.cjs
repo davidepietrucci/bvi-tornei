@@ -10,7 +10,7 @@ let state;
 let queue = Promise.resolve();
 let partner;
 let sentEmails;
-const user = { fullName: 'Atleta Test', primaryEmailAddress: { emailAddress: 'atleta@example.test' } };
+const user = { firstName: 'Atleta', lastName: 'Test', fullName: 'Atleta Test', primaryEmailAddress: { emailAddress: 'atleta@example.test' } };
 const context = vm.createContext({
   Response, NextResponse, console, Date,
   auth: async () => ({ userId: 'user_1' }),
@@ -33,6 +33,7 @@ const context = vm.createContext({
     (id && [r.atletaUserId1, r.atletaUserId2].includes(id)) || (email && [r.atletaEmail1, r.atletaEmail2].includes(email)),
   getCircuitLeaderboard: () => [], findCircuitAthlete: () => null,
 });
+vm.runInContext(fs.readFileSync('app/utils/athleteIdentity.js', 'utf8').replace('export function', 'function'), context);
 function load(path, name) {
   const source = fs.readFileSync(path, 'utf8')
     .replace(/^import\s+[\s\S]*?\s+from\s+['"][^'"]+['"];\s*/gm, '')
@@ -44,11 +45,31 @@ load('app/api/atleta/iscrizioni/annulla/route.js', 'cancel');
 const request = (data) => ({ json: async () => data });
 const base = { torneo: 'Torneo Test', tel: '123456', giocatore2: 'Compagno Test', email2: 'partner@example.test', atletaUserId2: 'user_2' };
 function reset() {
+  user.firstName = 'Atleta'; user.lastName = 'Test'; user.username = 'nickname';
   state = { registrations: [], tournaments: [{ id: '1', nome: 'Torneo Test', stato: 'Iscrizioni Aperte', formato: 'coppia', maxSquadre: 1, iscritti: 0 }] };
-  partner = { id: 'user_2', primaryEmailAddressId: 'e1', emailAddresses: [{ id: 'e1', emailAddress: 'partner@example.test', verification: { status: 'verified' } }] };
+  partner = { id: 'user_2', firstName: 'Compagno', lastName: 'Test', primaryEmailAddressId: 'e1', emailAddresses: [{ id: 'e1', emailAddress: 'partner@example.test', verification: { status: 'verified' } }] };
   sentEmails = 0;
 }
 (async () => {
+  for (const missing of [{ firstName: '' }, { lastName: null }, { firstName: '  ', lastName: '\t' }]) {
+    reset(); Object.assign(user, missing);
+    const rejected = await context.register(request({ ...base, giocatore1: 'Nome Falsificato' }));
+    assert.equal(rejected.status, 400);
+    assert.equal((await rejected.json()).code, 'ATHLETE_PROFILE_INCOMPLETE');
+    assert.equal(state.registrations.length, 0); assert.equal(sentEmails, 0);
+  }
+  reset(); partner.lastName = '  ';
+  assert.equal((await context.register(request(base))).status, 400);
+  assert.equal(state.registrations.length, 0); assert.equal(sentEmails, 0);
+  reset();
+  user.firstName = '  Anna Maria '; user.lastName = " D’Èlia ";
+  assert.equal((await context.register(request({ ...base, giocatore1: 'nickname', giocatore2: 'Altro nickname' }))).status, 200);
+  assert.equal(state.registrations[0].atleta1Nome, 'Anna Maria D’Èlia');
+  assert.equal(state.registrations[0].atleta2Nome, 'Compagno Test');
+  reset();
+  state.tournaments[0].formato = 'singolo';
+  assert.equal((await context.register(request({ torneo: base.torneo, tel: base.tel }))).status, 200);
+  assert.equal(state.registrations[0].giocatori, 'Atleta Test');
   reset();
   let response = await context.register(request({ ...base, email2: 'wrong@example.test' }));
   assert.equal(response.status, 400); assert.equal(state.registrations.length, 0); assert.equal(sentEmails, 0);

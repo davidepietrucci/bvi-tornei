@@ -11,6 +11,7 @@ function AtletaRegistratiContent() {
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-4" style={{backgroundColor: "#f0f4ff"}}>
       <div className="my-8">
+        <p className="max-w-sm mb-4 text-sm text-center text-gray-600">Per partecipare ai tornei ti chiederemo anche nome e cognome, se non sono già presenti nel tuo account.</p>
         <SignUp
           appearance={{
             elements: {
@@ -21,7 +22,7 @@ function AtletaRegistratiContent() {
             }
           }}
           signInUrl={`/atleta?redirect_url=${encodeURIComponent(redirectUrl)}`}
-          forceRedirectUrl={redirectUrl}
+          forceRedirectUrl={`/atleta/completa-profilo?redirect_url=${encodeURIComponent(redirectUrl)}`}
           routing="path"
           path="/atleta/registrati"
         />

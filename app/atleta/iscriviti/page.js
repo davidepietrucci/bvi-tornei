@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import AthleteHeader from "@/app/components/AthleteHeader";
 import AthleteBottomNav from "@/app/components/AthleteBottomNav";
+import AthleteNameForm from "@/app/components/AthleteNameForm";
+import { getAthleteName } from "@/app/utils/athleteIdentity";
 import { getTornei } from "@/app/utils/db";
 
 export default function AtletaIscriviti() {
@@ -46,11 +48,11 @@ export default function AtletaIscriviti() {
       return;
     }
     if (user) {
-      const initialName = user.fullName || `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.username || "";
+      const initialName = getAthleteName(user);
       const initialEmail = user.primaryEmailAddress?.emailAddress || "";
       setFormData((prev) => ({
         ...prev,
-        giocatore1: prev.giocatore1 || initialName,
+        giocatore1: initialName,
         email: initialEmail || prev.email,
       }));
     }
@@ -112,6 +114,7 @@ export default function AtletaIscriviti() {
   };
 
   const handleSelectPartner = (athlete) => {
+    if (athlete.profileComplete === false) return;
     setSelectedPartner(athlete);
     setFormData((prev) => ({
       ...prev,
@@ -238,6 +241,8 @@ export default function AtletaIscriviti() {
       </div>
     );
   }
+
+  if (user && !getAthleteName(user)) return <AthleteNameForm />;
 
   const isStep2Valid =
     Boolean((formData.giocatore1 || "").trim()) &&
@@ -390,7 +395,7 @@ export default function AtletaIscriviti() {
                       value={formData.giocatore1}
                       onChange={handleChange}
                       placeholder="Il tuo nome e cognome"
-                      readOnly={Boolean(user?.fullName?.trim())}
+                      readOnly
                       className={`w-full rounded-2xl px-4 py-3.5 font-bold text-sm transition-all ${
                         user?.fullName?.trim()
                           ? "bg-gray-100 text-gray-500 cursor-not-allowed"
@@ -527,9 +532,11 @@ export default function AtletaIscriviti() {
                             {searchResults.length > 0 && (
                               <div className="max-h-56 overflow-y-auto rounded-2xl border border-gray-100 bg-gray-50 p-2 space-y-1.5">
                                 {searchResults.map((ath) => (
-                                  <div
+                                  <button
+                                    type="button"
+                                    disabled={ath.profileComplete === false}
                                     key={ath.id}
-                                    className="p-3 rounded-xl bg-white hover:bg-[#0a1628] hover:text-white transition-all flex items-center justify-between gap-3 group cursor-pointer shadow-xs border border-transparent hover:border-[#0a1628]"
+                                    className="w-full text-left p-3 rounded-xl bg-white hover:bg-[#0a1628] hover:text-white transition-all flex items-center justify-between gap-3 group cursor-pointer shadow-xs border border-transparent hover:border-[#0a1628] disabled:opacity-60 disabled:cursor-not-allowed"
                                     onClick={() => handleSelectPartner(ath)}
                                   >
                                     <div className="flex items-center gap-2.5 min-w-0">
@@ -542,9 +549,9 @@ export default function AtletaIscriviti() {
                                       </div>
                                     </div>
                                     <span className="text-[10px] font-black text-[#0a1628] group-hover:text-[#FFD700] uppercase tracking-wider shrink-0 bg-gray-100 group-hover:bg-white/10 px-3 py-1.5 rounded-lg">
-                                      Seleziona ✓
+                                      {ath.profileComplete === false ? "Profilo da completare" : "Seleziona ✓"}
                                     </span>
-                                  </div>
+                                  </button>
                                 ))}
                               </div>
                             )}

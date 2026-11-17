@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import AthleteHeader from "@/app/components/AthleteHeader";
 import AthleteBottomNav from "@/app/components/AthleteBottomNav";
+import AthleteNameForm from "@/app/components/AthleteNameForm";
+import { getAthleteName } from "@/app/utils/athleteIdentity";
 import { getTornei, getNotifiche } from "@/app/utils/db";
 import { Card, Button, Chip } from "@heroui/react";
 
@@ -54,6 +56,8 @@ export default function AtletaDashboard() {
   const iscrizioniAttive = iscrizioni.filter((i) => i.stato !== "Annullata");
   const prossimaIscr = iscrizioniAttive.find((i) => i.stato === "Approvata") || iscrizioniAttive[0] || null;
   const notificheNonLette = notifiche.length; // semplificato
+
+  if (isLoaded && user && !getAthleteName(user)) return <AthleteNameForm />;
 
   if (!isLoaded || loading) {
     return (
