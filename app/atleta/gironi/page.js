@@ -5,8 +5,7 @@ import { isGiallo } from "@/app/utils/giallo";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
-import AthleteHeader from "@/app/components/AthleteHeader";
-import AthleteBottomNav from "@/app/components/AthleteBottomNav";
+import AthleteCalendarLayout from "@/app/components/AthleteCalendarLayout";
 import { athletePhaseVisibility, fetchAthleteData } from "@/app/utils/athlete-area";
 import { getSchedule as getScheduleShared } from "@/app/utils/ranking";
 import AthletePersonalMatches from "@/app/components/AthletePersonalMatches";
@@ -77,7 +76,7 @@ export default function AtletaGironi() {
   const [scope, setScope] = useState("personal");
   const [selectedTorneo, setSelectedTorneo] = useState("");
   useEffect(() => { if (isLoaded && !user) router.push("/atleta"); }, [isLoaded, user, router]);
-  const viewControl = <div role="group" aria-label="Vista calendario" className="my-5 grid grid-cols-2 gap-2 rounded-2xl bg-slate-200/60 p-1.5">
+  const viewControl = <div role="group" aria-label="Vista calendario" className="mb-4 grid grid-cols-2 gap-1 rounded-xl border border-slate-200 bg-white/95 p-1 shadow-sm">
     {[["personal", "Le mie partite"], ["all", "Intero torneo"]].map(([value, label]) => <button key={value} type="button" aria-pressed={scope === value} onClick={() => setScope(value)} className={`rounded-xl px-3 py-3 text-sm font-bold ${scope === value ? "bg-[#0a1628] text-white" : "text-slate-600"}`}>{label}</button>)}
   </div>;
   if (!isLoaded || !user) return <p role="status" className="p-6">Caricamento area atleta…</p>;
@@ -784,30 +783,25 @@ function TournamentView({ selectedTorneo, setSelectedTorneo, viewControl }) {
   );
 
   const selectedGiallo = torneiAttivi.find((t) => t.nome === selectedTorneo && isGiallo(t));
-  if (selectedGiallo && isLoaded && user) return <main className="min-h-screen bg-[#f8faff] pb-28 xl:pl-72">
-    <AthleteHeader />
-    <div className="mx-auto max-w-6xl px-4">{viewControl}</div>
-    <GialloTournament tournament={selectedGiallo} tournaments={torneiAttivi} onSelect={setSelectedTorneo} />
-    <AthleteBottomNav />
-  </main>;
+  if (selectedGiallo && isLoaded && user) return <AthleteCalendarLayout tournament={selectedGiallo} viewControl={viewControl} wide>
+    <GialloTournament tournament={selectedGiallo} tournaments={torneiAttivi} onSelect={setSelectedTorneo} embedded />
+  </AthleteCalendarLayout>;
 
   return (
-    <main className="min-h-screen bg-[#f8faff] pb-28 xl:pb-10 xl:pl-72">
-      <AthleteHeader />
-
-      <div className="max-w-6xl mx-auto mt-6 md:mt-10 px-4">
-        {viewControl}
+    <AthleteCalendarLayout tournament={torneiAttivi.find((t) => t.nome === selectedTorneo)} viewControl={viewControl} wide>
+      <div className="pb-6">
         
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-8">
+        <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
             <div>
-                <h2 className="text-4xl md:text-6xl font-black text-[#0a1628] uppercase tracking-tighter leading-none">Gironi & Calendario</h2>
-                <p className="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-[0.3em] mt-4">Match in tempo reale 🏐</p>
+                <h2 className="text-lg font-black text-[#0a1628]">Intero torneo</h2>
+                <p className="mt-1 text-xs text-slate-600">Gironi, classifiche e fasi finali in tempo reale</p>
             </div>
             
             <div className="w-full md:w-auto relative group">
                 <div className="absolute inset-0 bg-[#0a1628] rounded-3xl blur-xl opacity-10 group-hover:opacity-20 transition-opacity"></div>
                 <select 
-                    className="w-full md:w-auto relative bg-white border-4 border-white rounded-[2rem] px-8 py-5 font-black text-[#0a1628] uppercase text-xs tracking-widest shadow-xl outline-none focus:ring-4 focus:ring-[#0a1628]/5 transition-all appearance-none pr-14" 
+                    aria-label="Torneo"
+                    className="relative min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 pr-12 text-sm font-bold text-[#0a1628] shadow-sm outline-none focus:ring-2 focus:ring-[#FFD700] sm:w-auto"
                     value={selectedTorneo} 
                     onChange={e=>setSelectedTorneo(e.target.value)}
                 >
@@ -1100,7 +1094,6 @@ function TournamentView({ selectedTorneo, setSelectedTorneo, viewControl }) {
         ↑
       </button>
 
-      <AthleteBottomNav />
-    </main>
+    </AthleteCalendarLayout>
   );
 }

@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import AthleteHeader from "@/app/components/AthleteHeader";
-import AthleteBottomNav from "@/app/components/AthleteBottomNav";
+import AthleteCalendarLayout from "@/app/components/AthleteCalendarLayout";
 import LiveMatchCard from "@/app/components/LiveMatchCard";
 import { fetchAthleteData } from "@/app/utils/athlete-area";
 import { publicLiveModel, filterLiveMatches } from "@/app/utils/public-live";
@@ -56,12 +55,9 @@ export default function AthletePersonalMatches({ userId, selectedTorneo, onSelec
   const groups = current ? personalMatchGroups(current.model, current.registrations, current.tournament) : [];
   const matches = filterLiveMatches(groups);
   const registered = current && tournamentRegistrations(current.registrations, current.tournament).length > 0;
-  return <main className="min-h-screen bg-[#f8faff] pb-28 xl:pl-72">
-    <AthleteHeader />
-    <div className="mx-auto max-w-4xl space-y-5 px-4 py-6">
-      <h1 className="text-3xl font-black text-[#0a1628]">Gironi & Calendario</h1>
-      {viewControl}
-      <p className="text-sm text-slate-600">Le partite delle tue iscrizioni approvate, dai gironi alle finali. Aggiornamento automatico ogni 10 secondi.</p>
+  return <AthleteCalendarLayout tournament={snapshot?.tournaments.find((t) => t.nome === selectedTorneo)} viewControl={viewControl}>
+    <div className="space-y-4 pb-6">
+      <p className="rounded-xl bg-white/90 p-3 text-xs leading-5 text-slate-600">Le partite delle tue iscrizioni approvate, dai gironi alle finali. Aggiornamento automatico ogni 10 secondi.</p>
       <label className="block text-sm font-bold">Torneo
         <select className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3" value={selectedTorneo} onChange={(event) => onSelect(event.target.value)}>
           {!snapshot && <option value="">Caricamento…</option>}
@@ -73,6 +69,5 @@ export default function AthletePersonalMatches({ userId, selectedTorneo, onSelec
         : !matches.length ? <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-600">{!current.tournaments.length ? "Non ci sono tornei disponibili." : !registered ? "Non risultano iscrizioni approvate per il tuo account in questo torneo. Puoi comunque consultare la vista Intero torneo." : "Non ci sono ancora partite pubblicate e abbinate alla tua iscrizione. Le fasi successive appariranno quando saranno pubblicate e il tuo abbinamento sarà definito. Puoi consultare l’intero torneo."}</div>
         : <><p className="text-sm font-semibold text-slate-600">{matches.length} partite · Prima quelle in corso e da giocare</p><div className="space-y-3">{matches.map((match) => <LiveMatchCard key={`${match.group}-${match.id}`} match={match} group={`${match.group}${match.label ? ` · ${match.label}` : ""}`} />)}</div></>}
     </div>
-    <AthleteBottomNav />
-  </main>;
+  </AthleteCalendarLayout>;
 }

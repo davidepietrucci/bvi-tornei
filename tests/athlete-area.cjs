@@ -89,6 +89,7 @@ const swc = require('next/dist/build/swc');
     if (name.includes('athlete-area')) return helpers;
     if (name.endsWith('/ranking')) return { getSchedule: () => [] };
     if (name.endsWith('/giallo')) return { isGiallo: () => false };
+    if (name.endsWith('/AthleteCalendarLayout')) return ({ children, viewControl }) => React.createElement('main', null, viewControl, children);
     if (name.startsWith('@/app/components/')) return fakeComponent;
     return require(name);
   })).default;
