@@ -402,8 +402,8 @@ export default function StaffIscrizioni() {
       <div className="max-w-6xl mx-auto mt-6 md:mt-10 px-4">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 w-full">
             <div>
-                <h2 className="text-3xl md:text-5xl font-black text-[#0a1628] uppercase tracking-tighter">Iscrizioni 📝</h2>
-                <p className="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-widest mt-2">Approvazione e gestione richieste</p>
+                <h1 className="staff-page-title">Iscrizioni</h1>
+                <p className="staff-page-description">Richieste, approvazioni e partecipanti per ogni torneo.</p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
                 <button 
@@ -411,7 +411,7 @@ export default function StaffIscrizioni() {
                   disabled={!selectedTorneoFilter || tournamentIscrizioni.length === 0}
                   className="text-xs bg-[#0a1628] text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest shadow-lg hover:scale-105 transition-transform"
                 >
-                  ⬇️ Scarica CSV
+                  Scarica CSV
                 </button>
             </div>
         </div>

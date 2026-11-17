@@ -112,7 +112,7 @@ export default function ModificaTorneo() {
                     </svg>
                 </button>
                 <div>
-                    <h2 className="text-3xl font-black text-[#0a1628] uppercase tracking-tighter leading-none">Modifica Torneo</h2>
+                    <h1 className="staff-page-title">Modifica torneo</h1>
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-2">ID: #{torneoId} • Aggiornamento Dati</p>
                 </div>
             </div>

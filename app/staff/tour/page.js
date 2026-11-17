@@ -67,7 +67,7 @@ export default function StaffTour() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-500">Circuito</p>
-            <h1 className="mt-1 text-3xl font-black uppercase tracking-tight text-[#0a1628]">Classifica Tour</h1>
+            <h1 className="staff-page-title">Classifica Tour</h1>
             <p className="mt-2 text-sm font-medium text-gray-500">I punti arrivano dalle tappe concluse con piazzamento assegnato.</p>
           </div>
           <div className="flex gap-2">

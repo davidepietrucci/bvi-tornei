@@ -2,24 +2,22 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useUser, useClerk } from "@clerk/nextjs";
+import StaffIcon from "@/app/components/StaffIcon";
 
 const MENU_ITEMS = [
-  { name: "Dashboard", path: "/staff/dashboard", icon: "⌂" },
-  { name: "Iscrizioni", path: "/staff/iscrizioni", icon: "☷" },
-  { name: "Anagrafica Atleti", path: "/staff/atleti", icon: "♙", adminOnly: true },
-  { name: "Tornei", path: "/staff/tornei", icon: "🏆" },
-  { name: "Tour", path: "/staff/tour", icon: "↗" },
-  { name: "Gestione torneo", path: "/staff/gestione-torneo", icon: "▦" },
-  { name: "Pagamenti", path: "/staff/pagamenti", icon: "€" },
-  { name: "Sponsor", path: "/staff/sponsors", icon: "✦" },
+  { name: "Dashboard", path: "/staff/dashboard", icon: "dashboard", group: "Panoramica" },
+  { name: "Tornei", path: "/staff/tornei", icon: "tournaments", group: "Organizzazione" },
+  { name: "Gestione torneo", path: "/staff/gestione-torneo", icon: "management", group: "Organizzazione" },
+  { name: "Tour", path: "/staff/tour", icon: "tour", group: "Organizzazione" },
+  { name: "Iscrizioni", path: "/staff/iscrizioni", icon: "registrations", group: "Amministrazione" },
+  { name: "Anagrafica Atleti", path: "/staff/atleti", icon: "athletes", group: "Amministrazione", adminOnly: true },
+  { name: "Pagamenti", path: "/staff/pagamenti", icon: "payments", group: "Amministrazione" },
+  { name: "Sponsor", path: "/staff/sponsors", icon: "sponsors", group: "Amministrazione" },
 ];
-
-function isCurrentPage(pathname, itemPath) {
-  return pathname === itemPath || pathname.startsWith(`${itemPath}/`);
-}
+const isCurrentPage = (pathname, path) => pathname === path || pathname.startsWith(`${path}/`);
 
 export default function StaffHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -30,149 +28,68 @@ export default function StaffHeader() {
   const [role, setRole] = useState("staff");
   const [username, setUsername] = useState("");
   const [dbConnected, setDbConnected] = useState(false);
-  const [dbStatusText, setDbStatusText] = useState("Verifica Database...");
+  const [dbStatusText, setDbStatusText] = useState("Verifica connessione…");
+  const menuButton = useRef(null);
+  const closeButton = useRef(null);
+  const drawer = useRef(null);
 
   useEffect(() => {
+    let cancelled = false;
     fetch(`/api/db?type=status&_t=${Date.now()}`)
-      .then((res) => res.json())
-      .then((json) => {
+      .then((res) => res.json()).then((json) => {
+        if (cancelled) return;
         const status = json.status;
-        if (status?.isConnected) {
-          setDbConnected(true);
-          setDbStatusText("Database: Cloud ☁️");
-        } else if (status?.missing?.length) {
-          setDbConnected(false);
-          setDbStatusText(`Database: Non connesso ⚠️ (${status.missing.join(", ")})`);
-        } else {
-          setDbConnected(false);
-          setDbStatusText("Database: Offline ⚠️");
-        }
-      })
-      .catch(() => {
-        setDbConnected(false);
-        setDbStatusText("Database: Errore connessione ❌");
-      });
-
-    if (isLoaded && !user) {
-      router.push("/staff");
-      return;
-    }
-
+        setDbConnected(Boolean(status?.isConnected));
+        setDbStatusText(status?.isConnected ? "Cloud connesso" : status?.missing?.length ? `Non connesso (${status.missing.join(", ")})` : "Database offline");
+      }).catch(() => { if (!cancelled) { setDbConnected(false); setDbStatusText("Errore di connessione"); } });
+    if (isLoaded && !user) router.push("/staff");
     if (user) {
       const userRole = user.publicMetadata?.role || "staff";
       setRole(userRole);
-      const rawName = user.firstName || user.fullName || user.username || (user.primaryEmailAddress?.emailAddress ? user.primaryEmailAddress.emailAddress.split("@")[0] : "Staff");
-      setUsername(rawName ? rawName.charAt(0).toLocaleUpperCase("it-IT") + rawName.slice(1) : "Staff");
-
-      if (userRole !== "admin" && pathname === "/staff/atleti") {
-        router.push("/staff/dashboard");
-      }
+      const raw = user.firstName || user.fullName || user.username || user.primaryEmailAddress?.emailAddress?.split("@")[0] || "Staff";
+      setUsername(raw.charAt(0).toLocaleUpperCase("it-IT") + raw.slice(1));
+      if (userRole !== "admin" && pathname === "/staff/atleti") router.push("/staff/dashboard");
     }
+    return () => { cancelled = true; };
   }, [router, pathname, user, isLoaded]);
 
-  const handleLogout = async () => {
-    await signOut({ redirectUrl: "/staff" });
-  };
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    closeButton.current?.focus();
+    const handleKey = (event) => {
+      if (event.key === "Escape") { setIsMenuOpen(false); menuButton.current?.focus(); }
+      if (event.key !== "Tab") return;
+      const items = drawer.current?.querySelectorAll('a[href], button:not([disabled])');
+      if (!items?.length) return;
+      const first = items[0], last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", handleKey);
+    const desktop = window.matchMedia("(min-width: 1280px)");
+    const handleDesktop = (event) => { if (event.matches) setIsMenuOpen(false); };
+    desktop.addEventListener("change", handleDesktop);
+    return () => { document.removeEventListener("keydown", handleKey); desktop.removeEventListener("change", handleDesktop); };
+  }, [isMenuOpen]);
 
+  const closeMenu = () => { setIsMenuOpen(false); menuButton.current?.focus(); };
   const menuItems = MENU_ITEMS.filter((item) => !item.adminOnly || role === "admin");
+  const current = menuItems.find((item) => isCurrentPage(pathname, item.path));
+  const sectionTitle = pathname === "/staff/tornei/nuovo" ? "Nuovo torneo" : pathname.startsWith("/staff/tornei/modifica/") ? "Modifica torneo" : current?.name || "Area staff";
+  const brand = <Link href="/staff/dashboard" className="staff-brand"><Image src="/logo.png" alt="BVI" width={38} height={38} className="shrink-0 object-contain" /><div><p className="staff-brand-title">BVI <span>Staff</span></p><p className="staff-brand-subtitle">Beach Volley Institute</p></div></Link>;
+  const navigation = <nav aria-label="Navigazione staff" className="flex-1 overflow-y-auto pt-2">
+    {[...new Set(menuItems.map((item) => item.group))].map((group) => <div key={group}><p className="staff-nav-label">{group}</p><div className="space-y-1">{menuItems.filter((item) => item.group === group).map((item) => <Link key={item.path} href={item.path} onClick={() => setIsMenuOpen(false)} aria-current={isCurrentPage(pathname, item.path) ? "page" : undefined} className="staff-nav-link"><StaffIcon name={item.icon} /><span>{item.name}</span></Link>)}</div></div>)}
+  </nav>;
+  const footer = <div className="staff-sidebar-footer"><p className="staff-db-status" title={dbStatusText}><span className="staff-db-dot" data-connected={dbConnected} />{dbStatusText}</p><button type="button" onClick={() => signOut({ redirectUrl: "/staff" })} className="mt-3 flex w-full items-center gap-3 py-2 text-left text-xs font-medium text-slate-300 hover:text-white"><StaffIcon name="logout" className="h-4 w-4" />Esci dal portale</button></div>;
 
-  const renderNavItems = (compact = false) => menuItems.map((item) => {
-    const active = isCurrentPage(pathname, item.path);
-    return (
-      <Link
-        key={item.path}
-        href={item.path}
-        onClick={() => setIsMenuOpen(false)}
-        aria-current={active ? "page" : undefined}
-        className={`${compact ? "flex items-center gap-3 rounded-xl px-4 py-3" : "flex items-center gap-3 rounded-2xl px-4 py-3.5"} text-sm font-bold transition-colors ${
-          active
-            ? "bg-[#FFD700] text-[#0a1628] shadow-md"
-            : compact
-              ? "bg-gray-50 text-gray-700 hover:bg-gray-100"
-              : "text-white/75 hover:bg-white/10 hover:text-white"
-        }`}
-      >
-        <span aria-hidden="true" className="w-6 text-center text-lg leading-none">{item.icon}</span>
-        <span>{item.name}</span>
-        {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#0a1628]" />}
-      </Link>
-    );
-  });
-
-  return (
-    <>
-      {/* Navigazione laterale desktop */}
-      <aside className="staff-sidebar fixed inset-y-0 left-0 z-[120] hidden w-72 flex-col bg-[#0a1628] px-4 py-5 text-white shadow-2xl xl:flex">
-        <div className="flex items-center gap-3 border-b border-white/10 px-2 pb-5">
-          <Image src="/logo.png" alt="BVI Logo" width={44} height={44} className="object-contain" />
-          <div className="min-w-0">
-            <h1 className="text-lg font-black uppercase tracking-tight leading-none text-[#FFD700]">BVI Staff</h1>
-            <span className={`mt-2 block truncate text-[9px] font-bold ${dbConnected ? "text-green-300" : "text-amber-300"}`} title={dbStatusText}>
-              {dbStatusText}
-            </span>
-          </div>
-        </div>
-
-        <nav aria-label="Navigazione staff" className="mt-5 flex-1 space-y-1 overflow-y-auto pr-1">
-          {renderNavItems()}
-        </nav>
-
-        <div className="mt-4 border-t border-white/10 pt-4">
-          {username && <p className="mb-3 truncate px-3 text-xs font-bold text-white/60">Ciao, {username}</p>}
-          <button onClick={handleLogout} className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-bold text-red-200 transition-colors hover:bg-red-500/15 hover:text-red-100">
-            <span aria-hidden="true" className="w-6 text-center text-lg">↪</span>
-            Esci dal portale
-          </button>
-        </div>
-      </aside>
-
-      {/* Barra superiore per tablet e telefono */}
-      <header className="sticky top-0 z-[100] flex items-center justify-between border-b-4 border-[#0a1628] bg-white px-4 py-3 shadow-md xl:hidden">
-        <div className="flex min-w-0 items-center gap-3">
-          <Image src="/logo.png" alt="BVI Logo" width={38} height={38} className="object-contain" />
-          <div className="min-w-0">
-            <h1 className="text-lg font-black uppercase tracking-tighter leading-none text-[#0a1628]">BVI Staff</h1>
-            <span className={`mt-1 block max-w-[55vw] truncate text-[8px] font-black uppercase tracking-wider ${dbConnected ? "text-green-600" : "text-amber-600"}`} title={dbStatusText}>
-              {dbStatusText}
-            </span>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          {username && <span className="hidden max-w-32 truncate text-[10px] font-bold uppercase tracking-widest text-gray-500 sm:inline">Ciao, {username}</span>}
-          <button
-            type="button"
-            aria-label={isMenuOpen ? "Chiudi menu staff" : "Apri menu staff"}
-            aria-expanded={isMenuOpen}
-            onClick={() => setIsMenuOpen((open) => !open)}
-            className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 text-lg font-black text-[#0a1628]"
-          >
-            {isMenuOpen ? "✕" : "☰"}
-          </button>
-        </div>
-      </header>
-
-      {/* Menu a scomparsa su tablet e telefono */}
-      {isMenuOpen && (
-        <div className="fixed inset-0 z-[130] bg-black/50 xl:hidden" onClick={() => setIsMenuOpen(false)}>
-          <aside className="absolute inset-y-0 left-0 flex w-80 max-w-[88vw] flex-col overflow-y-auto bg-white p-5 shadow-2xl" onClick={(event) => event.stopPropagation()}>
-            <div className="mb-5 flex items-center justify-between border-b border-gray-100 pb-4">
-              <div>
-                <p className="text-xs font-black uppercase tracking-widest text-[#0a1628]">Menu Staff</p>
-                {username && <p className="mt-1 text-xs font-semibold text-gray-400">Ciao, {username}</p>}
-              </div>
-              <button type="button" aria-label="Chiudi menu" onClick={() => setIsMenuOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 text-lg font-black text-[#0a1628]">✕</button>
-            </div>
-            <nav aria-label="Navigazione staff" className="flex flex-col gap-2">
-              {renderNavItems(true)}
-            </nav>
-            <div className="mt-auto border-t border-gray-100 pt-4">
-              <button onClick={handleLogout} className="flex w-full items-center justify-center rounded-2xl bg-red-50 p-4 text-xs font-black uppercase tracking-widest text-red-600">
-                Esci dal portale
-              </button>
-            </div>
-          </aside>
-        </div>
-      )}
-    </>
-  );
+  return <>
+    <a href="#staff-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[200] focus:rounded-lg focus:bg-[#FFD700] focus:p-3 focus:text-[#0a1628]">Vai al contenuto</a>
+    <aside className="staff-sidebar">{brand}{navigation}{footer}</aside>
+    <header className="staff-topbar">
+      <div className="staff-breadcrumb"><button ref={menuButton} type="button" aria-label={isMenuOpen ? "Chiudi menu staff" : "Apri menu staff"} aria-expanded={isMenuOpen} aria-controls="staff-drawer" className="staff-menu-toggle" onClick={() => setIsMenuOpen((value) => !value)}><StaffIcon name="menu" /></button><Link href="/staff/dashboard" aria-label="BVI Staff · Dashboard" className="staff-tablet-brand"><Image src="/logo.png" alt="BVI" width={26} height={26} /></Link><span>Area di gestione</span><span aria-hidden="true">/</span><strong>{sectionTitle}</strong></div>
+      <div className="staff-top-actions"><Link href="/" target="_blank" rel="noopener noreferrer" className="staff-public-link">Sito pubblico<StaffIcon name="external" className="h-3.5 w-3.5" /></Link><div className="staff-user"><span className="staff-avatar" aria-hidden="true">{(username || "S").slice(0, 2).toLocaleUpperCase("it-IT")}</span><span className="staff-user-name">{username || "Staff"}</span></div></div>
+    </header>
+    <span id="staff-content" tabIndex={-1} />
+    {isMenuOpen && <div id="staff-drawer" className="staff-drawer" onClick={closeMenu}><aside ref={drawer} role="dialog" aria-modal="true" aria-label="Menu staff" className="staff-drawer-panel" onClick={(event) => event.stopPropagation()}><div className="mb-2 flex items-center justify-between"><span className="px-2 text-sm font-bold">BVI Staff</span><button ref={closeButton} type="button" aria-label="Chiudi menu" onClick={closeMenu} className="flex h-10 w-10 items-center justify-center rounded-lg text-white"><StaffIcon name="close" /></button></div>{navigation}{footer}</aside></div>}
+  </>;
 }

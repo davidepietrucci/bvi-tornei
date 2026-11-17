@@ -29,23 +29,23 @@ export default function StaffTornei() {
       <div className="max-w-6xl mx-auto mt-6 md:mt-10 px-4">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
             <div>
-                <h2 className="text-3xl md:text-5xl font-black text-[#0a1628] uppercase tracking-tighter leading-none">Gestione Tornei 🏆</h2>
-                <p className="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-widest mt-2">Programmazione e Status Gare</p>
+                <h1 className="staff-page-title">Tornei</h1>
+                <p className="staff-page-description">Programmazione, iscrizioni e accesso alla gestione delle gare.</p>
             </div>
             <button 
                 onClick={() => router.push('/staff/tornei/nuovo')}
-                className="w-full md:w-auto px-8 py-4 bg-[#0a1628] text-white rounded-[1.5rem] font-black text-xs uppercase tracking-widest shadow-xl hover:scale-105 active:scale-95 transition-all"
+                className="staff-button staff-button-yellow"
             >
                 + Crea Nuovo Torneo
             </button>
         </div>
 
         {/* Lista Tornei - Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {tornei.map((torneo) => (
-            <div key={torneo.id} className="bg-white rounded-[2rem] shadow-xl border-b-8 overflow-hidden flex flex-col hover:shadow-2xl transition-all group" style={{borderColor: torneo.stato === "Concluso" ? "#cbd5e1" : "#FFD700"}}>
-              <div className="p-6 sm:p-8 flex-1">
-                <div className="flex justify-between items-start mb-6">
+            <div key={torneo.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white flex flex-col">
+              <div className="p-5 flex-1">
+                <div className="flex justify-between items-start mb-4">
                   <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
                     torneo.stato === 'Iscrizioni Aperte' ? 'bg-green-100 text-green-700' :
                     torneo.stato === 'In Programmazione' ? 'bg-yellow-100 text-yellow-700' :
@@ -53,24 +53,24 @@ export default function StaffTornei() {
                   }`}>
                     {torneo.stato}
                   </span>
-                  <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 font-black">#{torneo.id}</div>
+                  <span className="text-xs text-slate-400">#{torneo.id}</span>
                 </div>
                 
-                <h3 className="text-2xl font-black text-[#0a1628] leading-tight mb-6 group-hover:text-blue-600 transition-colors">{torneo.nome}</h3>
+                <h2 className="text-lg font-bold text-[#0a1628] leading-tight mb-4">{torneo.nome}</h2>
                 
-                <div className="space-y-4 text-sm font-bold text-gray-500">
+                <div className="space-y-2 text-sm text-slate-600">
                   <div className="flex items-center gap-3">
-                    <span className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600">📅</span> {torneo.data}
+                    <span className="w-20 shrink-0 text-xs text-slate-400">Data</span> {torneo.data}
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600">📍</span> {torneo.location}
+                    <span className="w-20 shrink-0 text-xs text-slate-400">Sede</span> {torneo.location}
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600">🏐</span> {torneo.categoria}
+                    <span className="w-20 shrink-0 text-xs text-slate-400">Categoria</span> {torneo.categoria}
                   </div>
                 </div>
 
-                <div className="mt-8 pt-6 border-t border-gray-50">
+                <div className="mt-5 pt-4 border-t border-slate-100">
                   <div className="flex justify-between items-end mb-3">
                     <div>
                         <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Riempimento</span>
@@ -80,24 +80,24 @@ export default function StaffTornei() {
                         {Math.round((torneo.iscritti / torneo.maxSquadre) * 100)}%
                     </span>
                   </div>
-                  <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                  <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
                     <div 
                       className="h-full rounded-full transition-all duration-1000" 
                       style={{
                         width: `${(torneo.iscritti / torneo.maxSquadre) * 100}%`,
-                        backgroundColor: torneo.iscritti >= torneo.maxSquadre ? "#ef4444" : "#10b981"
+                        backgroundColor: torneo.iscritti >= torneo.maxSquadre ? "#0a1628" : "#FFD700"
                       }}
                     ></div>
                   </div>
                 </div>
               </div>
               
-              <div className="bg-gray-50/50 p-4 sm:p-6 flex flex-col gap-3">
+              <div className="border-t border-slate-100 bg-slate-50/50 p-4 flex flex-col gap-2">
                 <a
                   href={`/tornei/${torneo.id}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full bg-[#FFD700] py-3.5 rounded-2xl text-center text-xs font-black uppercase tracking-widest text-[#0a1628] hover:bg-yellow-300 transition-all shadow-sm"
+                  className="py-2 text-center text-xs font-semibold text-slate-500 hover:text-[#0a1628]"
                 >
                   Apri pagina pubblica ↗
                 </a>
@@ -110,7 +110,7 @@ export default function StaffTornei() {
                 </button>
                 <button 
                   onClick={() => router.push(managementHref({ tour: torneo.nome }))}
-                  className="flex-1 bg-white border-2 border-blue-100 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-sm cursor-pointer"
+                  className="staff-button staff-button-primary flex-1"
                 >
                   Gestisci torneo
                 </button>

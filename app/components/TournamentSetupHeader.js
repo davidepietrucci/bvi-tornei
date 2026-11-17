@@ -5,10 +5,10 @@ import { managementHref, WORKFLOW_STEPS } from "@/app/utils/tournament-workflow"
 
 export default function TournamentSetupHeader({ family = "teams", step = "prepare", tournaments = [], selected, onSelect, onFamilyChange, onStepChange, disabled = false, summary = {} }) {
   const yellow = family === "giallo";
-  return <div className="mb-7 space-y-6 text-[#0a1628]">
+  return <div className="mb-6 space-y-4 text-[#0a1628]">
     <div>
       <p className="mb-2 text-xs font-bold uppercase tracking-[.18em] text-slate-500">Organizzazione torneo</p>
-      <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Gestione torneo</h1>
+      <h1 className="staff-page-title">Gestione torneo</h1>
       <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">{yellow
         ? "Un percorso dedicato agli atleti singoli: compagni a rotazione, classifica individuale e coppie fisse dalle semifinali."
         : "Configura i gironi delle squadre iscritte, inserisci i risultati e prepara il tabellone finale."}</p>
@@ -20,7 +20,7 @@ export default function TournamentSetupHeader({ family = "teams", step = "prepar
           return <Link key={item.id} href={managementHref({ family: item.id, tour: active ? selected : undefined, step: active ? step : "prepare" })}
             aria-disabled={disabled} onClick={(event) => { if (disabled || onFamilyChange) event.preventDefault(); if (!disabled) onFamilyChange?.(item.id); }}
             aria-current={active ? "page" : undefined}
-            className={`flex items-center gap-4 rounded-2xl border p-5 transition-colors ${active ? "border-[#0a1628] bg-[#0a1628] text-white" : "border-slate-200 bg-white hover:border-slate-400"}`}>
+            className={`flex items-center gap-3 rounded-xl border p-4 transition-colors ${active ? "border-[#0a1628] bg-[#0a1628] text-white" : "border-slate-200 bg-white hover:border-slate-400"}`}>
             <span aria-hidden="true" className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-lg font-black ${active ? "bg-[#FFD700] text-[#0a1628]" : "bg-slate-100 text-slate-500"}`}>{item.icon}</span>
             <span><span className="block text-base font-bold">{item.title}</span><span className={`mt-1 block text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>{item.caption}</span></span>
           </Link>;

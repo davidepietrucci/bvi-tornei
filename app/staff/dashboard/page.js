@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import StaffHeader from "@/app/components/StaffHeader";
+import StaffPageHeading from "@/app/components/StaffPageHeading";
+import StaffIcon from "@/app/components/StaffIcon";
 import { getTornei, getIscrizioni, saveTornei, saveIscrizioni, saveUsers } from "@/app/utils/db";
 
 export default function StaffDashboard() {
@@ -62,72 +64,37 @@ export default function StaffDashboard() {
       <StaffHeader />
 
       <div className="max-w-6xl mx-auto mt-6 md:mt-10 px-4">
-        <div className="mb-8">
-            <h2 className="text-3xl md:text-5xl font-black text-[#0a1628] uppercase tracking-tighter leading-none">Dashboard 🏢</h2>
-            <p className="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-widest mt-2">Controllo Centrale Torneo</p>
-        </div>
+        <StaffPageHeading title="Dashboard" description="Tornei, iscrizioni e operazioni quotidiane in un unico spazio." actions={<button onClick={() => router.push('/staff/tornei/nuovo')} className="staff-button staff-button-yellow"><StaffIcon name="plus" className="h-4 w-4" />Nuovo torneo</button>} />
         
-        {/* Widget Statistici - Mobile Optimized */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-          <div className="bg-white rounded-[2rem] shadow-xl p-6 md:p-8 border-b-8 transition-transform active:scale-95" style={{borderColor: "#FFD700"}}>
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-sm font-black text-gray-400 uppercase tracking-widest">Tornei Attivi</span>
-              <span className="w-10 h-10 bg-yellow-50 rounded-xl flex items-center justify-center text-xl">🏆</span>
-            </div>
-            <p className="text-5xl md:text-6xl font-black text-[#0a1628]">{stats.torneiAttivi}</p>
-          </div>
-
-          <div className="bg-white rounded-[2rem] shadow-xl p-6 md:p-8 border-b-8 transition-transform active:scale-95" style={{borderColor: "#0a1628"}}>
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-sm font-black text-gray-400 uppercase tracking-widest">In Attesa</span>
-              <span className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-xl">⏳</span>
-            </div>
-            <p className="text-5xl md:text-6xl font-black text-yellow-600">{stats.iscrizioniInAttesa}</p>
-          </div>
-
-          <div className="bg-white rounded-[2rem] shadow-xl p-6 md:p-8 border-b-8 border-green-500 transition-transform active:scale-95 sm:col-span-2 lg:col-span-1">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-sm font-black text-gray-400 uppercase tracking-widest">Confermate</span>
-              <span className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center text-xl">✅</span>
-            </div>
-            <p className="text-5xl md:text-6xl font-black text-green-600">{stats.squadreConfermate}</p>
-          </div>
+        <div className="grid grid-cols-3 gap-4">
+          {[{ label: "Tornei attivi", value: stats.torneiAttivi, icon: "tournaments", href: "/staff/tornei" },
+            { label: "Iscrizioni in attesa", value: stats.iscrizioniInAttesa, icon: "registrations", href: "/staff/iscrizioni" },
+            { label: "Iscrizioni confermate", value: stats.squadreConfermate, icon: "athletes", href: "/staff/iscrizioni" }].map((item) => <div key={item.label} className="staff-stat"><div className="staff-stat-label"><span>{item.label}</span><StaffIcon name={item.icon} className="h-5 w-5 text-slate-400" /></div><p className="staff-stat-value">{item.value}</p><button onClick={() => router.push(item.href)} className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-slate-500">Apri sezione<StaffIcon name="arrow" className="h-3.5 w-3.5" /></button></div>)}
         </div>
 
-        {/* Quick Actions - Full width buttons on mobile */}
-        <div className="mt-10 bg-white p-6 md:p-10 rounded-[2.5rem] shadow-2xl border border-white relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50 rounded-full -mr-16 -mt-16"></div>
-          <h3 className="text-xl md:text-2xl font-black mb-6 uppercase tracking-tight text-[#0a1628] relative z-10">Azioni Rapide ⚡</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 relative z-10">
-            <button onClick={() => router.push('/staff/tornei/nuovo')} className="flex items-center justify-between p-5 bg-gray-50 hover:bg-[#0a1628] hover:text-white text-[#0a1628] rounded-2xl font-black text-sm uppercase tracking-widest transition-all group shadow-sm">
-              Crea Torneo <span className="text-xl group-hover:translate-x-2 transition-transform">➕</span>
-            </button>
-            <button onClick={() => router.push('/staff/iscrizioni')} className="flex items-center justify-between p-5 bg-gray-50 hover:bg-[#0a1628] hover:text-white text-[#0a1628] rounded-2xl font-black text-sm uppercase tracking-widest transition-all group shadow-sm">
-              Valuta Iscrizioni <span className="text-xl group-hover:translate-x-2 transition-transform">📝</span>
-            </button>
-            <button onClick={() => router.push('/staff/pagamenti')} className="flex items-center justify-between p-5 bg-gray-50 hover:bg-[#0a1628] hover:text-white text-[#0a1628] rounded-2xl font-black text-sm uppercase tracking-widest transition-all group shadow-sm">
-              Pagamenti <span className="text-xl group-hover:translate-x-2 transition-transform">💰</span>
-            </button>
-            <button onClick={() => router.push('/staff/sponsors')} className="flex items-center justify-between p-5 bg-gray-50 hover:bg-[#0a1628] hover:text-white text-[#0a1628] rounded-2xl font-black text-sm uppercase tracking-widest transition-all group shadow-sm">
-              Gestione Sponsor <span className="text-xl group-hover:translate-x-2 transition-transform">🤝</span>
-            </button>
-          </div>
-        </div>
+        <section className="staff-panel mt-6"><h2 className="text-base font-bold">Accesso rapido</h2><p className="mt-1 text-sm text-slate-500">Le attività più frequenti, senza passaggi intermedi.</p><div className="mt-5 grid grid-cols-2 gap-3 xl:grid-cols-3">{[
+          { title: "Gestisci il torneo", detail: "Gironi, risultati e tabellone", icon: "management", href: "/staff/gestione-torneo" },
+          { title: "Valuta le iscrizioni", detail: "Conferme e partecipanti", icon: "registrations", href: "/staff/iscrizioni" },
+          { title: "Registra un pagamento", detail: "Quote, acconti e saldi", icon: "payments", href: "/staff/pagamenti" },
+          { title: "Organizza un tour", detail: "Tappe e classifica del circuito", icon: "tour", href: "/staff/tour" },
+          { title: "Crea un torneo", detail: "Date, formato e iscrizioni", icon: "plus", href: "/staff/tornei/nuovo" },
+          { title: "Gestisci gli sponsor", detail: "Partner e visibilità", icon: "sponsors", href: "/staff/sponsors" },
+        ].map((item) => <button key={item.href} onClick={() => router.push(item.href)} className="staff-quick-link"><span className="flex items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100"><StaffIcon name={item.icon} /></span><span><strong className="block text-sm font-semibold">{item.title}</strong><span className="mt-1 block text-xs text-slate-500">{item.detail}</span></span></span><StaffIcon name="arrow" className="h-4 w-4 shrink-0 text-slate-400" /></button>)}</div></section>
 
         {/* Gestione Dati */}
         {role === "admin" && (
-          <div className="mt-8 bg-white p-6 md:p-10 rounded-[2.5rem] shadow-2xl border border-white relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50 rounded-full -mr-16 -mt-16"></div>
-            <h3 className="text-xl md:text-2xl font-black mb-6 uppercase tracking-tight text-[#0a1628] relative z-10">Gestione Database ⚙️</h3>
-            <div className="grid grid-cols-1 gap-4 relative z-10">
+          <details className="staff-danger-zone mt-6">
+            <summary className="cursor-pointer text-sm font-semibold text-red-800">Amministrazione database · Operazioni avanzate</summary>
+            <p className="mt-3 text-xs text-slate-500">Operazione irreversibile. Non necessaria per la gestione ordinaria dei tornei.</p>
+            <div className="mt-4">
               <button 
                 onClick={handleResetData}
                 className="flex items-center justify-between p-5 bg-red-50 hover:bg-red-600 hover:text-white rounded-2xl font-black text-sm uppercase tracking-widest transition-all group shadow-sm border border-red-100 text-red-700"
               >
-                Resetta Database (Vuoto) <span className="text-xl group-hover:scale-110 transition-transform">🗑️</span>
+                Resetta database
               </button>
             </div>
-          </div>
+          </details>
         )}
       </div>
     </main>

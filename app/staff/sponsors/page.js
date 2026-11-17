@@ -102,12 +102,8 @@ export default function StaffSponsorsPage() {
       <div className="max-w-5xl mx-auto mt-6 md:mt-10 px-4">
         <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h2 className="text-3xl md:text-5xl font-black text-[#0a1628] uppercase tracking-tighter leading-none">
-              Gestione Sponsor 🤝
-            </h2>
-            <p className="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-widest mt-2">
-              Aggiungi o rimuovi gli sponsor visibili sulla piattaforma
-            </p>
+            <h1 className="staff-page-title">Sponsor</h1>
+            <p className="staff-page-description">Gestisci i partner e i loghi visibili sulla piattaforma.</p>
           </div>
         </div>
 

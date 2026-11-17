@@ -94,9 +94,8 @@ export default function StaffAtleti() {
       <div className="max-w-6xl mx-auto mt-6 md:mt-10 px-4">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-5">
           <div>
-            <h2 className="text-3xl md:text-5xl font-black text-[#0a1628] uppercase tracking-tighter leading-none">Anagrafica Atleti 👤</h2>
-            <p className="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-widest mt-2">Account registrati nell’area atleta</p>
-            <p className="text-sm text-gray-500 mt-3">Gli account Clerk compaiono qui automaticamente dopo la registrazione.</p>
+            <h1 className="staff-page-title">Anagrafica atleti</h1>
+            <p className="staff-page-description">Account e profili, sincronizzati automaticamente con l’area atleta.</p>
           </div>
           <div className="w-full md:w-80">
             <label htmlFor="athlete-search" className="sr-only">Cerca atleta</label>
