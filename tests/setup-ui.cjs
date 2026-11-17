@@ -13,6 +13,9 @@ const swc = require('next/dist/build/swc');
   const ruleSource = fs.readFileSync('app/utils/giallo.js', 'utf8');
   const rules = await import(`data:text/javascript;base64,${Buffer.from(ruleSource).toString('base64')}`);
   const workflow = await import(`data:text/javascript;base64,${Buffer.from(fs.readFileSync('app/utils/tournament-workflow.js', 'utf8')).toString('base64')}`);
+  const rankingUrl = `data:text/javascript;base64,${Buffer.from(fs.readFileSync('app/utils/ranking.js', 'utf8')).toString('base64')}`;
+  const scoringSource = fs.readFileSync('app/utils/match-scoring.js', 'utf8').replace('"./ranking"', JSON.stringify(rankingUrl));
+  const scoring = await import(`data:text/javascript;base64,${Buffer.from(scoringSource).toString('base64')}`);
   const tournament = { id: 'preview', nome: 'Giallo di prova', categoria: 'Giallo', stato: 'In Programmazione' };
   const athletes = Array.from({ length: 24 }, (_, i) => ({ id: String(i), name: `Atleta di prova ${i + 1}` }));
   let config = rules.createGiallo(athletes);
@@ -20,6 +23,7 @@ const swc = require('next/dist/build/swc');
   config = rules.startGialloFinals(config);
   const stageIds = ['prepare', 'groups', 'ranking', 'finals'];
   let states = [], cursor = 0;
+  let ScoreEntry;
   const load = async (file) => {
     const transformed = await swc.transform(fs.readFileSync(file, 'utf8'), {
       filename: file, jsc: { parser: { syntax: 'ecmascript', jsx: true }, transform: { react: { runtime: 'automatic' } } }, module: { type: 'commonjs' },
@@ -27,13 +31,15 @@ const swc = require('next/dist/build/swc');
     const compiledModule = { exports: {} };
     const context = vm.createContext({ exports: compiledModule.exports, module: compiledModule, structuredClone, console, URLSearchParams,
       require: (name) => {
-        if (name === 'react') return { ...React, useEffect() {}, useState(initial) {
+        if (name === 'react') return { ...React, useEffect() {}, useMemo: (fn) => fn(), useRef: (value) => ({ current: value }), useState(initial) {
           const value = cursor < states.length ? states[cursor] : initial;
           cursor++;
           return [value, () => {}];
         } };
         if (name === '@/app/utils/giallo') return rules;
         if (name === '@/app/utils/tournament-workflow') return workflow;
+        if (name === '@/app/utils/match-scoring') return scoring;
+        if (name === '@/app/components/tournament/MatchScoreEntry') return ScoreEntry;
         if (name === 'next/link') return ({ children, ...props }) => React.createElement('a', props, children);
         return require(name);
       },
@@ -41,6 +47,7 @@ const swc = require('next/dist/build/swc');
     vm.runInContext(transformed.code, context);
     return compiledModule.exports.default;
   };
+  ScoreEntry = await load('app/components/tournament/MatchScoreEntry.js');
   const Giallo = await load('app/components/GialloTournament.js');
   const Header = await load('app/components/TournamentSetupHeader.js');
   const header = renderToStaticMarkup(React.createElement(Header, { family: 'giallo', tournaments: [tournament], selected: tournament.nome, onSelect() {} }));
@@ -60,7 +67,7 @@ const swc = require('next/dist/build/swc');
     assert.match(markup, /24/);
     assert.match(markup, /Dalle semifinali le coppie restano fisse/);
     assert.match(markup, /<details[^>]*><summary[^>]*>Modifica il sorteggio/);
-    const groupSection = markup.match(/<div(?: hidden="")? class="space-y-5"><div><h3 class="text-xl font-bold">2\. Inserisci/);
+    const groupSection = markup.match(/<div(?: hidden="")? class="space-y-5"><section aria-label="Segna risultati delle partite"/);
     assert.ok(groupSection);
     assert.equal(groupSection[0].includes('hidden=""'), stage !== 'groups');
     cursor = 0;
@@ -75,6 +82,20 @@ const swc = require('next/dist/build/swc');
   assert.match(noPlayers, /Numero non supportato/);
   assert.match(noPlayers, /disabled=""/);
   pages.empty = header + noPlayers;
+  const previewNames = ['Marco Rossi', 'Luca Verdi', 'Paolo Neri', 'Andrea Bianchi'];
+  const previewGames = [[[0, 1], [2, 3]], [[0, 2], [1, 3]], [[0, 3], [1, 2]]];
+  const scoreGroups = ['A', 'B', 'C'].map((id) => ({ id, label: `Girone ${id}`, matches: previewGames.map(([l, r], i) => ({
+    id: `${id}-${i}`, left: l.map((n) => previewNames[n]), right: r.map((n) => previewNames[n]), ready: true, bestOf: 1, target: 21,
+    score: id === 'A' && i === 0 ? [[21, 16]] : [],
+  })) }));
+  const secondMatch = scoreGroups[0].matches[1];
+  cursor = 0; states = ['A', secondMatch.id, { [scoring.matchIdentity(secondMatch)]: [['21', '18']] }, false, '', '', null];
+  pages.scores = renderToStaticMarkup(React.createElement(ScoreEntry, { groups: scoreGroups, onSave: async () => true }));
+  assert.match(pages.scores, /Salva e prossima partita/);
+  assert.match(pages.scores, /Modifiche non salvate/);
+  const teamGroups = scoreGroups.map((g) => ({ ...g, matches: g.matches.map((m, i) => ({ ...m, left: [m.left.join(' – ')], right: [m.right.join(' – ')], bestOf: 3, target: null, court: '2', time: '15:10', score: i === 0 ? [[15, 10], [15, 12]] : [] })) }));
+  cursor = 0; states = ['A', 'A-1', {}, false, '', '', null];
+  pages['scores-teams'] = renderToStaticMarkup(React.createElement(ScoreEntry, { groups: teamGroups, onSave: async () => true }));
   console.log('Setup UI: separate tournament paths, empty states, one active step and preserved hidden score forms passed.');
   if (!process.argv.includes('--serve') && !process.argv.includes('--write-preview')) return;
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import MatchScoreEntry from "@/app/components/tournament/MatchScoreEntry";
 import {
   approvedGialloAthletes, createGiallo, gialloRanking, gialloSlug, gialloStages,
   groupGames, groupsComplete, setGialloScore, startGialloFinals, supportedGialloCount,
@@ -54,11 +55,12 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
   const [message, setMessage] = useState("");
   const [reload, setReload] = useState(0);
   const [conflict, setConflict] = useState(false);
+  const [scoreDrafts, setScoreDrafts] = useState(0);
   const slug = gialloSlug(tournament.nome);
   useEffect(() => {
     onSummary?.({ groupsPublished: Boolean(config?.published), finalsPublished: Boolean(config?.published),
-      busy: loading || busy, groupCount: config?.groups.length || 0, approvedCount: athletes.length });
-  }, [onSummary, config, loading, busy, athletes.length]);
+      busy: loading || busy, scoreDrafts, groupCount: config?.groups.length || 0, approvedCount: athletes.length });
+  }, [onSummary, config, loading, busy, athletes.length, scoreDrafts]);
 
   useEffect(() => {
     let cancelled = false;
@@ -112,13 +114,13 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
     finally { setBusy(false); }
   };
 
-  const recordScore = (id, score) => {
-    if (JSON.stringify(config.results[id] ?? config.finals?.results[id] ?? null) === JSON.stringify(score)) return;
+  const recordScore = async (id, score) => {
+    if (JSON.stringify(config.results[id] ?? config.finals?.results[id] ?? null) === JSON.stringify(score)) return true;
     const isGroup = id.startsWith("group-");
     if ((isGroup && config.finals || !isGroup && Object.keys(config.finals?.results || {}).length > 0) &&
       !window.confirm(isGroup ? "La modifica annullerà il tabellone finale e i suoi risultati. Continuare?"
-        : "La modifica cancellerà i risultati dei turni successivi, che saranno ricalcolati. Continuare?")) return;
-    try { persist(setGialloScore(config, id, score)); } catch (reason) { setError(reason.message); }
+        : "La modifica cancellerà i risultati dei turni successivi, che saranno ricalcolati. Continuare?")) return false;
+    try { return await persist(setGialloScore(config, id, score)); } catch (reason) { setError(reason.message); return false; }
   };
 
   if (loading) return <p className="p-6" role="status">Caricamento torneo giallo…</p>;
@@ -194,15 +196,18 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
         {playoffCount > 0 ? ` · primi ${count - playoffCount} direttamente ${target === 16 ? "ai quarti" : "alle semifinali"}, altri ${playoffCount} agli spareggi` : " · tutti ai quarti"}.
       </p>
       <div hidden={!show("groups")} className="space-y-5">
-        {editable && <><div><h3 className="text-xl font-bold">2. Inserisci i risultati dei gironi</h3><p className="mt-2 text-sm text-slate-500">Scegli un girone e salva il punteggio di ogni partita. Ogni atleta gioca tre volte.</p></div>
-          <nav aria-label="Girone da gestire" className="flex flex-wrap gap-2">{config.groups.map((g) => <button key={g.id} type="button" aria-pressed={activeGroup === g.id} onClick={() => setActiveGroup(g.id)} className={`rounded-xl border px-4 py-3 text-sm font-bold ${activeGroup === g.id ? "border-[#0a1628] bg-[#0a1628] text-white" : "border-slate-200 bg-white"}`}>Girone {g.id}</button>)}</nav></>}
-      <div className={editable ? "space-y-5" : "grid gap-5 lg:grid-cols-2"}>
-        {config.groups.map((group) => <section hidden={editable && activeGroup !== group.id} key={group.id} className="space-y-3 rounded-2xl bg-slate-100 p-4">
+        {editable && <MatchScoreEntry groups={config.groups.map((g) => ({ id: g.id, label: `Girone ${g.id}`, matches: groupGames(g).map((game) => ({
+          id: game.id, left: game.left.map((a) => a.name), right: game.right.map((a) => a.name),
+          score: config.results[game.id] ? [config.results[game.id]] : [], ready: true, bestOf: 1, target: 21,
+        })) }))} disabled={disabled} onDirtyChange={setScoreDrafts} onSave={(game, sets) => recordScore(game.id, sets[0])} onClear={(game) => recordScore(game.id, null)} />}
+      {!editable && <div className="grid gap-5 lg:grid-cols-2">
+        {config.groups.map((group) => <section key={group.id} className="space-y-3 rounded-2xl bg-slate-100 p-4">
           <h3 className="text-xl font-black">Girone {group.id}</h3>
           <p className="text-sm">{group.athletes.map((a) => a.name).join(" · ")}</p>
           {groupGames(group).map((game) => <Match key={`${game.id}-${JSON.stringify(config.results[game.id])}`} game={game} score={config.results[game.id]} editable={editable} busy={disabled} onScore={recordScore} />)}
         </section>)}
       </div>
+      }
       {editable && <button className={buttonClass} onClick={() => setView("ranking")}>Controlla la classifica →</button>}
       </div>
       <section hidden={!show("ranking")} className="overflow-x-auto rounded-2xl border bg-white p-4 sm:p-6">

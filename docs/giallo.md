@@ -26,6 +26,24 @@ autosave precedente superi un salvataggio esplicito. Le viste nascoste non
 salvano; classifica e finali rileggono i dati quando vengono aperte. Il semplice
 accesso a un editor senza configurazione non deve creare gironi/tabelloni vuoti.
 
+## Inserimento punteggi dei gironi
+
+Giallo e squadre usano **Segna risultati**: selettore girone, elenco sintetico
+partite, una scheda con nomi completi, punteggi grandi e tastiera numerica.
+**Salva e prossima partita** avanza solo dopo la conferma del server. Digitare non
+aggiorna né salva i risultati. Le bozze vengono conservate cambiando partita o
+girone e impediscono di cambiare fase senza salvarle o scartarle.
+La rimozione di un risultato già salvato richiede conferma ed è nelle opzioni
+della partita. Campi e orari delle squadre restano nella modalità Composizione.
+
+Per il giallo si verifica il set a 21 con vantaggio di due. Per le squadre si
+rispetta il numero di set configurato: uno o due su tre, senza introdurre una
+soglia punti che non sia presente nella configurazione esistente. Un terzo set
+non disputato deve restare vuoto. Gli incontri pool con squadre ancora da
+determinare non possono ricevere un risultato. Cambiando un vincitore si azzerano
+i risultati dei successivi incontri della stessa pool che cambiano partecipanti,
+conservandone campo e orario.
+
 ## Generazione
 
 - Usa solo le iscrizioni approvate del torneo selezionato, identificate per ID.

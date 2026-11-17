@@ -8,6 +8,8 @@ import GialloTournament from "@/app/components/GialloTournament";
 import { isGiallo } from "@/app/utils/giallo";
 import { getTornei, getIscrizioni, syncAssignmentsWithIscrizioni } from "@/app/utils/db";
 import { getSchedule as getScheduleShared } from "@/app/utils/ranking";
+import MatchScoreEntry from "@/app/components/tournament/MatchScoreEntry";
+import { applyTeamGroupScore, teamGroupMatches } from "@/app/utils/match-scoring";
 
 const capitalizeWord = (word) => {
   if (!word) return "";
@@ -72,12 +74,15 @@ export default function TeamGroups({ tournament = null, embedded = false, active
   const [selectedSlot, setSelectedSlot] = useState(null);
   const selectedGiallo = torneiAttivi.find((t) => t.nome === selectedTorneo && isGiallo(t));
   const [saveError, setSaveError] = useState("");
+  const [entryMode, setEntryMode] = useState("setup");
+  const [scoreDrafts, setScoreDrafts] = useState(0);
   const savedFingerprint = useRef("");
   const pendingTimer = useRef(null);
   const currentConfig = useMemo(() => ({ numGironi, teamCounts, gironeTypes, gironeSets,
     gironeAssignments, matchMetadata, pubblicato, rankingType }),
   [numGironi, teamCounts, gironeTypes, gironeSets, gironeAssignments, matchMetadata, pubblicato, rankingType]);
   const persist = async (force = false) => {
+    if (scoreDrafts) throw new Error("Ci sono punteggi non salvati. Usa Salva risultato o Annulla modifiche prima di cambiare sezione.");
     if (!isLoaded) throw new Error("Attendi il caricamento dei gironi.");
     if (!force && savedFingerprint.current === "null" && !Object.keys(gironeAssignments).length && !pubblicato) return;
     if (savedFingerprint.current === JSON.stringify(currentConfig)) return;
@@ -87,6 +92,21 @@ export default function TeamGroups({ tournament = null, embedded = false, active
     onSummary?.({ groupsPublished: pubblicato, groupCount: numGironi });
   };
   useImperativeHandle(saveRef, () => ({ flush: persist }));
+  const scoringGroups = useMemo(() => teamGroupMatches(currentConfig), [currentConfig]);
+  const recordGroupScore = async (game, score) => {
+    const outcome = applyTeamGroupScore(currentConfig, game.id, score);
+    if (outcome.cleared.length && !window.confirm("La correzione cambia le coppie degli incontri successivi della pool. I loro risultati saranno azzerati, mantenendo campo e orario. Continuare?")) return false;
+    clearTimeout(pendingTimer.current);
+    onSummary?.({ busy: true });
+    try {
+      await saveWorkflowConfig("gironi", selectedTorneo.toLowerCase().trim().replace(/\s+/g, "_"), outcome.config);
+      savedFingerprint.current = JSON.stringify(outcome.config);
+      setMatchMetadata(outcome.config.matchMetadata); setSaveError("");
+      onSummary?.({ groupsPublished: outcome.config.pubblicato });
+      return true;
+    } catch (error) { setSaveError(error.message); throw error; }
+    finally { onSummary?.({ busy: false }); }
+  };
 
   const handleSlotClick = (gironeId, idx, playerInSlot) => {
     const hasPlayer = playerInSlot !== "—";
@@ -166,6 +186,7 @@ export default function TeamGroups({ tournament = null, embedded = false, active
       onSummary?.({ groupsPublished: Boolean(config?.pubblicato), groupCount: config?.numGironi || 0 });
       if (iscrizioniList) setTutteLeIscrizioni(iscrizioniList);
       if (config) {
+        setEntryMode(Object.values(config.gironeAssignments || {}).some((slots) => Object.values(slots).some((name) => name && name !== "—" && name !== "Slot Libero")) ? "results" : "setup");
         setNumGironi(config.numGironi || 4);
         setTeamCounts(config.teamCounts || { A: 4, B: 4, C: 4, D: 4, E: 4, F: 4, G: 4, H: 4 });
         setGironeTypes(config.gironeTypes || { A: "Pool", B: "Pool", C: "Pool", D: "Pool", E: "Pool", F: "Pool", G: "Pool", H: "Pool" });
@@ -567,7 +588,16 @@ export default function TeamGroups({ tournament = null, embedded = false, active
       <div className="max-w-[1400px] mx-auto px-4 mt-6 md:mt-10">
         {!embedded && <TournamentSetupHeader tournaments={torneiAttivi} selected={selectedTorneo} onSelect={setSelectedTorneo} />}
         {saveError && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-red-800">{saveError}</p>}
-        <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 text-[#0a1628]">
+        <nav aria-label="Modalità gestione gironi" className="mb-6 flex flex-wrap gap-2">
+          {[{ id: "setup", label: "Composizione, campi e orari" }, { id: "results", label: "Segna risultati" }].map((mode) => <button key={mode.id} type="button" aria-pressed={entryMode === mode.id} onClick={() => {
+            if (scoreDrafts && mode.id === "setup") { setSaveError("Salva o scarta le bozze dei punteggi prima di cambiare composizione."); return; }
+            setEntryMode(mode.id); setSaveError("");
+          }} className={`rounded-xl border px-4 py-3 text-sm font-bold ${entryMode === mode.id ? "border-[#0a1628] bg-[#0a1628] text-white" : "border-slate-200 bg-white"}`}>{mode.label}</button>)}
+        </nav>
+        <section hidden={entryMode !== "results"}>
+          {isLoaded ? <MatchScoreEntry groups={scoringGroups} onSave={recordGroupScore} onClear={(game) => recordGroupScore(game, null)} onDirtyChange={setScoreDrafts} /> : <p role="status">Caricamento partite…</p>}
+        </section>
+        <div hidden={entryMode !== "setup"} className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 text-[#0a1628]">
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
             <div><h2 className="text-xl font-bold">Composizione e risultati dei gironi</h2><p className="mt-1 text-sm leading-6 text-slate-500">Imposta il numero di gironi, scegli il formato e distribuisci le squadre approvate.</p></div>
             <div className="flex flex-wrap gap-2">
@@ -586,6 +616,7 @@ export default function TeamGroups({ tournament = null, embedded = false, active
           </details>
         </div>
 
+        <div hidden={entryMode !== "setup"}>
         <div className="flex flex-col lg:flex-row gap-6">
             {/* Configurazione Gironi */}
             <div className="flex-1 space-y-8">
@@ -721,7 +752,7 @@ export default function TeamGroups({ tournament = null, embedded = false, active
 
                 {/* Partite */}
                 <div className="bg-white p-6 rounded-[2.5rem] shadow-xl border border-gray-100">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-gray-400 mb-8">Programma Partite e Risultati</h3>
+                    <h3 className="text-sm font-black uppercase tracking-widest text-gray-400 mb-8">Campi e orari delle partite</h3>
                     <div className="space-y-10">
                         {gironi.map((g) => {
                             const c = getColors(g.colorClass);
@@ -752,10 +783,7 @@ export default function TeamGroups({ tournament = null, embedded = false, active
                                                         <span className="flex-1 text-[11px] font-black text-[#0a1628] text-right truncate">
                                                             {row.left && row.left !== "—" && row.left !== "Slot Libero" ? splitNames(row.left).map(formatPlayerName).join(" - ") : (row.left || "Slot Libero")}
                                                         </span>
-                                                        <div className="flex gap-1">
-                                                            <input type="text" value={meta.s1L || ""} onChange={(e) => handleMetadataChange(g.id, idx, 's1L', e.target.value)} className="w-8 h-8 bg-[#0a1628] text-white rounded-lg text-xs text-center font-black" />
-                                                            <input type="text" value={meta.s1R || ""} onChange={(e) => handleMetadataChange(g.id, idx, 's1R', e.target.value)} className="w-8 h-8 bg-[#0a1628] text-white rounded-lg text-xs text-center font-black" />
-                                                        </div>
+                                                        <span className="text-xs font-bold text-slate-400">VS</span>
                                                         <span className="flex-1 text-[11px] font-black text-[#0a1628] text-left truncate">
                                                             {row.right && row.right !== "—" && row.right !== "Slot Libero" ? splitNames(row.right).map(formatPlayerName).join(" - ") : (row.right || "Slot Libero")}
                                                         </span>
@@ -826,6 +854,7 @@ export default function TeamGroups({ tournament = null, embedded = false, active
                     })}
                 </div>
             </div>
+        </div>
         </div>
       </div>
     </Container>

@@ -123,6 +123,7 @@ export default function TournamentManagement() {
     if (next === step || navigating || (!internal && summary.busy)) return;
     setNavigating(true); setError("");
     try {
+      if (step === "groups" && summary.scoreDrafts) throw new Error("Ci sono punteggi non salvati. Salva o scarta le bozze prima di cambiare sezione.");
       await workspaceRef.current?.flush();
       setStep(next); updateUrl(family, selected, next);
     } catch (reason) { setError(reason.message); }
