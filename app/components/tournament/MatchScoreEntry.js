@@ -8,6 +8,7 @@ const serialize = (value) => JSON.stringify(value.map((pair) => pair.map((n) => 
 const seedDetails = (match) => ({ court: match.court || "", time: match.time || "", status: matchStatus(match) });
 const detailsChanged = (details, match) => JSON.stringify(details) !== JSON.stringify(seedDetails(match));
 const statusLabel = (status) => ({ scheduled: "Da giocare", in_progress: "In corso", finished: "Terminata" })[status];
+const statusFilters = [{ value: "all", label: "Tutte" }, { value: "scheduled", label: "Da giocare" }, { value: "in_progress", label: "In corso" }, { value: "finished", label: "Terminate" }];
 
 export default function MatchScoreEntry({ groups, onSave, onClear, onSaveDetails, disabled = false, onDirtyChange, contextLabel = "Risultati dei gironi", selectorLabel = "Scegli il girone", emptyMessage = "Non ci sono partite da segnare. Completa prima la composizione dei gironi." }) {
   const [groupId, setGroupId] = useState(groups[0]?.id || "");
@@ -18,10 +19,12 @@ export default function MatchScoreEntry({ groups, onSave, onClear, onSaveDetails
   const [message, setMessage] = useState("");
   const [advanceFrom, setAdvanceFrom] = useState(null);
   const [detailDrafts, setDetailDrafts] = useState({});
+  const [statusFilter, setStatusFilter] = useState("all");
   const saveLock = useRef(false);
   const group = groups.find((g) => g.id === groupId) || groups[0];
   const matches = group?.matches || [];
-  const match = matches.find((m) => m.id === matchId) || matches.find((m) => m.ready !== false && !completedMatch(m)) || matches[0];
+  const visibleMatches = matches.filter((m) => statusFilter === "all" || matchStatus(m) === statusFilter);
+  const match = visibleMatches.find((m) => m.id === matchId) || visibleMatches[0];
   const identity = match ? matchIdentity(match) : "";
   const draft = match ? drafts[identity] || seedDraft(match) : [];
   const details = match ? detailDrafts[identity] || seedDetails(match) : {};
@@ -44,15 +47,19 @@ export default function MatchScoreEntry({ groups, onSave, onClear, onSaveDetails
   useEffect(() => {
     if (!advanceFrom) return;
     const currentGroup = groups.find((g) => g.id === advanceFrom.group);
-    const next = currentGroup?.matches.find((m) => m.id !== advanceFrom.id && m.ready !== false && !completedMatch(m));
+    const next = currentGroup?.matches.find((m) => m.id !== advanceFrom.id && m.ready !== false && !completedMatch(m) && (statusFilter === "all" || matchStatus(m) === statusFilter));
     if (next) { setMatchId(next.id); setMessage("Risultato salvato. Puoi inserire la prossima partita."); }
     else setMessage(currentGroup?.matches.every(completedMatch) ? "Tutti i risultati di questa sezione sono salvati." : "Risultato salvato. Seleziona un’altra partita o un altro turno/girone.");
     setAdvanceFrom(null);
-  }, [groups, advanceFrom]);
+  }, [groups, advanceFrom, statusFilter]);
 
-  const select = (nextGroup, nextMatch = "") => {
-    if (saving) return;
+  const select = (nextGroup, nextMatch = matchId) => {
+    if (saving || saveLock.current || disabled) return;
     setGroupId(nextGroup); setMatchId(nextMatch); setError(""); setMessage("");
+  };
+  const filter = (value) => {
+    if (saving || saveLock.current || disabled) return;
+    setStatusFilter(value); setError(""); setMessage("");
   };
   const save = async (advance) => {
     if (!match || saveLock.current || disabled || match.ready === false) return;
@@ -87,7 +94,7 @@ export default function MatchScoreEntry({ groups, onSave, onClear, onSaveDetails
     finally { saveLock.current = false; setSaving(false); }
   };
   const clear = async () => {
-    if (!onClear || saveLock.current || disabled || !window.confirm("Rimuovere il risultato salvato di questa partita? La classifica verrà aggiornata.")) return;
+    if (!match || !onClear || saveLock.current || disabled || !window.confirm("Rimuovere il risultato salvato di questa partita? La classifica verrà aggiornata.")) return;
     saveLock.current = true; setSaving(true); setError(""); setMessage("");
     try {
       if (await onClear(match) !== true) { setError("Rimozione non confermata. Il risultato salvato non è stato modificato."); return; }
@@ -99,29 +106,37 @@ export default function MatchScoreEntry({ groups, onSave, onClear, onSaveDetails
     finally { saveLock.current = false; setSaving(false); }
   };
 
-  if (!match) return <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-sm text-slate-600">{emptyMessage}</div>;
   return <section aria-label="Segna risultati delle partite" className="space-y-5 text-[#0a1628]">
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div><p className="text-xs font-bold uppercase tracking-[.18em] text-slate-500">{contextLabel}</p><h2 className="mt-2 text-2xl font-black sm:text-3xl">Segna risultati</h2><p className="mt-2 text-sm text-slate-500">Una partita alla volta. Risultati e qualificazioni cambiano solo dopo il salvataggio.</p></div>
-      <span className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm"><strong>{completed} / {matches.length}</strong> salvate in {group.label}</span>
+      {group && <span className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm"><strong>{completed} / {matches.length}</strong> salvate in {group.label}</span>}
     </div>
     <nav aria-label={selectorLabel} className="flex flex-wrap gap-2">{groups.map((g) => <button key={g.id} type="button" disabled={saving || disabled} aria-pressed={group.id === g.id} onClick={() => select(g.id)}
       className={`rounded-xl border px-4 py-3 text-sm font-bold disabled:opacity-40 ${group.id === g.id ? "border-[#0a1628] bg-[#0a1628] text-white" : "border-slate-200 bg-white text-slate-600"}`}>{g.label}<span className="ml-2 text-xs opacity-60">{g.matches.filter(completedMatch).length}/{g.matches.length}</span></button>)}</nav>
+    <div role="tablist" aria-label="Filtra partite per stato" className="flex flex-wrap gap-2">{statusFilters.map((item, index) => <button key={item.value} type="button" role="tab" aria-selected={statusFilter === item.value} tabIndex={statusFilter === item.value ? 0 : -1} disabled={saving || disabled} onClick={() => filter(item.value)} onKeyDown={(event) => {
+      const next = event.key === "Home" ? 0 : event.key === "End" ? statusFilters.length - 1 : event.key === "ArrowRight" ? (index + 1) % statusFilters.length : event.key === "ArrowLeft" ? (index + statusFilters.length - 1) % statusFilters.length : -1;
+      if (next < 0 || saving || saveLock.current || disabled) return;
+      event.preventDefault(); filter(statusFilters[next].value); event.currentTarget.parentElement.querySelectorAll('[role="tab"]')[next].focus();
+    }} className={`rounded-xl border px-4 py-3 text-sm font-bold disabled:opacity-40 ${statusFilter === item.value ? "border-[#0a1628] bg-[#0a1628] text-white" : "border-slate-200 bg-white text-slate-600"}`}>
+      {item.label}<span className="ml-2 text-xs opacity-60">{item.value === "all" ? matches.length : matches.filter((m) => matchStatus(m) === item.value).length}</span>
+    </button>)}</div>
     {dirtyCount > 0 && <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
       <span>{dirtyCount === 1 ? "Una partita ha modifiche non salvate." : `${dirtyCount} partite hanno modifiche non salvate.`} Le bozze restano disponibili cambiando partita o girone.</span>
       <button type="button" disabled={saving} className="font-bold underline" onClick={() => {
+        if (saving || saveLock.current) return;
         if (window.confirm("Scartare tutte le modifiche non salvate a punteggi, campo, orario e stato? I dati già salvati non cambieranno.")) { setDrafts({}); setDetailDrafts({}); setError(""); }
       }}>Scarta le bozze</button>
     </div>}
     {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</p>}
     {message && <p role="status" className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">{message}</p>}
-    <div className="grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
-      <nav aria-label="Scegli la partita" className="flex gap-2 overflow-x-auto pb-2 lg:flex-col">{matches.map((m, i) => {
+    <div role="tabpanel" aria-label={statusFilters.find((item) => item.value === statusFilter).label}>
+    {!match ? <p role="status" className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-sm text-slate-600">{matches.length ? "Nessuna partita con questo stato nel girone selezionato. Scegli un altro filtro o girone: le bozze restano disponibili." : emptyMessage}</p> : <div className="grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
+      <nav aria-label="Scegli la partita" className="flex gap-2 overflow-x-auto pb-2 lg:flex-col">{visibleMatches.map((m) => {
         const done = completedMatch(m);
         const hasDraft = (drafts[matchIdentity(m)] && serialize(drafts[matchIdentity(m)]) !== serialize(seedDraft(m))) || (detailDrafts[matchIdentity(m)] && detailsChanged(detailDrafts[matchIdentity(m)], m));
         return <button type="button" key={m.id} disabled={saving || disabled} aria-pressed={match.id === m.id} onClick={() => select(group.id, m.id)}
           className={`min-w-36 rounded-xl border p-4 text-left disabled:opacity-40 ${match.id === m.id ? "border-[#0a1628] bg-slate-100 ring-1 ring-[#0a1628]" : "border-slate-200 bg-white"}`}>
-          <span className="block text-sm font-bold">{m.label || `Partita ${i + 1}`}</span><span className={`mt-2 block text-xs ${hasDraft ? "text-amber-800" : done ? "text-green-700" : "text-slate-500"}`}>{hasDraft ? "Bozza da salvare" : m.ready === false ? "In attesa di squadre" : statusLabel(matchStatus(m))}</span>
+          <span className="block text-sm font-bold">{m.label || `Partita ${matches.indexOf(m) + 1}`}</span><span className={`mt-2 block text-xs ${hasDraft ? "text-amber-800" : done ? "text-green-700" : "text-slate-500"}`}>{hasDraft ? "Bozza da salvare" : m.ready === false ? "In attesa di squadre" : statusLabel(matchStatus(m))}</span>
           {(m.court || m.time) && <span className="mt-2 block text-xs text-slate-500">{[m.court && `Campo ${m.court}`, m.time].filter(Boolean).join(" · ")}</span>}
           {done && <span className="mt-2 block text-sm font-black">{m.score.filter((s) => s.every((n) => n !== "" && n !== null && n !== undefined)).map((s) => s.join("–")).join(" · ")}</span>}
         </button>;
@@ -171,6 +186,7 @@ export default function MatchScoreEntry({ groups, onSave, onClear, onSaveDetails
           {saved && onClear && <details className="border-t border-slate-100 pt-3"><summary className="cursor-pointer text-xs font-semibold text-slate-500">Rimuovi un risultato inserito per errore</summary><button type="button" disabled={saving || disabled} onClick={clear} className="mt-3 rounded-xl border border-red-200 px-4 py-2 text-sm font-bold text-red-700 disabled:opacity-40">Rimuovi risultato salvato</button></details>}
         </div>
       </form>
+    </div>}
     </div>
   </section>;
 }

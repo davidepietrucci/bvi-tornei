@@ -9,7 +9,7 @@ import { isGiallo } from "@/app/utils/giallo";
 import { getTornei, getIscrizioni, syncAssignmentsWithIscrizioni } from "@/app/utils/db";
 import { getSchedule as getScheduleShared } from "@/app/utils/ranking";
 import MatchScoreEntry from "@/app/components/tournament/MatchScoreEntry";
-import { applyTeamGroupScore, applyTeamMatchDetails, teamGroupMatches } from "@/app/utils/match-scoring";
+import { applyTeamGroupScore, applyTeamMatchDetails, teamGroupMatches, completedMatch } from "@/app/utils/match-scoring";
 
 const capitalizeWord = (word) => {
   if (!word) return "";
@@ -52,7 +52,13 @@ function shuffle(array) {
   return arr;
 }
 
-export default function TeamGroups({ tournament = null, embedded = false, active = true, saveRef, onSummary }) {
+export default function TeamGroups({ tournament = null, embedded = false, active = true, workspaceMode, saveRef, onSummary: summaryCallback }) {
+  // Keep notifications current without making callback identity reload configuration.
+  const summaryTarget = useRef({ active, callback: summaryCallback });
+  useEffect(() => { summaryTarget.current = { active, callback: summaryCallback }; }, [active, summaryCallback]);
+  const onSummary = useMemo(() => (summary) => {
+    if (summaryTarget.current.active) summaryTarget.current.callback?.(summary);
+  }, []);
   const [numGironi, setNumGironi] = useState(4);
   const [teamCounts, setTeamCounts] = useState({ A: 4, B: 4, C: 4, D: 4, E: 4, F: 4, G: 4, H: 4 });
   
@@ -76,6 +82,7 @@ export default function TeamGroups({ tournament = null, embedded = false, active
   const [saveError, setSaveError] = useState("");
   const [publishing, setPublishing] = useState(false);
   const [entryMode, setEntryMode] = useState("setup");
+  const effectiveEntryMode = workspaceMode === undefined ? entryMode : workspaceMode === "prepare" ? "setup" : "results";
   const [scoreDrafts, setScoreDrafts] = useState(0);
   const savedFingerprint = useRef("");
   const pendingTimer = useRef(null);
@@ -106,6 +113,16 @@ export default function TeamGroups({ tournament = null, embedded = false, active
     finally { setPublishing(false); onSummary?.({ busy: false }); }
   };
   const scoringGroups = useMemo(() => teamGroupMatches(currentConfig), [currentConfig]);
+  const groupMatches = scoringGroups.reduce((total, group) => total + group.matches.length, 0);
+  const groupCompleted = scoringGroups.reduce((total, group) => total + group.matches.filter(completedMatch).length, 0);
+  // Pool follow-up matches await winners even when every team slot is assigned.
+  const groupsConfigured = scoringGroups.length > 0 && scoringGroups.every((group) =>
+    group.matches.length > 0 && Array.from({ length: teamCounts[group.id] || 0 }, (_, index) =>
+      gironeAssignments[group.id]?.[index]).every((name) => name && name !== "—" && name !== "Slot Libero"));
+  useEffect(() => {
+    if (!active || !isLoaded || !selectedTorneo) return;
+    onSummary({ groupsPublished: pubblicato, groupCount: numGironi, groupsConfigured, groupMatches, groupCompleted, scoreDrafts });
+  }, [active, isLoaded, selectedTorneo, pubblicato, numGironi, groupsConfigured, groupMatches, groupCompleted, scoreDrafts, onSummary]);
   const recordGroupScore = async (game, score, details) => {
     const outcome = applyTeamGroupScore(currentConfig, game.id, score);
     if (details) outcome.config = applyTeamMatchDetails(outcome.config, game.id, details);
@@ -172,7 +189,7 @@ export default function TeamGroups({ tournament = null, embedded = false, active
   useEffect(() => {
     if (embedded) return;
     getTornei().then(parsedTornei => {
-      const attivi = parsedTornei.filter(t => !isGiallo(t) && ["Iscrizioni Aperte", "In Programmazione", "Concluso"].includes(t.stato));
+      const attivi = parsedTornei.filter(t => !isGiallo(t) && ["Iscrizioni Aperte", "In Programmazione", "In Corso", "Concluso"].includes(t.stato));
       setTorneiAttivi(attivi);
       
       const params = new URLSearchParams(window.location.search);
@@ -604,16 +621,16 @@ export default function TeamGroups({ tournament = null, embedded = false, active
         {!embedded && <TournamentSetupHeader tournaments={torneiAttivi} selected={selectedTorneo} onSelect={setSelectedTorneo} />}
         {saveError && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-red-800">{saveError}</p>}
         <p role="status" className="mb-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">{tournament?.stato === "Concluso" ? "Torneo concluso. " : ""}Gironi {pubblicato ? "visibili" : "nascosti"} al pubblico. La visibilità della fase finale si sceglie separatamente nella sezione Fase finale.</p>
-        <nav aria-label="Modalità gestione gironi" className="mb-6 flex flex-wrap gap-2">
+        <nav hidden={workspaceMode !== undefined} aria-label="Modalità gestione gironi" className="mb-6 flex flex-wrap gap-2">
           {[{ id: "setup", label: "Composizione gironi" }, { id: "results", label: "Segna risultati e gestisci partite" }].map((mode) => <button key={mode.id} type="button" aria-pressed={entryMode === mode.id} onClick={() => {
             if (scoreDrafts && mode.id === "setup") { setSaveError("Salva o scarta le modifiche a punteggi e gestione partita prima di cambiare composizione."); return; }
             setEntryMode(mode.id); setSaveError("");
           }} className={`rounded-xl border px-4 py-3 text-sm font-bold ${entryMode === mode.id ? "border-[#0a1628] bg-[#0a1628] text-white" : "border-slate-200 bg-white"}`}>{mode.label}</button>)}
         </nav>
-        <section hidden={entryMode !== "results"}>
+        <section hidden={effectiveEntryMode !== "results"}>
           {isLoaded ? <MatchScoreEntry groups={scoringGroups} onSave={recordGroupScore} onSaveDetails={recordMatchDetails} onClear={(game) => recordGroupScore(game, null)} onDirtyChange={setScoreDrafts} /> : <p role="status">Caricamento partite…</p>}
         </section>
-        <div hidden={entryMode !== "setup"} className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 text-[#0a1628]">
+        <div hidden={effectiveEntryMode !== "setup"} className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 text-[#0a1628]">
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
             <div><h2 className="text-xl font-bold">Composizione e risultati dei gironi</h2><p className="mt-1 text-sm leading-6 text-slate-500">Imposta il numero di gironi, scegli il formato e distribuisci le squadre approvate.</p></div>
             <div className="flex flex-wrap gap-2">
@@ -632,7 +649,7 @@ export default function TeamGroups({ tournament = null, embedded = false, active
           </details>
         </div>
 
-        <div hidden={entryMode !== "setup"}>
+        <div hidden={effectiveEntryMode !== "setup"}>
         <div className="flex flex-col lg:flex-row gap-6">
             {/* Configurazione Gironi */}
             <div className="flex-1 space-y-8">

@@ -58,6 +58,14 @@ const swc = require('next/dist/build/swc');
   const empty = renderToStaticMarkup(React.createElement(Header, { tournaments: [], onSelect() {} }));
   assert.match(empty, /Nessun torneo disponibile/);
   assert.match(empty, /disabled=""/);
+  for (const mode of ['prepare', 'day']) {
+    const managed = renderToStaticMarkup(React.createElement(Header, { family: 'giallo', step: mode === 'day' ? 'groups' : 'summary', workspaceMode: mode, tournaments: [tournament], selected: tournament.nome, onSelect() {} }));
+    assert.match(managed, /Modalità del torneo/);
+    assert.match(managed, /Giornata torneo/);
+    assert.match(managed, /Classifica ↗/);
+    assert.equal(managed.includes('Verifica e inizia'), mode === 'prepare');
+    assert.match(managed, mode === 'day' ? /vista=day/ : /vista=prepare/);
+  }
   const pages = {};
   for (const stage of stageIds) {
     cursor = 0;
@@ -67,7 +75,7 @@ const swc = require('next/dist/build/swc');
     assert.match(markup, /24/);
     assert.match(markup, /Dalle semifinali le coppie restano fisse/);
     assert.match(markup, /<details[^>]*><summary[^>]*>Modifica il sorteggio/);
-    const groupSection = markup.match(/<div(?: hidden="")? class="space-y-5"><section aria-label="Segna risultati delle partite"/);
+    const groupSection = markup.match(/<div(?: hidden="")? class="space-y-5"><div><section aria-label="Segna risultati delle partite"/);
     assert.ok(groupSection);
     assert.equal(groupSection[0].includes('hidden=""'), stage !== 'groups');
     cursor = 0;
@@ -77,6 +85,14 @@ const swc = require('next/dist/build/swc');
     pages[stage] = managedHeader + managedMarkup;
     assert.equal((pages[stage].match(/aria-current="step"/g) || []).length, 1, 'Unified management must have only one set of steps');
   }
+  cursor = 0; states = ['finals', 'A', config, athletes, false, false, '', '', 0, false];
+  const dayFinals = renderToStaticMarkup(React.createElement(Giallo, { tournament, editable: true, embedded: true, workflowView: 'finals', workspaceMode: 'day' }));
+  assert.ok(!dayFinals.includes('aria-label="Modalità gestione finale giallo"'));
+  assert.match(dayFinals, /<div><section aria-label="Segna risultati delle partite"/);
+  assert.match(dayFinals, /<div hidden="" class="space-y-5">/);
+  cursor = 0; states = ['summary', 'A', config, athletes, false, false, '', '', 0, false];
+  const overviewGiallo = renderToStaticMarkup(React.createElement(Giallo, { tournament, editable: true, embedded: true, workflowView: 'summary', workspaceMode: 'prepare' }));
+  assert.match(overviewGiallo, /<div hidden="" class="space-y-6 text-/);
   cursor = 0; states = ['prepare', 'A', null, [], false, false, '', '', 0, false];
   const noPlayers = renderToStaticMarkup(React.createElement(Giallo, { tournament, editable: true, embedded: true }));
   assert.match(noPlayers, /Numero non supportato/);

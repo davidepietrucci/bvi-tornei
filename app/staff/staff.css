@@ -97,6 +97,39 @@
 .staff-workspace .staff-quick-link { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 5rem; border: 1px solid var(--staff-line); border-radius: .625rem; padding: 1.125rem; text-align: left; background: white; }
 .staff-workspace .staff-quick-link:hover { border-color: #9eacc0; background: #f8fafc; }
 .staff-workspace .staff-danger-zone { border: 1px solid #f1d4d4; border-radius: .875rem; background: white; padding: 1.25rem 1.5rem; }
+/* Tournament workspace uses the same panels, controls and density as the staff dashboard. */
+.staff-workspace .staff-tournament-workspace { max-width: 1600px; }
+.staff-workspace .staff-tournament-eyebrow { color: var(--staff-muted); font-size: .6875rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.staff-workspace .staff-tournament-header > div:first-child > p:last-child { margin-top: .5rem; color: var(--staff-muted); font-size: .8125rem; line-height: 1.6; }
+.staff-workspace .staff-tournament-header > div:has(> label) { border-color: var(--staff-line); border-radius: .875rem; padding: 1rem 1.25rem; gap: 1rem; }
+.staff-workspace .staff-tournament-header nav[aria-label="Tipo di torneo"] { gap: .375rem; }
+.staff-workspace .staff-tournament-header nav[aria-label="Tipo di torneo"] a { min-height: 2.5rem; padding: .5rem .875rem; border-color: var(--staff-line); border-radius: .5rem; background: white; color: var(--staff-muted); }
+.staff-workspace .staff-tournament-header nav[aria-label="Tipo di torneo"] a[aria-current="page"] { background: #eaf0f7; border-color: #c7d2e0; color: var(--staff-blue); }
+.staff-workspace .staff-tournament-header nav[aria-label="Tipo di torneo"] a span { font-size: .8125rem; font-weight: 600; }
+.staff-workspace .staff-tournament-header nav[aria-label="Modalità del torneo"] { gap: .25rem; border: 1px solid var(--staff-line); border-radius: .625rem; padding: .25rem; background: white; }
+.staff-workspace .staff-tournament-header nav[aria-label="Modalità del torneo"] button { min-height: 2.5rem; padding: .5rem 1rem; border-color: transparent; background: transparent; color: var(--staff-muted); font-size: .8125rem; font-weight: 600; }
+.staff-workspace .staff-tournament-header nav[aria-label="Modalità del torneo"] button[aria-pressed="true"] { border-color: var(--staff-blue); background: var(--staff-blue); color: white; }
+.staff-workspace .staff-tournament-header nav[aria-label="Passaggi di gestione torneo"] a { align-items: center; gap: .75rem; padding: .875rem 1rem; border-color: var(--staff-line); border-radius: .625rem; background: white; color: var(--staff-blue); }
+.staff-workspace .staff-tournament-header nav[aria-label="Passaggi di gestione torneo"] a[aria-current="step"] { border-color: #d6bc39; background: #fffbea; color: var(--staff-blue); }
+.staff-workspace .staff-tournament-header nav[aria-label="Passaggi di gestione torneo"] a > span:first-child:not(:last-child) { border-radius: .375rem; background: #edf1f6; color: var(--staff-muted); }
+.staff-workspace .staff-tournament-header nav[aria-label="Passaggi di gestione torneo"] a[aria-current="step"] > span:first-child:not(:last-child) { background: var(--staff-yellow); color: var(--staff-blue); }
+.staff-workspace .staff-tournament-header nav[aria-label="Passaggi di gestione torneo"] a strong { font-size: .8125rem; font-weight: 600; }
+.staff-workspace .staff-tournament-header nav[aria-label="Passaggi di gestione torneo"] a span span { color: var(--staff-muted); font-size: .75rem; }
+.staff-workspace .staff-tournament-overview h2 { font-size: 1rem; font-weight: 600; }
+.staff-workspace .staff-tournament-overview li { padding-block: 1rem; }
+.staff-workspace .staff-tournament-next { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1.25rem; border-left: 3px solid var(--staff-yellow); }
+.staff-workspace .staff-tournament-next > div { flex: 1 1 20rem; }
+.staff-workspace .staff-tournament-next > button { flex-shrink: 0; }
+.staff-workspace .staff-tournament-workspace > aside { border: 1px solid var(--staff-line); border-left: 3px solid var(--staff-yellow); border-radius: .625rem; background: white; }
+.staff-workspace .staff-tournament-workspace section[aria-label="Segna risultati delle partite"] h2 { font-size: 1.25rem; font-weight: 600; }
+.staff-workspace .staff-tournament-workspace section[aria-label="Segna risultati delle partite"] h3 { font-size: 1rem; font-weight: 600; }
+.staff-workspace .staff-tournament-workspace section[aria-label="Segna risultati delle partite"] form { border-radius: .875rem; border-color: var(--staff-line); box-shadow: none; }
+.staff-workspace .staff-tournament-workspace section[aria-label="Segna risultati delle partite"] button { font-size: .8125rem; font-weight: 600; }
+.staff-workspace .staff-tournament-workspace [role="tablist"][aria-label="Filtra partite per stato"] button { min-height: 2.5rem; padding: .5rem .875rem; border-color: var(--staff-line); background: white; color: var(--staff-muted); }
+.staff-workspace .staff-tournament-workspace [role="tablist"][aria-label="Filtra partite per stato"] button[aria-selected="true"] { border-color: var(--staff-blue); background: #eaf0f7; color: var(--staff-blue); }
+.staff-workspace .staff-tournament-workspace nav[aria-label="Scegli la partita"] button { border-radius: .625rem; border-color: var(--staff-line); box-shadow: none; }
+.staff-workspace .staff-tournament-workspace nav[aria-label="Scegli la partita"] button[aria-pressed="true"] { border-color: #a8b6c9; background: #eaf0f7; box-shadow: none; }
+.staff-workspace .staff-tournament-workspace :where(section, div, form)[class~="rounded-2xl"] { border-radius: .875rem; }
 @media (min-width: 768px) {
   .staff-workspace :where(div, section, form)[class*="md:p-10"], .staff-workspace :where(div, section, form)[class*="md:p-12"] { padding: 1.5rem; }
   .staff-workspace main:has(> .staff-sidebar) > div[class*="max-w-"]:not([class*="fixed"]) { margin-top: 1.75rem; margin-bottom: 1.75rem; padding-top: 0; }

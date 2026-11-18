@@ -5,8 +5,11 @@ import dynamic from "next/dynamic";
 import StaffHeader from "@/app/components/StaffHeader";
 import TournamentSetupHeader from "@/app/components/TournamentSetupHeader";
 import GialloTournament from "@/app/components/GialloTournament";
+import TournamentOverview from "@/app/components/tournament/TournamentOverview";
 import { isGiallo, gialloSlug } from "@/app/utils/giallo";
-import { managementHref, readWorkflowConfig, WORKFLOW_STEPS } from "@/app/utils/tournament-workflow";
+import { managementHref, readWorkflowConfig, tournamentNextAction, WORKFLOW_STEPS } from "@/app/utils/tournament-workflow";
+import { completedMatch, teamGroupMatches } from "@/app/utils/match-scoring";
+import { finalMatchGroups } from "@/app/utils/final-scoring";
 
 const TeamGroups = dynamic(() => import("@/app/components/tournament/TeamGroups"));
 const TeamRanking = dynamic(() => import("@/app/components/tournament/TeamRanking"));
@@ -20,7 +23,7 @@ async function readList(type, publicView = false) {
   return json.data;
 }
 
-function TournamentWorkspace({ tournament, step, onNavigate, onSummary, saveRef }) {
+function TournamentWorkspace({ tournament, step, onNavigate, onSummary, saveRef, workspaceMode }) {
   const groupsRef = useRef(null);
   const finalsRef = useRef(null);
   const [visited, setVisited] = useState([step]);
@@ -50,13 +53,20 @@ function TournamentWorkspace({ tournament, step, onNavigate, onSummary, saveRef 
         setParticipants(registrations.filter((r) => String(r.torneo || "").trim().toLowerCase() === tournament.nome.trim().toLowerCase() &&
           /^(approvata|approvato|ok|confermato|confermata)$/i.test(String(r.stato || "").trim())));
         setFormula(finals?.phaseType || null);
-        onSummary({ groupsPublished: Boolean(groups?.pubblicato), finalsPublished: Boolean(finals?.tabellonePubblicato), groupCount: groups?.numGironi || 0 });
+        const groupMatches = teamGroupMatches({ numGironi: 0, gironeAssignments: {}, gironeTypes: {}, gironeSets: {}, teamCounts: {}, matchMetadata: {}, ...groups }).flatMap(g => g.matches);
+        const finalMatches = finalMatchGroups(finals || {}).flatMap(g => g.matches);
+        onSummary({ groupsPublished: Boolean(groups?.pubblicato), finalsPublished: Boolean(finals?.tabellonePubblicato), groupCount: groups?.numGironi || 0,
+          groupsConfigured: groupMatches.length > 0 && Array.from({ length: groups?.numGironi || 0 }, (_, index) => String.fromCharCode(65 + index)).every(id =>
+            (groups.teamCounts?.[id] || 0) > 0 && Array.from({ length: groups.teamCounts[id] }, (_, index) => groups.gironeAssignments?.[id]?.[index]).every(name => name && name !== "—" && name !== "Slot Libero")),
+          finalsConfigured: Boolean(Object.values(finals?.bracketAssignments || {}).some(Boolean)),
+          groupMatches: groupMatches.length, groupCompleted: groupMatches.filter(completedMatch).length,
+          finalMatches: finalMatches.length, finalCompleted: finalMatches.filter(completedMatch).length, summaryReady: true });
       }).catch((reason) => { if (!cancelled) setError(reason.message); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [yellow, tournament.nome, onSummary, reload]);
 
-  if (yellow) return <GialloTournament tournament={tournament} editable embedded workflowView={step}
+  if (yellow) return <GialloTournament tournament={tournament} editable embedded workflowView={step} workspaceMode={workspaceMode}
     onWorkflowViewChange={(next) => onNavigate(next, true)} onSummary={onSummary} />;
 
   return <div className="space-y-5">
@@ -75,13 +85,13 @@ function TournamentWorkspace({ tournament, step, onNavigate, onSummary, saveRef 
       </>}
     </section>
     {(visited.includes("groups") || step === "groups") && <section hidden={step !== "groups"} aria-label="Gestione gironi a squadre">
-      <TeamGroups tournament={tournament} embedded active={step === "groups"} saveRef={groupsRef} onSummary={onSummary} />
+      <TeamGroups tournament={tournament} embedded active={step === "groups"} workspaceMode={workspaceMode} saveRef={groupsRef} onSummary={onSummary} />
     </section>}
     {(visited.includes("ranking") || step === "ranking") && <section hidden={step !== "ranking"} aria-label="Classifica del torneo">
       <TeamRanking tournament={tournament} embedded active={step === "ranking"} />
     </section>}
     {(visited.includes("finals") || step === "finals") && <section hidden={step !== "finals"} aria-label="Fase finale del torneo">
-      <TeamFinals tournament={tournament} embedded active={step === "finals"} saveRef={finalsRef} onSummary={onSummary} />
+      <TeamFinals tournament={tournament} embedded active={step === "finals"} workspaceMode={workspaceMode} saveRef={finalsRef} onSummary={onSummary} />
     </section>}
   </div>;
 }
@@ -96,6 +106,7 @@ export default function TournamentManagement() {
   const [navigating, setNavigating] = useState(false);
   const [error, setError] = useState("");
   const [reload, setReload] = useState(0);
+  const [workspaceMode, setWorkspaceMode] = useState("prepare");
   const workspaceRef = useRef(null);
   const receiveSummary = useCallback((value) => setSummary((previous) => ({ ...previous, ...value })), []);
 
@@ -104,28 +115,31 @@ export default function TournamentManagement() {
     setLoading(true); setError("");
     readList("tornei").then((list) => {
       if (cancelled) return;
-      const available = list.filter((t) => ["Iscrizioni Aperte", "In Programmazione", "Concluso"].includes(t.stato));
+      const available = list.filter((t) => ["Iscrizioni Aperte", "In Programmazione", "In Corso", "Concluso"].includes(t.stato));
       const params = new URLSearchParams(window.location.search);
       const requested = available.find((t) => t.nome === params.get("tour"));
       const nextFamily = requested ? isGiallo(requested) ? "giallo" : "teams" : params.get("tipo") === "giallo" ? "giallo" : "teams";
       const nextTournament = requested || available.find((t) => isGiallo(t) === (nextFamily === "giallo"));
       setTournaments(available); setFamily(nextFamily); setSelected(nextTournament?.nome || "");
-      setStep(WORKFLOW_STEPS.some((s) => s.id === params.get("fase")) ? params.get("fase") : "prepare");
+      const requestedMode = params.get("vista") === "day" ? "day" : "prepare";
+      const requestedStep = WORKFLOW_STEPS.some((s) => s.id === params.get("fase")) || params.get("fase") === "summary" ? params.get("fase") : "prepare";
+      setWorkspaceMode(requestedMode);
+      setStep(requestedMode === "day" && !["groups", "finals", "ranking"].includes(requestedStep) ? "groups" : requestedStep);
     }).catch((reason) => { if (!cancelled) setError(reason.message); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [reload]);
 
-  const updateUrl = (nextFamily, tour, nextStep) => {
-    window.history.replaceState(window.history.state, "", managementHref({ family: nextFamily, tour, step: nextStep }));
+  const updateUrl = (nextFamily, tour, nextStep, mode = workspaceMode) => {
+    window.history.replaceState(window.history.state, "", managementHref({ family: nextFamily, tour, step: nextStep, mode }));
   };
-  const navigate = async (next, internal = false) => {
-    if (next === step || navigating || (!internal && summary.busy)) return;
+  const navigate = async (next, internal = false, nextMode = workspaceMode) => {
+    if ((next === step && nextMode === workspaceMode) || navigating || (!internal && summary.busy)) return;
     setNavigating(true); setError("");
     try {
-      if ((step === "groups" || step === "finals") && summary.scoreDrafts) throw new Error("Ci sono modifiche alle partite non salvate. Salva o scarta le bozze prima di cambiare sezione.");
+      if (summary.scoreDrafts) throw new Error("Ci sono modifiche alle partite non salvate. Salva o scarta le bozze prima di cambiare sezione.");
       await workspaceRef.current?.flush();
-      setStep(next); updateUrl(family, selected, next);
+      setStep(next); setWorkspaceMode(nextMode); updateUrl(family, selected, next, nextMode);
     } catch (reason) { setError(reason.message); }
     finally { setNavigating(false); }
   };
@@ -133,30 +147,36 @@ export default function TournamentManagement() {
     if (navigating || summary.busy || (nextFamily === family && name === selected)) return;
     setNavigating(true); setError("");
     try {
+      if (summary.scoreDrafts) throw new Error("Salva o scarta le bozze delle partite prima di cambiare torneo.");
       await workspaceRef.current?.flush();
       if (family === "giallo" && selected && !window.confirm("Cambiare torneo? Le modifiche non salvate a punteggi, campo, orario e stato andranno perse.")) return;
-      setSummary({}); setFamily(nextFamily); setSelected(name); setStep("prepare");
-      updateUrl(nextFamily, name, "prepare");
+      setSummary({}); setFamily(nextFamily); setSelected(name); setStep("prepare"); setWorkspaceMode("prepare");
+      updateUrl(nextFamily, name, "prepare", "prepare");
     } catch (reason) { setError(reason.message); }
     finally { setNavigating(false); }
   };
   const available = tournaments.filter((t) => isGiallo(t) === (family === "giallo"));
   const tournament = available.find((t) => t.nome === selected);
+  const nextAction = summary.summaryReady ? tournamentNextAction(summary) : null;
   return <main className="min-h-screen bg-[#f5f7fa] pb-20 text-[#0a1628]">
     <StaffHeader />
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+    <div className="staff-tournament-workspace mx-auto max-w-7xl px-4 py-8 sm:px-6">
       {error && <div role="alert" className="mb-5 rounded-xl bg-red-50 p-4 text-red-800">{error}{!tournaments.length && <button className="ml-3 underline" onClick={() => setReload((n) => n + 1)}>Riprova</button>}</div>}
       {loading ? <p role="status">Caricamento gestione torneo…</p> : <>
         <TournamentSetupHeader family={family} step={step} tournaments={available} selected={selected}
+          workspaceMode={workspaceMode} onModeChange={(mode) => navigate(mode === "day" ? ["groups", "finals"].includes(step) ? step : "groups" : "summary", false, mode)}
           onSelect={(name) => choose(family, name)} summary={summary} disabled={navigating || summary.busy}
           onStepChange={navigate} onFamilyChange={(next) => {
             if (next === family) return;
             choose(next, tournaments.find((t) => isGiallo(t) === (next === "giallo"))?.nome || "");
           }} />
         {navigating && <p role="status" className="mb-4 text-sm text-slate-600">Verifica e salvataggio delle modifiche…</p>}
+        {tournament && workspaceMode === "day" && nextAction && <aside className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-yellow-200 bg-yellow-50 p-4"><div><p className="text-sm font-bold">{nextAction.label}</p><p className="mt-1 text-sm text-slate-600">{nextAction.detail}</p></div>{(step !== nextAction.step || workspaceMode !== nextAction.mode) && <button type="button" disabled={navigating || summary.busy} onClick={() => navigate(nextAction.step, false, nextAction.mode)} className="min-h-11 rounded-xl bg-[#0a1628] px-4 py-3 text-sm font-bold text-white disabled:opacity-40">Apri →</button>}</aside>}
+        {tournament && step === "ranking" && <button type="button" disabled={navigating || summary.busy} onClick={() => navigate(workspaceMode === "day" ? "groups" : "summary")} className="mb-4 min-h-11 text-sm font-bold underline">← {workspaceMode === "day" ? "Torna alle partite" : "Torna al riepilogo"}</button>}
         {tournament && <div inert={navigating || undefined} aria-busy={navigating}>
           <TournamentWorkspace key={tournament.id || tournament.nome} tournament={tournament} step={step}
-            onNavigate={navigate} onSummary={receiveSummary} saveRef={workspaceRef} />
+            workspaceMode={workspaceMode} onNavigate={navigate} onSummary={receiveSummary} saveRef={workspaceRef} />
+          {step === "summary" && (summary.summaryReady ? <TournamentOverview tournament={tournament} summary={summary} disabled={navigating || summary.busy} onNavigate={(next, mode) => navigate(next, false, mode)} /> : <p role="status">Verifica configurazione del torneo…</p>)}
         </div>}
       </>}
     </div>

@@ -3,26 +3,28 @@
 import Link from "next/link";
 import { managementHref, WORKFLOW_STEPS } from "@/app/utils/tournament-workflow";
 
-export default function TournamentSetupHeader({ family = "teams", step = "prepare", tournaments = [], selected, onSelect, onFamilyChange, onStepChange, disabled = false, summary = {} }) {
+export default function TournamentSetupHeader({ family = "teams", step = "prepare", tournaments = [], selected, onSelect, onFamilyChange, onStepChange, disabled = false, summary = {}, workspaceMode, onModeChange }) {
   const yellow = family === "giallo";
-  return <div className="mb-6 space-y-4 text-[#0a1628]">
+  const preparationSteps = [{ id: "prepare", label: "Partecipanti", detail: "Controlla gli approvati" }, { id: "groups", label: "Formula e gironi", detail: "Componi gli abbinamenti" }, { id: "finals", label: "Fase finale", detail: "Configura il percorso" }, { id: "summary", label: "Riepilogo", detail: "Verifica e inizia" }];
+  const phases = workspaceMode ? workspaceMode === "day" ? [{ id: "groups", label: "Gironi", detail: "Campo, orario e risultati" }, { id: "finals", label: "Fase finale", detail: "Turni e risultati" }] : preparationSteps : WORKFLOW_STEPS;
+  return <div className={`${workspaceMode ? "staff-tournament-header " : ""}mb-6 space-y-4 text-[#0a1628]`}>
     <div>
-      <p className="mb-2 text-xs font-bold uppercase tracking-[.18em] text-slate-500">Organizzazione torneo</p>
+      <p className="staff-tournament-eyebrow mb-2 text-xs font-bold uppercase tracking-[.18em] text-slate-500">Organizzazione torneo</p>
       <h1 className="staff-page-title">Gestione torneo</h1>
-      <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">{yellow
+      <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">{workspaceMode ? workspaceMode === "day" ? "Partite, campi e risultati. La configurazione resta in Preparazione." : "Controlla i partecipanti, prepara i gironi e verifica il percorso finale." : yellow
         ? "Un percorso dedicato agli atleti singoli: compagni a rotazione, classifica individuale e coppie fisse dalle semifinali."
         : "Configura i gironi delle squadre iscritte, inserisci i risultati e prepara il tabellone finale."}</p>
     </div>
-    <nav aria-label="Tipo di torneo" className="grid gap-3 sm:grid-cols-2">
+    <nav aria-label="Tipo di torneo" className={workspaceMode ? "flex flex-wrap gap-2" : "grid gap-3 sm:grid-cols-2"}>
       {[{ id: "teams", title: "Tornei a squadre", caption: "Coppie già formate · Maschile, femminile e misto", icon: "02" },
         { id: "giallo", title: "Tornei gialli", caption: "Atleti singoli · Compagni a rotazione", icon: "↻" }].map((item) => {
           const active = family === item.id;
           return <Link key={item.id} href={managementHref({ family: item.id, tour: active ? selected : undefined, step: active ? step : "prepare" })}
             aria-disabled={disabled} onClick={(event) => { if (disabled || onFamilyChange) event.preventDefault(); if (!disabled) onFamilyChange?.(item.id); }}
             aria-current={active ? "page" : undefined}
-            className={`flex items-center gap-3 rounded-xl border p-4 transition-colors ${active ? "border-[#0a1628] bg-[#0a1628] text-white" : "border-slate-200 bg-white hover:border-slate-400"}`}>
-            <span aria-hidden="true" className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-lg font-black ${active ? "bg-[#FFD700] text-[#0a1628]" : "bg-slate-100 text-slate-500"}`}>{item.icon}</span>
-            <span><span className="block text-base font-bold">{item.title}</span><span className={`mt-1 block text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>{item.caption}</span></span>
+            className={`flex items-center gap-3 rounded-xl border ${workspaceMode ? "min-h-11 px-4 py-2" : "p-4"} transition-colors ${active ? "border-[#0a1628] bg-[#0a1628] text-white" : "border-slate-200 bg-white hover:border-slate-400"}`}>
+            {!workspaceMode && <span aria-hidden="true" className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-lg font-black ${active ? "bg-[#FFD700] text-[#0a1628]" : "bg-slate-100 text-slate-500"}`}>{item.icon}</span>}
+            <span><span className="block text-sm font-bold">{item.title}</span>{!workspaceMode && <span className={`mt-1 block text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>{item.caption}</span>}</span>
           </Link>;
         })}
     </nav>
@@ -39,13 +41,17 @@ export default function TournamentSetupHeader({ family = "teams", step = "prepar
         <span className={`rounded-full px-3 py-2 ${summary.finalsPublished ? "bg-green-50 text-green-800" : "bg-amber-50 text-amber-800"}`}>Finali: {summary.finalsPublished === undefined ? "verifica…" : summary.finalsPublished ? "pubblicate" : "bozza"}</span>
       </div>}
     </div>
-    {selected && <nav aria-label="Passaggi di gestione torneo" className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-      {WORKFLOW_STEPS.map((phase, i) => <Link key={phase.id} href={managementHref({ family, tour: selected, step: phase.id })}
+    {selected && workspaceMode && <div className="flex flex-wrap items-center justify-between gap-3">
+      <nav aria-label="Modalità del torneo" className="flex flex-wrap gap-2">{[{ id: "prepare", label: "Preparazione" }, { id: "day", label: "Giornata torneo" }].map(mode => <button key={mode.id} type="button" disabled={disabled} aria-pressed={workspaceMode === mode.id} onClick={() => onModeChange?.(mode.id)} className={`min-h-11 rounded-xl border px-5 py-3 text-sm font-bold disabled:opacity-40 ${workspaceMode === mode.id ? "border-[#0a1628] bg-[#0a1628] text-white" : "border-slate-300 bg-white"}`}>{mode.label}</button>)}</nav>
+      <button type="button" disabled={disabled} aria-pressed={step === "ranking"} onClick={() => onStepChange?.("ranking")} className="min-h-11 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold disabled:opacity-40">Classifica ↗</button>
+    </div>}
+    {selected && <nav aria-label="Passaggi di gestione torneo" className={`grid grid-cols-2 gap-2 ${workspaceMode === "day" ? "" : "lg:grid-cols-4"}`}>
+      {phases.map((phase, i) => <Link key={phase.id} href={managementHref({ family, tour: selected, step: phase.id, mode: workspaceMode })}
         aria-current={step === phase.id ? "step" : undefined} aria-disabled={disabled}
         onClick={(event) => { if (disabled || onStepChange) event.preventDefault(); if (!disabled) onStepChange?.(phase.id); }}
         className={`flex items-start gap-3 rounded-xl border p-4 ${step === phase.id ? "border-[#0a1628] bg-[#0a1628] text-white" : "border-slate-200 bg-white"}`}>
-        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${step === phase.id ? "bg-yellow-300 text-[#0a1628]" : "bg-slate-100"}`}>{i + 1}</span>
-        <span><strong className="block text-sm">{phase.label}</strong><span className={`mt-1 block text-xs ${step === phase.id ? "text-slate-300" : "text-slate-500"}`}>{phase.detail}</span></span>
+        {workspaceMode !== "day" && <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${step === phase.id ? "bg-yellow-300 text-[#0a1628]" : "bg-slate-100"}`}>{i + 1}</span>}
+        <span><strong className="block text-sm">{phase.label}</strong>{workspaceMode !== "day" && <span className={`mt-1 block text-xs ${step === phase.id ? "text-slate-300" : "text-slate-500"}`}>{phase.detail}</span>}</span>
       </Link>)}
     </nav>}
     {!tournaments.length && <p className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-600">Non ci sono tornei di questo tipo disponibili. <Link className="font-bold underline" href="/staff/tornei/nuovo">Crea un torneo</Link> oppure controlla la categoria e lo stato dei tornei esistenti.</p>}

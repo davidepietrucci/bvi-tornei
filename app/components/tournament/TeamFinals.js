@@ -8,6 +8,7 @@ import TournamentSetupHeader from "@/app/components/TournamentSetupHeader";
 import FinalsSetupPanel from "@/app/components/tournament/FinalsSetupPanel";
 import MatchScoreEntry from "@/app/components/tournament/MatchScoreEntry";
 import { finalMatchGroups, applyFinalScore, applyFinalDetails, applyFinalAssignment } from "@/app/utils/final-scoring";
+import { completedMatch } from "@/app/utils/match-scoring";
 import GialloTournament from "@/app/components/GialloTournament";
 import { isGiallo } from "@/app/utils/giallo";
 import { getTornei, getGironi, getIscrizioni, syncAssignmentsWithIscrizioni } from "@/app/utils/db";
@@ -49,7 +50,13 @@ const getSchedule = (numTeams, gironeId, assignments = {}, gironeTypes = {}, gir
   return getScheduleShared(numTeams, gironeId, assignments, gironeTypes, gironeSets, matchMetadata);
 };
 
-function TabelloneContent({ tournament = null, embedded = false, active = true, saveRef, onSummary }) {
+function TabelloneContent({ tournament = null, embedded = false, active = true, workspaceMode, saveRef, onSummary: summaryCallback }) {
+  // Async saves must not report stale summaries after this editor becomes inactive.
+  const summaryTarget = useRef({ active, callback: summaryCallback });
+  useEffect(() => { summaryTarget.current = { active, callback: summaryCallback }; }, [active, summaryCallback]);
+  const onSummary = useMemo(() => (summary) => {
+    if (summaryTarget.current.active) summaryTarget.current.callback?.(summary);
+  }, []);
   const router = useRouter();
   const searchParams = useSearchParams();
   const urlTour = searchParams.get("tour");
@@ -78,10 +85,12 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
   const [saveError, setSaveError] = useState("");
   const [publishing, setPublishing] = useState(false);
   const [entryMode, setEntryMode] = useState("setup");
+  const effectiveEntryMode = workspaceMode === undefined ? entryMode : workspaceMode === "prepare" ? "setup" : "results";
   const [scoreDrafts, setScoreDrafts] = useState(0);
   const [resultBusy, setResultBusy] = useState(false);
   const savedFingerprint = useRef("");
   const pendingTimer = useRef(null);
+  const loadingConfig = useRef(false);
   const currentConfig = useMemo(() => ({ phaseType, subPhaseType,
     bracketSize: phaseType === "gold_silver" && subPhaseType === "direct" ? Math.max(teamsToGold, teamsToSilver) : bracketSize,
     bracketAssignments, bracketMetadata, numGoldGironi: numGoldGironiOpt,
@@ -89,6 +98,10 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
     groupCompositionMethod, teamsToGold, teamsToSilver, tabellonePubblicato }),
   [phaseType, subPhaseType, bracketSize, bracketAssignments, bracketMetadata, numGoldGironiOpt,
     teamsPerGoldGirone, numSilverGironiOpt, teamsPerSilverGirone, groupCompositionMethod, teamsToGold, teamsToSilver, tabellonePubblicato]);
+  const scoringGroups = useMemo(() => finalMatchGroups(currentConfig), [currentConfig]);
+  const finalMatches = scoringGroups.reduce((total, group) => total + group.matches.length, 0);
+  const finalCompleted = scoringGroups.reduce((total, group) => total + group.matches.filter(completedMatch).length, 0);
+  const finalsConfigured = finalMatches > 0;
   const persist = async (force = false) => {
     if (scoreDrafts) throw new Error("Salva o scarta le modifiche alle partite prima di cambiare sezione.");
     if (!isLoaded) throw new Error("Attendi il caricamento della fase finale.");
@@ -99,7 +112,6 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
     onSummary?.({ finalsPublished: tabellonePubblicato });
   };
   useImperativeHandle(saveRef, () => ({ flush: persist }));
-  useEffect(() => { onSummary?.({ scoreDrafts }); }, [scoreDrafts, onSummary]);
   const switchMode = async (mode) => {
     if (resultBusy || mode === entryMode) return;
     if (scoreDrafts) { setSaveError("Salva o scarta le bozze delle partite prima di cambiare vista."); return; }
@@ -165,7 +177,7 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
   useEffect(() => {
     if (embedded) return;
     getTornei().then(parsed => {
-      const attivi = parsed.filter(t => !isGiallo(t) && ["Iscrizioni Aperte", "In Programmazione", "Concluso"].includes(t.stato));
+      const attivi = parsed.filter(t => !isGiallo(t) && ["Iscrizioni Aperte", "In Programmazione", "In Corso", "Concluso"].includes(t.stato));
       if (parsed.some((t) => t.nome === urlTour && isGiallo(t))) {
         window.location.replace(`/staff/giallo?tour=${encodeURIComponent(urlTour)}`);
         return;
@@ -179,6 +191,7 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
   useEffect(() => {
     if (!selectedTorneo || !active) return;
     let cancelled = false;
+    loadingConfig.current = true;
     setIsLoaded(false);
     
     const slug = selectedTorneo.toLowerCase().trim().replace(/\s+/g, '_');
@@ -221,10 +234,17 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
         setTeamsToSilver(8);
         setTabellonePubblicato(false);
       }
+      loadingConfig.current = false;
       setIsLoaded(true);
     }).catch((error) => { if (!cancelled) setSaveError(error.message); });
     return () => { cancelled = true; };
   }, [selectedTorneo, active, onSummary]);
+
+  useEffect(() => {
+    // Activation refreshes the bracket: do not publish the previous snapshot first.
+    if (!active || !isLoaded || !selectedTorneo || loadingConfig.current) return;
+    onSummary({ finalsPublished: tabellonePubblicato, finalsConfigured, finalMatches, finalCompleted, scoreDrafts });
+  }, [active, isLoaded, selectedTorneo, tabellonePubblicato, finalsConfigured, finalMatches, finalCompleted, scoreDrafts, onSummary]);
 
   // Auto-save whenever configurations change (after they have been fully loaded)
   useEffect(() => {
@@ -1454,19 +1474,19 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
       <div className="max-w-7xl mx-auto mt-6 md:mt-10 px-4" inert={publishing || undefined} aria-busy={publishing}>
         {!embedded && <TournamentSetupHeader step="finals" tournaments={torneiAttivi} selected={selectedTorneo} onSelect={setSelectedTorneo} />}
         {saveError && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-red-800">{saveError}</p>}
-        <section aria-label="Visibilità pubblica della fase finale" className="mb-5 rounded-2xl border border-slate-200 bg-white p-5">
+        <section hidden={workspaceMode === "day"} aria-label="Visibilità pubblica della fase finale" className="mb-5 rounded-2xl border border-slate-200 bg-white p-5">
           <h2 className="font-bold">Visibilità pubblica della fase finale</h2>
           <p className="mt-2 text-sm text-slate-600">{tournament?.stato === "Concluso" ? "Torneo concluso: tabellone e risultati restano consultabili qui. " : ""}Puoi mostrarli o nasconderli al pubblico senza cambiare lo stato del torneo, i gironi o i punteggi.</p>
           <p role="status" className="my-3 text-sm font-semibold">{publishing ? "Salvataggio visibilità…" : tabellonePubblicato ? "Fase finale visibile al pubblico" : "Fase finale nascosta al pubblico"}</p>
           <button type="button" onClick={changeVisibility} disabled={!selectedTorneo || !isLoaded || publishing || resultBusy || Boolean(scoreDrafts)} className="rounded-xl border border-slate-300 px-4 py-3 text-sm font-bold disabled:opacity-40">{tabellonePubblicato ? "Nascondi fase finale al pubblico" : "Pubblica fase finale"}</button>
         </section>
-        <nav aria-label="Modalità gestione fase finale" className="mb-5 flex flex-wrap gap-2">
+        <nav hidden={workspaceMode !== undefined} aria-label="Modalità gestione fase finale" className="mb-5 flex flex-wrap gap-2">
           {[{ id: "setup", label: "Configurazione tabellone" }, { id: "results", label: "Partite e risultati" }].map((mode) => <button key={mode.id} type="button" aria-pressed={entryMode === mode.id} disabled={resultBusy} onClick={() => switchMode(mode.id)} className={`rounded-xl border px-5 py-3 text-sm font-bold ${entryMode === mode.id ? "border-[#0a1628] bg-[#0a1628] text-white" : "border-slate-200 bg-white"}`}>{mode.label}</button>)}
         </nav>
-        <section hidden={entryMode !== "results"} aria-label="Partite e risultati della fase finale">
-          {isLoaded ? <MatchScoreEntry groups={finalMatchGroups(currentConfig)} contextLabel="Risultati della fase finale" selectorLabel="Scegli il turno" emptyMessage="Il tabellone non è ancora generato. Apri Configurazione tabellone per preparare gli abbinamenti." disabled={resultBusy || publishing} onDirtyChange={setScoreDrafts} onSave={recordScore} onSaveDetails={recordDetails} onClear={(game) => recordScore(game, null)} /> : <p role="status">Caricamento partite…</p>}
+        <section hidden={effectiveEntryMode !== "results"} aria-label="Partite e risultati della fase finale">
+          {isLoaded ? <MatchScoreEntry groups={scoringGroups} contextLabel="Risultati della fase finale" selectorLabel="Scegli il turno" emptyMessage="Il tabellone non è ancora generato. Apri Configurazione tabellone per preparare gli abbinamenti." disabled={resultBusy || publishing} onDirtyChange={setScoreDrafts} onSave={recordScore} onSaveDetails={recordDetails} onClear={(game) => recordScore(game, null)} /> : <p role="status">Caricamento partite…</p>}
         </section>
-        <div hidden={entryMode !== "setup"}>
+        <div hidden={effectiveEntryMode !== "setup"}>
           <FinalsSetupPanel config={currentConfig} onChange={changeSetting} disabled={!isLoaded || resultBusy || publishing} onGenerate={handleAutoFill} onSave={handleSave} onDelete={handleDeleteBracket} onResults={() => switchMode("results")} hasBracket={Object.keys(bracketAssignments).length > 0} />
           <details className="mt-5 rounded-2xl border border-slate-200 bg-white p-5" open><summary className="cursor-pointer font-bold">Anteprima e correzione abbinamenti</summary><p className="my-3 text-sm text-slate-500">I risultati si inseriscono nella vista Partite e risultati. Le correzioni ai partecipanti si applicano quando esci dal campo e chiedono conferma se annullano risultati dipendenti.</p>
 

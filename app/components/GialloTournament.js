@@ -44,7 +44,7 @@ function Match({ game, score, editable, busy, onScore, details }) {
   </form>;
 }
 
-function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange, onSummary }) {
+function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange, onSummary, workspaceMode }) {
   const [internalView, setInternalView] = useState("prepare");
   const view = workflowView ?? internalView;
   const setView = onWorkflowViewChange || setInternalView;
@@ -60,11 +60,15 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
   const [scoreDrafts, setScoreDrafts] = useState(0);
   const [finalMode, setFinalMode] = useState("setup");
   const [finalScoreDrafts, setFinalScoreDrafts] = useState(0);
+  const effectiveFinalMode = workspaceMode ? workspaceMode === "day" ? "results" : "setup" : finalMode;
   const slug = gialloSlug(tournament.nome);
   useEffect(() => {
     onSummary?.({ groupsPublished: Boolean(config?.published), finalsPublished: Boolean(config?.published),
-      busy: loading || busy, scoreDrafts: scoreDrafts + finalScoreDrafts, groupCount: config?.groups.length || 0, approvedCount: athletes.length });
-  }, [onSummary, config, loading, busy, athletes.length, scoreDrafts, finalScoreDrafts]);
+      busy: loading || busy, scoreDrafts: scoreDrafts + finalScoreDrafts, groupCount: config?.groups.length || 0, approvedCount: athletes.length,
+      summaryReady: !loading && !error, groupsConfigured: Boolean(config?.groups.length), finalsConfigured: Boolean(config?.finals),
+      groupMatches: config?.groups.length * 3 || 0, groupCompleted: Object.keys(config?.results || {}).length,
+      finalMatches: gialloStages(config).reduce((sum, stage) => sum + stage.games.length, 0), finalCompleted: Object.keys(config?.finals?.results || {}).length });
+  }, [onSummary, config, loading, busy, athletes.length, scoreDrafts, finalScoreDrafts, error]);
 
   useEffect(() => {
     let cancelled = false;
@@ -145,8 +149,8 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
   const groupGameCount = config ? config.groups.length * 3 : 0;
   const show = (stage) => !editable || view === stage;
 
-  return <div className="space-y-6 text-[#0a1628]">
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+  return <div hidden={workspaceMode && view === "summary"} className="space-y-6 text-[#0a1628]">
+    <div hidden={workspaceMode === "day"} className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div><p className="text-xs font-bold uppercase tracking-widest text-slate-500">{editable ? "Percorso guidato" : "Torneo giallo"}</p><h2 className="mt-2 text-2xl font-black">{tournament.nome}</h2></div>
         <span className={`rounded-full px-3 py-2 text-xs font-bold ${config?.published ? "bg-green-50 text-green-800" : "bg-slate-100 text-slate-600"}`}>{config?.published ? "Visibile al pubblico" : "Bozza"}</span>
@@ -177,7 +181,9 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
     </nav>}
     {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-red-800">{error}</p>}
     {message && <p role="status" className="rounded-xl bg-green-50 p-4 text-green-800">{message}</p>}
-    {editable && <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
+    {editable && <details open={workspaceMode !== "day"} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
+      <summary className="cursor-pointer text-sm font-bold">Visibilità pubblica e aggiornamento dati</summary>
+      {workspaceMode && <p className="text-sm text-slate-600">Nel giallo la pubblicazione comprende gironi e finali insieme. Non cambia lo stato del torneo.</p>}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-slate-500">I risultati si salvano dal pulsante della singola partita. La pubblicazione è una scelta separata.</p>
         <div className="flex flex-wrap gap-2">
@@ -197,19 +203,19 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
         : <><p className="rounded-xl bg-green-50 p-4 text-sm text-green-800">I gironi sono già salvati. Puoi passare ai risultati senza ripetere il sorteggio.</p><button className={buttonClass} onClick={() => setView("groups")}>Vai ai risultati dei gironi →</button>
           <details className="pt-3"><summary className="cursor-pointer text-sm font-semibold text-slate-600">Modifica il sorteggio · azzera risultati</summary><p className="my-3 text-sm text-slate-500">Rigenerare cancella tutti i risultati e il tabellone giallo. L’operazione richiede conferma.</p><button className="rounded-xl border border-red-200 px-4 py-3 text-sm font-bold text-red-700 disabled:opacity-40" disabled={disabled || !supportedGialloCount(athletes.length)} onClick={generate}>Rigenera gironi e azzera risultati</button></details></>}
       </div>
-    </div>}
+    </details>}
     {!config && <p className="rounded-xl bg-white p-5">Gironi e tabellone giallo non ancora {editable ? "generati" : "pubblicati"}.</p>}
     {config && <>
       <p hidden={editable && view === "prepare"} className="rounded-xl bg-slate-100 p-4 text-sm leading-6">{count} atleti · {config.groups.length} gironi · {config.groups.length * 3} partite nei gironi
         {playoffCount > 0 ? ` · primi ${count - playoffCount} direttamente ${target === 16 ? "ai quarti" : "alle semifinali"}, altri ${playoffCount} agli spareggi` : " · tutti ai quarti"}.
       </p>
       <div hidden={!show("groups")} className="space-y-5">
-        {editable && <MatchScoreEntry groups={config.groups.map((g) => ({ id: g.id, label: `Girone ${g.id}`, matches: groupGames(g).map((game) => ({
+        {editable && <div hidden={workspaceMode === "prepare"}><MatchScoreEntry groups={config.groups.map((g) => ({ id: g.id, label: `Girone ${g.id}`, matches: groupGames(g).map((game) => ({
           id: game.id, left: game.left.map((a) => a.name), right: game.right.map((a) => a.name),
           score: config.results[game.id] ? [config.results[game.id]] : [], ready: true, bestOf: 1, target: 21,
           court: config.matchMetadata?.[game.id]?.court, time: config.matchMetadata?.[game.id]?.time, status: config.matchMetadata?.[game.id]?.status,
-        })) }))} disabled={disabled} onDirtyChange={setScoreDrafts} onSave={(game, sets, details) => recordScore(game.id, sets[0], details)} onClear={(game) => recordScore(game.id, null)} onSaveDetails={(game, details) => persist({ ...config, matchMetadata: { ...config.matchMetadata, [game.id]: validateMatchDetails(game, details) } })} />}
-      {!editable && <div className="grid gap-5 lg:grid-cols-2">
+        })) }))} disabled={disabled} onDirtyChange={setScoreDrafts} onSave={(game, sets, details) => recordScore(game.id, sets[0], details)} onClear={(game) => recordScore(game.id, null)} onSaveDetails={(game, details) => persist({ ...config, matchMetadata: { ...config.matchMetadata, [game.id]: validateMatchDetails(game, details) } })} /></div>}
+      {(!editable || workspaceMode === "prepare") && <div className="grid gap-5 lg:grid-cols-2">
         {config.groups.map((group) => <section key={group.id} className="space-y-3 rounded-2xl bg-slate-100 p-4">
           <h3 className="text-xl font-black">Girone {group.id}</h3>
           <p className="text-sm">{group.athletes.map((a) => a.name).join(" · ")}</p>
@@ -229,15 +235,15 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
       </section>
       <section hidden={!show("finals")} className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
         <h3 className="text-2xl font-black">{editable ? "4. " : ""}Tabellone a eliminazione diretta</h3>
-        {editable && <nav aria-label="Modalità gestione finale giallo" className="flex flex-wrap gap-2">{[{ id: "setup", label: "Configurazione tabellone" }, { id: "results", label: "Partite e risultati" }].map((mode) => <button key={mode.id} type="button" aria-pressed={finalMode === mode.id} disabled={disabled} onClick={() => {
+        {editable && !workspaceMode && <nav aria-label="Modalità gestione finale giallo" className="flex flex-wrap gap-2">{[{ id: "setup", label: "Configurazione tabellone" }, { id: "results", label: "Partite e risultati" }].map((mode) => <button key={mode.id} type="button" aria-pressed={finalMode === mode.id} disabled={disabled} onClick={() => {
           if (finalScoreDrafts) { setError("Salva o scarta le bozze delle partite prima di cambiare vista."); return; }
           setFinalMode(mode.id); setError("");
         }} className={`rounded-xl border px-4 py-3 text-sm font-bold ${finalMode === mode.id ? "bg-[#0a1628] text-white" : "border-slate-200"}`}>{mode.label}</button>)}</nav>}
-        {editable && <div hidden={finalMode !== "results"}><MatchScoreEntry contextLabel="Risultati della fase finale giallo" selectorLabel="Scegli il turno" emptyMessage="Completa i gironi e genera il tabellone dalla vista Configurazione tabellone." groups={stages.map((stage) => ({ id: stage.id, label: stage.title, matches: stage.games.map((game) => ({
+        {editable && <div hidden={effectiveFinalMode !== "results"}><MatchScoreEntry contextLabel="Risultati della fase finale giallo" selectorLabel="Scegli il turno" emptyMessage="Completa i gironi e genera il tabellone in Preparazione → Fase finale." groups={stages.map((stage) => ({ id: stage.id, label: stage.title, matches: stage.games.map((game) => ({
           id: game.id, left: game.left.map((a) => a.name), right: game.right.map((a) => a.name), ready: true, bestOf: 1, target: 21,
           score: config.finals.results[game.id] ? [config.finals.results[game.id]] : [], court: config.matchMetadata?.[game.id]?.court, time: config.matchMetadata?.[game.id]?.time, status: config.matchMetadata?.[game.id]?.status,
         })) }))} disabled={disabled} onDirtyChange={setFinalScoreDrafts} onSave={(game, sets, details) => recordScore(game.id, sets[0], details)} onClear={(game) => recordScore(game.id, null)} onSaveDetails={(game, details) => persist({ ...config, matchMetadata: { ...config.matchMetadata, [game.id]: validateMatchDetails(game, details) } })} /></div>}
-        <div hidden={editable && finalMode !== "setup"} className="space-y-5">
+        <div hidden={editable && effectiveFinalMode !== "setup"} className="space-y-5">
         {editable && <p className="rounded-xl bg-slate-50 p-4 text-sm leading-6">La formula giallo usa la classifica unica: migliore con peggiore, coppie riformate a ogni turno e fisse dalle semifinali. Qui generi e controlli il percorso; campo, orario e punteggi si gestiscono in Partite e risultati.</p>}
         {editable && <p className="text-sm leading-6 text-slate-500">Genera gli abbinamenti dalla classifica completa. Poi salva i risultati: i turni successivi compariranno solo quando tutti gli incontri precedenti sono conclusi.</p>}
         {editable && <button className={buttonClass} disabled={disabled || !groupsComplete(config)} onClick={() => {
@@ -261,13 +267,13 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
   </div>;
 }
 
-export default function GialloTournament({ tournament, editable = false, tournaments, onSelect, embedded = false, workflowView, onWorkflowViewChange, onSummary }) {
+export default function GialloTournament({ tournament, editable = false, tournaments, onSelect, embedded = false, workflowView, onWorkflowViewChange, onSummary, workspaceMode }) {
   return <section className={embedded ? "space-y-5" : "mx-auto max-w-7xl space-y-5 px-4 py-8"}>
     {tournaments && <label className="block font-bold">Torneo
       <select className="ml-3 max-w-full rounded-xl border bg-white p-3" value={tournament.nome} onChange={(event) => onSelect(event.target.value)}>
         {tournaments.map((t) => <option key={t.id || t.nome} value={t.nome}>{t.nome}</option>)}
       </select>
     </label>}
-    <GialloPanel key={`${tournament.nome}-${editable}`} tournament={tournament} editable={editable} workflowView={workflowView} onWorkflowViewChange={onWorkflowViewChange} onSummary={onSummary} />
+    <GialloPanel key={`${tournament.nome}-${editable}`} tournament={tournament} editable={editable} workflowView={workflowView} onWorkflowViewChange={onWorkflowViewChange} onSummary={onSummary} workspaceMode={workspaceMode} />
   </section>;
 }
