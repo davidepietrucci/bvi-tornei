@@ -50,12 +50,13 @@ const getSchedule = (numTeams, gironeId, assignments = {}, gironeTypes = {}, gir
   return getScheduleShared(numTeams, gironeId, assignments, gironeTypes, gironeSets, matchMetadata);
 };
 
-function TabelloneContent({ tournament = null, embedded = false, active = true, workspaceMode, saveRef, onSummary: summaryCallback }) {
+function TabelloneContent({ tournament = null, embedded = false, active = true, workspaceMode, saveRef, onSummary: summaryCallback, sharedPublication = false }) {
   // Async saves must not report stale summaries after this editor becomes inactive.
-  const summaryTarget = useRef({ active, callback: summaryCallback });
-  useEffect(() => { summaryTarget.current = { active, callback: summaryCallback }; }, [active, summaryCallback]);
+  const summaryTarget = useRef({ active, callback: summaryCallback, sharedPublication });
+  useEffect(() => { summaryTarget.current = { active, callback: summaryCallback, sharedPublication }; }, [active, summaryCallback, sharedPublication]);
   const onSummary = useMemo(() => (summary) => {
     if (summaryTarget.current.active) summaryTarget.current.callback?.(summary);
+    else if (summaryTarget.current.sharedPublication && summary.finalsPublished !== undefined) summaryTarget.current.callback?.({ finalsPublished: summary.finalsPublished });
   }, []);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -111,7 +112,6 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
     savedFingerprint.current = JSON.stringify(currentConfig); setSaveError("");
     onSummary?.({ finalsPublished: tabellonePubblicato });
   };
-  useImperativeHandle(saveRef, () => ({ flush: persist }));
   const switchMode = async (mode) => {
     if (resultBusy || mode === entryMode) return;
     if (scoreDrafts) { setSaveError("Salva o scarta le bozze delle partite prima di cambiare vista."); return; }
@@ -156,9 +156,15 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
       savedFingerprint.current = JSON.stringify(next);
       setTabellonePubblicato(next.tabellonePubblicato);
       onSummary?.({ finalsPublished: next.tabellonePubblicato });
+      return true;
     } catch (error) { setSaveError(error.message); }
     finally { setPublishing(false); onSummary?.({ busy: false }); }
   };
+  useImperativeHandle(saveRef, () => ({ flush: persist, publish: async () => {
+    if (!isLoaded || publishing || resultBusy || scoreDrafts) throw new Error("Attendi il caricamento e salva o scarta le bozze delle finali prima di pubblicare.");
+    if (await changeVisibility() !== true) throw new Error("Pubblicazione finali non confermata. Riprova.");
+    return !tabellonePubblicato;
+  } }));
 
   let goldSlots = 0;
   let silverSlots = 0;
@@ -189,7 +195,7 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
   }, [urlTour, embedded]);
 
   useEffect(() => {
-    if (!selectedTorneo || !active) return;
+    if (!selectedTorneo || (!active && !sharedPublication)) return;
     let cancelled = false;
     loadingConfig.current = true;
     setIsLoaded(false);
@@ -238,7 +244,7 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
       setIsLoaded(true);
     }).catch((error) => { if (!cancelled) setSaveError(error.message); });
     return () => { cancelled = true; };
-  }, [selectedTorneo, active, onSummary]);
+  }, [selectedTorneo, active, onSummary, sharedPublication]);
 
   useEffect(() => {
     // Activation refreshes the bracket: do not publish the previous snapshot first.
@@ -1474,7 +1480,7 @@ function TabelloneContent({ tournament = null, embedded = false, active = true, 
       <div className="max-w-7xl mx-auto mt-6 md:mt-10 px-4" inert={publishing || undefined} aria-busy={publishing}>
         {!embedded && <TournamentSetupHeader step="finals" tournaments={torneiAttivi} selected={selectedTorneo} onSelect={setSelectedTorneo} />}
         {saveError && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-red-800">{saveError}</p>}
-        <section hidden={workspaceMode === "day"} aria-label="Visibilità pubblica della fase finale" className="mb-5 rounded-2xl border border-slate-200 bg-white p-5">
+        <section hidden={sharedPublication || workspaceMode === "day"} aria-label="Visibilità pubblica della fase finale" className="mb-5 rounded-2xl border border-slate-200 bg-white p-5">
           <h2 className="font-bold">Visibilità pubblica della fase finale</h2>
           <p className="mt-2 text-sm text-slate-600">{tournament?.stato === "Concluso" ? "Torneo concluso: tabellone e risultati restano consultabili qui. " : ""}Puoi mostrarli o nasconderli al pubblico senza cambiare lo stato del torneo, i gironi o i punteggi.</p>
           <p role="status" className="my-3 text-sm font-semibold">{publishing ? "Salvataggio visibilità…" : tabellonePubblicato ? "Fase finale visibile al pubblico" : "Fase finale nascosta al pubblico"}</p>

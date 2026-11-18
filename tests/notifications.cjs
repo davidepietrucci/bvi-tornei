@@ -63,6 +63,12 @@ const { createHash } = require('node:crypto');
   const game = helpers.giallo.groupGames(yellow.groups[0])[0];
   automatic = tournamentNotifications('giallo', yellow, { ...yellow, matchMetadata: { [game.id]: { court: '1' } } }, 'Giallo', [], time);
   assert.equal(automatic.length, 1); assert.equal(automatic[0].audience.registrationIds.length, 4);
+  const groupsOnly = { ...yellow, groupsPublished: true, finalsPublished: false };
+  assert.equal(tournamentNotifications('giallo', groupsOnly, { ...groupsOnly, finalsPublished: true }, 'Giallo', [], time)[0].titolo, 'Fasi finali pubblicate');
+  assert.equal(tournamentNotifications('giallo', groupsOnly, { ...groupsOnly, groupsPublished: false }, 'Giallo', [], time).length, 0);
+  assert.equal(helpers['public-live'].publicLiveModel(null, null, { ...yellow, groupsPublished: false, finalsPublished: false }).groups.length, 0);
+  assert.deepEqual(helpers.giallo.gialloVisibility(yellow), { groups: true, finals: true }, 'Legacy publication must retain both phases');
+  assert.deepEqual(helpers.giallo.gialloVisibility({ ...yellow, published: false, groupsPublished: true, finalsPublished: false }), { groups: true, finals: false });
 
   class NextResponse extends Response { static json(value, options) { return new NextResponse(JSON.stringify(value), options); } }
   const strip = (file) => fs.readFileSync(file, 'utf8').replace(/^import\s+[\s\S]*?\s+from\s+['"][^'"]+['"];\s*/gm, '').replaceAll('export const ', 'const ').replaceAll('export async function ', 'async function ');

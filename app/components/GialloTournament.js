@@ -1,19 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useImperativeHandle, useRef } from "react";
 import MatchScoreEntry from "@/app/components/tournament/MatchScoreEntry";
 import { validateMatchDetails } from "@/app/utils/match-scoring";
 import {
   approvedGialloAthletes, createGiallo, gialloRanking, gialloSlug, gialloStages,
-  groupGames, groupsComplete, setGialloScore, startGialloFinals, supportedGialloCount,
+  groupGames, groupsComplete, setGialloScore, startGialloFinals, supportedGialloCount, gialloVisibility,
 } from "@/app/utils/giallo";
 
 const buttonClass = "rounded-xl bg-[#0a1628] px-4 py-3 text-sm font-bold text-white disabled:opacity-40";
 
-async function readData(type, slug) {
+async function readData(type, slug, publicView = false) {
   const params = new URLSearchParams({ type });
   if (slug) params.set("slug", slug);
-  if (type === "iscrizioni") params.set("public", "true");
+  if (type === "iscrizioni" || publicView) params.set("public", "true");
   const response = await fetch(`/api/db?${params}`, { cache: "no-store" });
   const json = await response.json();
   if (!response.ok) throw new Error(json.error || "Caricamento non riuscito. Riprova.");
@@ -44,7 +44,7 @@ function Match({ game, score, editable, busy, onScore, details }) {
   </form>;
 }
 
-function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange, onSummary, workspaceMode }) {
+function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange, onSummary, workspaceMode, saveRef, sharedPublication }) {
   const [internalView, setInternalView] = useState("prepare");
   const view = workflowView ?? internalView;
   const setView = onWorkflowViewChange || setInternalView;
@@ -60,10 +60,12 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
   const [scoreDrafts, setScoreDrafts] = useState(0);
   const [finalMode, setFinalMode] = useState("setup");
   const [finalScoreDrafts, setFinalScoreDrafts] = useState(0);
+  const publicationLock = useRef(false);
   const effectiveFinalMode = workspaceMode ? workspaceMode === "day" ? "results" : "setup" : finalMode;
   const slug = gialloSlug(tournament.nome);
   useEffect(() => {
-    onSummary?.({ groupsPublished: Boolean(config?.published), finalsPublished: Boolean(config?.published),
+    const visibility = gialloVisibility(config);
+    onSummary?.({ groupsPublished: visibility.groups, finalsPublished: visibility.finals,
       busy: loading || busy, scoreDrafts: scoreDrafts + finalScoreDrafts, groupCount: config?.groups.length || 0, approvedCount: athletes.length,
       summaryReady: !loading && !error, groupsConfigured: Boolean(config?.groups.length), finalsConfigured: Boolean(config?.finals),
       groupMatches: config?.groups.length * 3 || 0, groupCompleted: Object.keys(config?.results || {}).length,
@@ -75,10 +77,11 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
     const load = async () => {
       try {
         const [data, registrations] = await Promise.all([
-          readData("giallo", slug), editable ? readData("iscrizioni") : Promise.resolve(null),
+          readData("giallo", slug, !editable), editable ? readData("iscrizioni") : Promise.resolve(null),
         ]);
         if (cancelled) return;
-        setConfig(editable || data?.published ? data : null);
+        const visibility = gialloVisibility(data);
+        setConfig(editable || visibility.groups || visibility.finals ? data : null);
         if (registrations) setAthletes(approvedGialloAthletes(registrations, tournament.nome));
         setError(""); setConflict(false);
       } catch (reason) {
@@ -101,7 +104,7 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
         body: JSON.stringify({ type: "giallo", slug, data: next, baseline: config }),
       });
       const json = await response.json();
-      if (!response.ok) {
+      if (!response.ok || json.success !== true) {
         if (response.status === 409) setConflict(true);
         throw new Error(json.error || "Salvataggio non riuscito.");
       }
@@ -110,6 +113,20 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
     } catch (reason) { setError(reason.message); return false; }
     finally { setBusy(false); }
   };
+
+  const publish = async (phase) => {
+    if (!config || loading || busy || conflict || scoreDrafts || finalScoreDrafts || publicationLock.current) throw new Error("Attendi il caricamento e salva o scarta le bozze prima di pubblicare.");
+    const visibility = gialloVisibility(config);
+    if (phase === "finals" && !config.finals && !visibility.finals) throw new Error("Genera il tabellone prima di pubblicare le finali.");
+    publicationLock.current = true;
+    try {
+      const groupsPublished = phase === "groups" ? !visibility.groups : visibility.groups;
+      const finalsPublished = phase === "finals" ? !visibility.finals : visibility.finals;
+      if (!await persist({ ...config, groupsPublished, finalsPublished, published: groupsPublished || finalsPublished })) throw new Error("Pubblicazione non confermata. Controlla l’avviso e riprova.");
+      return phase === "groups" ? groupsPublished : finalsPublished;
+    } finally { publicationLock.current = false; }
+  };
+  useImperativeHandle(saveRef, () => ({ publish }));
 
   const generate = async () => {
     if (config && !window.confirm("Rigenerare i gironi? Tutti i risultati e il tabellone giallo attuale verranno cancellati. Nessun altro torneo sarà modificato.")) return;
@@ -138,7 +155,7 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
   if (loading) return <p className="p-6" role="status">Caricamento torneo giallo…</p>;
   const ranking = gialloRanking(config);
   const stages = gialloStages(config);
-  const count = ranking.length;
+  const count = ranking.length || config?.publicAthleteCount || 0;
   const generatedIds = ranking.map((a) => a.id).sort().join(",");
   const currentIds = athletes.map((a) => a.id).sort().join(",");
   const changed = editable && config && generatedIds !== currentIds;
@@ -147,13 +164,14 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
   const playoffCount = 2 * (count - target);
   const completedGames = config ? Object.keys(config.results).length : 0;
   const groupGameCount = config ? config.groups.length * 3 : 0;
-  const show = (stage) => !editable || view === stage;
+  const visibility = gialloVisibility(config);
+  const show = (stage) => editable ? view === stage : stage === "finals" ? visibility.finals : visibility.groups;
 
   return <div hidden={workspaceMode && view === "summary"} className="space-y-6 text-[#0a1628]">
     <div hidden={workspaceMode === "day"} className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div><p className="text-xs font-bold uppercase tracking-widest text-slate-500">{editable ? "Percorso guidato" : "Torneo giallo"}</p><h2 className="mt-2 text-2xl font-black">{tournament.nome}</h2></div>
-        <span className={`rounded-full px-3 py-2 text-xs font-bold ${config?.published ? "bg-green-50 text-green-800" : "bg-slate-100 text-slate-600"}`}>{config?.published ? "Visibile al pubblico" : "Bozza"}</span>
+        <span className={`rounded-full px-3 py-2 text-xs font-bold ${visibility.groups || visibility.finals ? "bg-green-50 text-green-800" : "bg-slate-100 text-slate-600"}`}>{visibility.groups && visibility.finals ? "Visibile al pubblico" : visibility.groups || visibility.finals ? "Pubblicazione parziale" : "Bozza"}</span>
       </div>
       <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[{ label: editable ? "Atleti approvati" : "Atleti", value: editable ? athletes.length : count },
@@ -182,12 +200,15 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
     {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-red-800">{error}</p>}
     {message && <p role="status" className="rounded-xl bg-green-50 p-4 text-green-800">{message}</p>}
     {editable && <details open={workspaceMode !== "day"} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
-      <summary className="cursor-pointer text-sm font-bold">Visibilità pubblica e aggiornamento dati</summary>
-      {workspaceMode && <p className="text-sm text-slate-600">Nel giallo la pubblicazione comprende gironi e finali insieme. Non cambia lo stato del torneo.</p>}
+      <summary className="cursor-pointer text-sm font-bold">{sharedPublication ? "Aggiornamento dati" : "Visibilità pubblica e aggiornamento dati"}</summary>
+      {workspaceMode && <p className="text-sm text-slate-600">Gironi e finali hanno una visibilità indipendente. La pubblicazione non cambia lo stato del torneo.</p>}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-slate-500">I risultati si salvano dal pulsante della singola partita. La pubblicazione è una scelta separata.</p>
         <div className="flex flex-wrap gap-2">
-          {config && <button className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold disabled:opacity-40" disabled={disabled} onClick={() => persist({ ...config, published: !config.published })}>{config.published ? "Nascondi al pubblico" : "Pubblica torneo"}</button>}
+          {config && !sharedPublication && <>
+            <button className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold disabled:opacity-40" disabled={disabled || Boolean(scoreDrafts + finalScoreDrafts)} onClick={() => publish("groups").catch(reason => setError(reason.message))}>{visibility.groups ? "Nascondi" : "Pubblica"} gironi</button>
+            <button className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold disabled:opacity-40" disabled={disabled || Boolean(scoreDrafts + finalScoreDrafts) || !config.finals && !visibility.finals} onClick={() => publish("finals").catch(reason => setError(reason.message))}>{visibility.finals ? "Nascondi" : "Pubblica"} finali</button>
+          </>}
           <button className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-600 disabled:opacity-40" disabled={busy} onClick={() => {
             if (!window.confirm("Aggiornare dal server? Le modifiche non salvate a punteggi, campo, orario e stato andranno perse.")) return;
             setMessage(""); setLoading(true); setReload((n) => n + 1);
@@ -206,7 +227,7 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
     </details>}
     {!config && <p className="rounded-xl bg-white p-5">Gironi e tabellone giallo non ancora {editable ? "generati" : "pubblicati"}.</p>}
     {config && <>
-      <p hidden={editable && view === "prepare"} className="rounded-xl bg-slate-100 p-4 text-sm leading-6">{count} atleti · {config.groups.length} gironi · {config.groups.length * 3} partite nei gironi
+      <p hidden={editable ? view === "prepare" : !visibility.groups} className="rounded-xl bg-slate-100 p-4 text-sm leading-6">{count} atleti · {config.groups.length} gironi · {config.groups.length * 3} partite nei gironi
         {playoffCount > 0 ? ` · primi ${count - playoffCount} direttamente ${target === 16 ? "ai quarti" : "alle semifinali"}, altri ${playoffCount} agli spareggi` : " · tutti ai quarti"}.
       </p>
       <div hidden={!show("groups")} className="space-y-5">
@@ -267,13 +288,13 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
   </div>;
 }
 
-export default function GialloTournament({ tournament, editable = false, tournaments, onSelect, embedded = false, workflowView, onWorkflowViewChange, onSummary, workspaceMode }) {
+export default function GialloTournament({ tournament, editable = false, tournaments, onSelect, embedded = false, workflowView, onWorkflowViewChange, onSummary, workspaceMode, saveRef, sharedPublication = false }) {
   return <section className={embedded ? "space-y-5" : "mx-auto max-w-7xl space-y-5 px-4 py-8"}>
     {tournaments && <label className="block font-bold">Torneo
       <select className="ml-3 max-w-full rounded-xl border bg-white p-3" value={tournament.nome} onChange={(event) => onSelect(event.target.value)}>
         {tournaments.map((t) => <option key={t.id || t.nome} value={t.nome}>{t.nome}</option>)}
       </select>
     </label>}
-    <GialloPanel key={`${tournament.nome}-${editable}`} tournament={tournament} editable={editable} workflowView={workflowView} onWorkflowViewChange={onWorkflowViewChange} onSummary={onSummary} workspaceMode={workspaceMode} />
+    <GialloPanel key={`${tournament.nome}-${editable}`} tournament={tournament} editable={editable} workflowView={workflowView} onWorkflowViewChange={onWorkflowViewChange} onSummary={onSummary} workspaceMode={workspaceMode} saveRef={saveRef} sharedPublication={sharedPublication} />
   </section>;
 }

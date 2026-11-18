@@ -11,7 +11,7 @@ import {
   getSponsors, saveSponsors,
   getDbStatus, saveConfigIfUnchanged, getGiallo, saveGialloIfUnchanged
 } from "@/app/utils/db-server";
-import { validateGiallo, isGiallo, gialloSlug } from "@/app/utils/giallo";
+import { validateGiallo, isGiallo, gialloSlug, publicGiallo } from "@/app/utils/giallo";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -83,7 +83,7 @@ export async function GET(req) {
     else if (type === "giallo") {
       if (!slug || slug.includes("/") || slug.length > 300) return NextResponse.json({ error: "Torneo non valido" }, { status: 400 });
       data = await getGiallo(slug);
-      if (role !== "admin" && role !== "staff" && !data?.published) data = null;
+      if (searchParams.get("public") === "true" || (role !== "admin" && role !== "staff")) data = publicGiallo(data);
     }
     else if (type === "gironi" || type === "bracket") {
       data = type === "gironi" ? await getGironi(slug) : await getBracket(slug);

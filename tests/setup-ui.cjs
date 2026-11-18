@@ -58,6 +58,12 @@ const swc = require('next/dist/build/swc');
   const empty = renderToStaticMarkup(React.createElement(Header, { tournaments: [], onSelect() {} }));
   assert.match(empty, /Nessun torneo disponibile/);
   assert.match(empty, /disabled=""/);
+  const publicationHeader = renderToStaticMarkup(React.createElement(Header, { family: 'giallo', tournaments: [tournament], selected: tournament.nome, onSelect() {}, onPublish() {}, summary: { groupsPublished: false, groupsConfigured: true, finalsPublished: true } }));
+  assert.match(publicationHeader, /aria-label="Pubblica gironi"/);
+  assert.match(publicationHeader, /aria-label="Nascondi finali"/);
+  const pendingHeader = renderToStaticMarkup(React.createElement(Header, { tournaments: [tournament], selected: tournament.nome, onSelect() {}, onPublish() {}, publicationSaving: 'groups', summary: { groupsPublished: false, groupsConfigured: true } }));
+  assert.match(pendingHeader, /Salvataggio…/);
+  assert.match(pendingHeader, /disabled=""/);
   for (const mode of ['prepare', 'day']) {
     const managed = renderToStaticMarkup(React.createElement(Header, { family: 'giallo', step: mode === 'day' ? 'groups' : 'summary', workspaceMode: mode, tournaments: [tournament], selected: tournament.nome, onSelect() {} }));
     assert.match(managed, /Modalità del torneo/);

@@ -4,6 +4,23 @@ export const isGiallo = (tournament) => /giallo/i.test(tournament?.categoria || 
 export const gialloSlug = (name) => name.toLowerCase().trim().replace(/\s+/g, "_");
 export const supportedGialloCount = (count) => [12, 16, 20, 24].includes(count);
 
+// Old tournaments had one switch: keep that meaning until either new switch is saved.
+export function gialloVisibility(config) {
+  return { groups: config?.groupsPublished ?? config?.published === true, finals: config?.finalsPublished ?? config?.published === true };
+}
+
+export function publicGiallo(config) {
+  const visibility = gialloVisibility(config);
+  if (!config || (!visibility.groups && !visibility.finals)) return null;
+  return { format: config.format, published: true, groupsPublished: visibility.groups, finalsPublished: visibility.finals,
+    publicView: true, publicAthleteCount: config.groups.flatMap(group => group.athletes).length,
+    groups: visibility.groups ? config.groups : [], results: visibility.groups ? config.results : {},
+    finals: visibility.finals && config.finals ? { results: config.finals.results } : null,
+    publicFinalStages: visibility.finals ? gialloStages(config) : [],
+    matchMetadata: Object.fromEntries(Object.entries(config.matchMetadata || {}).filter(([id]) => id.startsWith("group-") ? visibility.groups : visibility.finals)),
+  };
+}
+
 export function approvedGialloAthletes(registrations, name) {
   const athletes = registrations.filter((r) =>
     String(r.torneo || "").trim().toLowerCase() === name.trim().toLowerCase() &&
@@ -109,6 +126,7 @@ function winners(games, results) {
 }
 
 export function gialloStages(config) {
+  if (config?.publicView) return gialloVisibility(config).finals ? config.publicFinalStages || [] : [];
   if (!config?.finals) return [];
   const { seeds, results } = config.finals;
   const order = new Map(seeds.map((a, i) => [a.id, i]));
@@ -153,6 +171,10 @@ export function setGialloScore(config, gameId, score) {
     next.matchMetadata = { ...next.matchMetadata, [gameId]: { ...next.matchMetadata?.[gameId], status: score === null ? "scheduled" : "finished" } };
     // Ranking changes invalidate every final pairing and result, even if the old winner was unchanged.
     next.finals = null;
+    if (next.finalsPublished !== undefined || next.groupsPublished !== undefined) {
+      next.finalsPublished = false;
+      next.published = gialloVisibility(next).groups;
+    }
     next.matchMetadata = Object.fromEntries(Object.entries(next.matchMetadata).filter(([id]) => groupIds.includes(id)));
     return next;
   }
@@ -170,6 +192,7 @@ export function setGialloScore(config, gameId, score) {
 }
 
 export function validateGiallo(config) {
+  if (config?.publicView || ["groupsPublished", "finalsPublished"].some(key => config?.[key] !== undefined && typeof config[key] !== "boolean")) throw new Error("Visibilità giallo non valida.");
   if (config?.format !== GIALLO_FORMAT || typeof config.published !== "boolean" || !Array.isArray(config.groups)) throw new Error("Formato giallo non valido.");
   const athletes = config.groups.flatMap((g) => g.athletes || []);
   if (!supportedGialloCount(athletes.length) || config.groups.some((g, i) => g.id !== String.fromCharCode(65 + i) || g.athletes?.length !== 4) ||

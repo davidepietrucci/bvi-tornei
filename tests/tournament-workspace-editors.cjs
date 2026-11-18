@@ -20,14 +20,14 @@ const swc = require('next/dist/build/swc');
 
   async function harness(kind, config) {
     const states = [], refs = [], memos = [], effects = [];
-    let si, ri, mi, ei, jobs, reads = 0, failSave = false, writes = 0, flush;
+    let si, ri, mi, ei, jobs, reads = 0, failSave = false, writes = 0, flush, publish;
     const changed = (old, next) => !old || !next || old.length !== next.length || next.some((v, i) => !Object.is(v, old[i]));
     const hooks = { ...React,
       useState(initial) { const i = si++; if (!(i in states)) states[i] = initial; return [states[i], (v) => { states[i] = typeof v === 'function' ? v(states[i]) : v; }]; },
       useRef(initial) { const i = ri++; return refs[i] ||= { current: initial }; },
       useMemo(fn, deps) { const i = mi++; if (!memos[i] || changed(memos[i].deps, deps)) memos[i] = { deps, value: fn() }; return memos[i].value; },
       useEffect(fn, deps) { const i = ei++; if (!effects[i] || changed(effects[i].deps, deps)) jobs.push(() => { effects[i]?.cleanup?.(); effects[i] = { deps, cleanup: fn() }; }); },
-      useImperativeHandle(ref, fn) { flush = fn().flush; },
+      useImperativeHandle(ref, fn) { const methods = fn(); flush = methods.flush; publish = methods.publish; },
     };
     const file = `app/components/tournament/Team${kind}.js`;
     const result = await swc.transform(fs.readFileSync(file, 'utf8'), { filename: file, jsc: { parser: { syntax: 'ecmascript', jsx: true }, transform: { react: { runtime: 'automatic' } } }, module: { type: 'commonjs' } });
@@ -62,7 +62,7 @@ const swc = require('next/dist/build/swc');
       return tree;
     }
     async function settle() { let tree; for (let i = 0; i < 4; i++) { tree = render(); await Promise.resolve(); await Promise.resolve(); } return tree; }
-    return { props, summary, notifications, render, settle, get reads() { return reads; }, get writes() { return writes; }, flush: () => flush(), fail: (value) => { failSave = value; } };
+    return { props, summary, notifications, render, settle, get reads() { return reads; }, get writes() { return writes; }, flush: () => flush(), publish: () => publish(), fail: (value) => { failSave = value; } };
   }
 
   for (const kind of ['Groups', 'Finals']) {
@@ -115,6 +115,22 @@ const swc = require('next/dist/build/swc');
     assert.equal(h.notifications.length, count, 'Inactive effects and async handlers do not publish stale summaries');
   }
   const partial = structuredClone(groupConfig);
+  for (const kind of ['Groups', 'Finals']) {
+    const p = await harness(kind, kind === 'Groups' ? groupConfig : finalConfig);
+    p.props.sharedPublication = true; p.props.active = false;
+    let tree = await p.settle();
+    p.fail(true);
+    await assert.rejects(p.publish(), /non confermata/);
+    await p.settle();
+    assert.equal(Boolean(p.summary[kind === 'Groups' ? 'groupsPublished' : 'finalsPublished']), false, 'Failed publication cannot change the header status');
+    p.fail(false);
+    assert.equal(await p.publish(), true);
+    tree = await p.settle();
+    assert.equal(p.summary[kind === 'Groups' ? 'groupsPublished' : 'finalsPublished'], true, 'Header publishing must work from another section');
+    const scoreEditor = nodes(tree).find(node => node.type === ScoreEntry);
+    scoreEditor.props.onDirtyChange(1); await p.settle();
+    await assert.rejects(p.publish(), /bozze/);
+  }
   delete partial.gironeAssignments.A[3];
   const h = await harness('Groups', partial);
   await h.settle();

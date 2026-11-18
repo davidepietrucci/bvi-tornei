@@ -17,7 +17,7 @@ class NextResponse extends Response {
     getTornei: async () => [{ nome: 'Prova Giallo', categoria: 'Giallo' }],
     getGiallo: async () => { if (unavailable) throw new Error('Offline'); return stored; },
     saveGialloIfUnchanged: async () => { writes++; if (unavailable) throw new Error('Offline'); return outcome; },
-    validateGiallo: rules.validateGiallo, isGiallo: rules.isGiallo, gialloSlug: rules.gialloSlug,
+    validateGiallo: rules.validateGiallo, isGiallo: rules.isGiallo, gialloSlug: rules.gialloSlug, publicGiallo: rules.publicGiallo,
   });
   const source = fs.readFileSync('app/api/db/route.js', 'utf8')
     .replace(/^import\s+[\s\S]*?\s+from\s+['"][^'"]+['"];\s*/gm, '')
@@ -58,6 +58,29 @@ class NextResponse extends Response {
   let withFinalScore = rules.setGialloScore(finals, finalGame.id, [21, 16]);
   withFinalScore.matchMetadata[finalGame.id] = { court: '4', time: '18:00', status: 'finished' };
   assert.equal((await post({ data: withFinalScore })).status, 200);
+  for (const [groupsPublished, finalsPublished] of [[true, false], [false, true], [false, false], [true, true]]) {
+    stored = { ...withFinalScore, published: true, groupsPublished, finalsPublished };
+    const original = JSON.stringify(stored);
+    role = 'atleta'; userId = 'athlete-1';
+    const publicData = (await (await get()).json()).data;
+    if (!groupsPublished && !finalsPublished) assert.equal(publicData, null);
+    else {
+      assert.equal(publicData.groups.length, groupsPublished ? 6 : 0);
+      assert.equal(Object.keys(publicData.results).length, groupsPublished ? 18 : 0);
+      assert.equal(Boolean(publicData.finals), finalsPublished);
+      assert.equal(rules.gialloStages(publicData).length > 0, finalsPublished);
+      assert.equal(Object.keys(publicData.matchMetadata).some(id => !id.startsWith('group-')), finalsPublished);
+      assert.ok(!JSON.stringify(publicData).includes('"seeds"'), 'Private finals seeds must not be returned');
+    }
+    role = 'staff'; userId = 'staff-1';
+    assert.equal(JSON.stringify((await (await get()).json()).data), original, 'Staff source must remain complete');
+    const preview = await context.GET({ url: 'https://example.test/api/db?type=giallo&slug=prova_giallo&public=true' });
+    assert.deepEqual((await preview.json()).data, publicData, 'Staff public preview must use the same visibility rules');
+    assert.equal(JSON.stringify(stored), original, 'Publication filtering cannot mutate stored data');
+  }
+  assert.equal((await post({ data: { ...withFinalScore, groupsPublished: 'yes' } })).status, 400);
+  assert.equal((await post({ data: { ...withFinalScore, finalsPublished: null } })).status, 400);
+  assert.equal((await post({ data: rules.publicGiallo({ ...withFinalScore, published: true }) })).status, 400, 'Public projections cannot overwrite staff configuration');
   const regenerated = rules.startGialloFinals(withFinalScore);
   assert.equal(regenerated.matchMetadata[finalGame.id].status, 'scheduled');
   assert.equal(regenerated.matchMetadata[finalGame.id].court, '4');

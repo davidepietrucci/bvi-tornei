@@ -30,10 +30,16 @@ export function validateNotificationText(body) {
 }
 
 export function tournamentNotifications(type, before, after, tournamentName, registrations, now) {
-  const published = (config) => type === "giallo" ? config?.published === true : type === "gironi" ? config?.pubblicato === true : config?.tabellonePubblicato === true;
+  const visibility = config => ({ groups: config?.groupsPublished ?? config?.published === true, finals: config?.finalsPublished ?? config?.published === true });
+  const published = (config) => type === "giallo" ? visibility(config).groups || visibility(config).finals : type === "gironi" ? config?.pubblicato === true : config?.tabellonePubblicato === true;
   if (!published(after)) return [];
   const href = `/atleta/gironi?${new URLSearchParams({ tour: tournamentName })}`;
   const common = { data: now, tipo: "info", source: "automatic", archived: false, href };
+  if (type === "giallo") {
+    const previousVisibility = visibility(before), currentVisibility = visibility(after);
+    const publications = ["groups", "finals"].filter(phase => currentVisibility[phase] && !previousVisibility[phase]);
+    if (publications.length) return publications.map(phase => ({ ...common, titolo: phase === "finals" ? "Fasi finali pubblicate" : "Gironi e calendario disponibili", messaggio: `Lo staff ha pubblicato ${phase === "finals" ? "le fasi finali" : "i gironi e il calendario"} di ${tournamentName}. Consulta le tue partite.`, audience: { type: "tournament", tournamentName } }));
+  }
   if (!published(before)) return [{ ...common, titolo: type === "bracket" ? "Fasi finali pubblicate" : "Gironi e calendario disponibili", messaggio: `Lo staff ha pubblicato ${type === "bracket" ? "le fasi finali" : "i gironi e il calendario"} di ${tournamentName}. Consulta le tue partite.`, audience: { type: "tournament", tournamentName } }];
   const model = (config) => type === "giallo" ? publicLiveModel(null, null, config) : type === "gironi" ? publicLiveModel(config, null, null) : publicLiveModel(null, config, null);
   const previous = model(before), current = model(after);

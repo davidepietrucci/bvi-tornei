@@ -52,12 +52,13 @@ function shuffle(array) {
   return arr;
 }
 
-export default function TeamGroups({ tournament = null, embedded = false, active = true, workspaceMode, saveRef, onSummary: summaryCallback }) {
+export default function TeamGroups({ tournament = null, embedded = false, active = true, workspaceMode, saveRef, onSummary: summaryCallback, sharedPublication = false }) {
   // Keep notifications current without making callback identity reload configuration.
-  const summaryTarget = useRef({ active, callback: summaryCallback });
-  useEffect(() => { summaryTarget.current = { active, callback: summaryCallback }; }, [active, summaryCallback]);
+  const summaryTarget = useRef({ active, callback: summaryCallback, sharedPublication });
+  useEffect(() => { summaryTarget.current = { active, callback: summaryCallback, sharedPublication }; }, [active, summaryCallback, sharedPublication]);
   const onSummary = useMemo(() => (summary) => {
     if (summaryTarget.current.active) summaryTarget.current.callback?.(summary);
+    else if (summaryTarget.current.sharedPublication && summary.groupsPublished !== undefined) summaryTarget.current.callback?.({ groupsPublished: summary.groupsPublished });
   }, []);
   const [numGironi, setNumGironi] = useState(4);
   const [teamCounts, setTeamCounts] = useState({ A: 4, B: 4, C: 4, D: 4, E: 4, F: 4, G: 4, H: 4 });
@@ -99,7 +100,6 @@ export default function TeamGroups({ tournament = null, embedded = false, active
     setSaveError("");
     onSummary?.({ groupsPublished: pubblicato, groupCount: numGironi });
   };
-  useImperativeHandle(saveRef, () => ({ flush: persist }));
   const changeVisibility = async () => {
     if (publishing || !isLoaded || scoreDrafts) return;
     clearTimeout(pendingTimer.current);
@@ -109,10 +109,16 @@ export default function TeamGroups({ tournament = null, embedded = false, active
       await saveWorkflowConfig("gironi", selectedTorneo.toLowerCase().trim().replace(/\s+/g, "_"), next);
       savedFingerprint.current = JSON.stringify(next); setPubblicato(next.pubblicato);
       onSummary?.({ groupsPublished: next.pubblicato });
+      return true;
     } catch (error) { setSaveError(error.message); }
     finally { setPublishing(false); onSummary?.({ busy: false }); }
   };
   const scoringGroups = useMemo(() => teamGroupMatches(currentConfig), [currentConfig]);
+  useImperativeHandle(saveRef, () => ({ flush: persist, publish: async () => {
+    if (!isLoaded || publishing || scoreDrafts) throw new Error("Attendi il caricamento e salva o scarta le bozze dei gironi prima di pubblicare.");
+    if (await changeVisibility() !== true) throw new Error("Pubblicazione gironi non confermata. Riprova.");
+    return !pubblicato;
+  } }));
   const groupMatches = scoringGroups.reduce((total, group) => total + group.matches.length, 0);
   const groupCompleted = scoringGroups.reduce((total, group) => total + group.matches.filter(completedMatch).length, 0);
   // Pool follow-up matches await winners even when every team slot is assigned.
@@ -657,7 +663,7 @@ export default function TeamGroups({ tournament = null, embedded = false, active
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-gray-50 pb-4">
                         <div><h3 className="text-lg font-bold text-[#0a1628]">Configurazione dei gironi</h3><p className="mt-1 text-xs text-slate-500">Numero, formato di gioco e visibilità.</p></div>
                         <div className="flex flex-wrap items-center gap-6">
-                            <div className="flex items-center gap-2">
+                            <div hidden={sharedPublication} className="flex items-center gap-2">
                                 <span className="text-xs font-bold text-gray-500">Visibilità pubblica gironi:</span>
                                 <button
                                     onClick={changeVisibility}

@@ -58,7 +58,7 @@ const swc = require('next/dist/build/swc');
   const context = vm.createContext({ module: compiledModule, exports: compiledModule.exports, console, URLSearchParams,
     window: { history: { state: {}, replaceState: (_, __, href) => replaced.push(href) }, confirm: () => true },
     require: (id) => {
-      if (id === 'react') return { ...React, useEffect() {}, useCallback: (fn) => fn, useRef: () => ({ current: { flush: () => flush() } }),
+      if (id === 'react') return { ...React, useEffect() {}, useCallback: (fn) => fn, useRef: (initial) => ({ current: initial === null ? { flush: () => flush(), publish: async () => true } : initial }),
         useState: (initial) => { const index = cursor++; return [index < stateValues.length ? stateValues[index] : initial, (value) => changes.push({ index, value })]; } };
       if (id === 'next/dynamic') return () => () => null;
       if (id === '@/app/components/TournamentSetupHeader') return Header;
@@ -97,6 +97,14 @@ const swc = require('next/dist/build/swc');
   await props.onModeChange('day');
   assert.equal(changes.find(c => c.index === 9).value, 'day');
   assert.match(replaced[0], /vista=day/);
+  props = render({ groupsPublished: false });
+  await props.onPublish('groups');
+  const publicationUpdate = changes.find(c => c.index === 4);
+  assert.equal(publicationUpdate.value({ groupsPublished: false }).groupsPublished, true);
+  assert.equal(changes.some(c => c.index === 3), false, 'Publishing from header must not navigate away');
+  props = render({ scoreDrafts: 1 });
+  await props.onPublish('finals');
+  assert.equal(changes.some(c => c.index === 4), false, 'Publishing must not discard draft scores');
   props = render({ scoreDrafts: 1 }, 'day');
   await props.onModeChange('prepare');
   assert.ok(!changes.some(c => c.index === 3 || c.index === 9), 'Changing mode must preserve unsaved scores');

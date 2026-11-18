@@ -1,15 +1,16 @@
 import { teamGroupMatches, matchStatus, completedMatch } from "./match-scoring";
 import { finalMatchGroups } from "./final-scoring";
-import { gialloRanking, gialloStages, groupGames } from "./giallo";
+import { gialloRanking, gialloStages, groupGames, gialloVisibility } from "./giallo";
 import { calculateUnifiedRanking } from "./ranking";
 
 export function publicLiveModel(groups, bracket, giallo) {
-  if (giallo?.published === true) {
+  const visibility = gialloVisibility(giallo);
+  if (giallo && (visibility.groups || visibility.finals)) {
     const adapt = (game, results) => ({ ...game, leftIds: game.left.map((a) => String(a.id)), rightIds: game.right.map((a) => String(a.id)), left: game.left.map((a) => a.name), right: game.right.map((a) => a.name), bestOf: 1, target: 21, ready: true, score: results[game.id] ? [results[game.id]] : [], ...giallo.matchMetadata?.[game.id] });
     return {
-      groups: giallo.groups.map((g) => ({ id: g.id, label: `Girone ${g.id}`, teams: g.athletes.map((a) => a.name), matches: groupGames(g).map((game) => adapt(game, giallo.results)) })),
-      finals: gialloStages(giallo).map((stage) => ({ id: stage.id, label: stage.title, byes: stage.byes?.map((a) => a.name), matches: stage.games.map((game) => adapt(game, giallo.finals.results)) })),
-      ranking: gialloRanking(giallo).map((a) => ({ id: a.id, name: a.name, group: a.group, played: a.played, wins: a.wins, pf: a.pf, ps: a.ps })), individual: true,
+      groups: visibility.groups ? giallo.groups.map((g) => ({ id: g.id, label: `Girone ${g.id}`, teams: g.athletes.map((a) => a.name), matches: groupGames(g).map((game) => adapt(game, giallo.results)) })) : [],
+      finals: visibility.finals ? gialloStages(giallo).map((stage) => ({ id: stage.id, label: stage.title, byes: stage.byes?.map((a) => a.name), matches: stage.games.map((game) => adapt(game, giallo.finals.results)) })) : [],
+      ranking: visibility.groups ? gialloRanking(giallo).map((a) => ({ id: a.id, name: a.name, group: a.group, played: a.played, wins: a.wins, pf: a.pf, ps: a.ps })) : [], individual: true,
     };
   }
   const initial = groups?.pubblicato === true ? { ...groups, gironeAssignments: groups.gironeAssignments || {}, gironeSets: groups.gironeSets || {}, teamCounts: groups.teamCounts || {}, matchMetadata: groups.matchMetadata || {} } : null;

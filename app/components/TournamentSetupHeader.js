@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { managementHref, WORKFLOW_STEPS } from "@/app/utils/tournament-workflow";
 
-export default function TournamentSetupHeader({ family = "teams", step = "prepare", tournaments = [], selected, onSelect, onFamilyChange, onStepChange, disabled = false, summary = {}, workspaceMode, onModeChange }) {
+export default function TournamentSetupHeader({ family = "teams", step = "prepare", tournaments = [], selected, onSelect, onFamilyChange, onStepChange, disabled = false, summary = {}, workspaceMode, onModeChange, onPublish, publicationSaving = "" }) {
   const yellow = family === "giallo";
   const preparationSteps = [{ id: "prepare", label: "Partecipanti", detail: "Controlla gli approvati" }, { id: "groups", label: "Formula e gironi", detail: "Componi gli abbinamenti" }, { id: "finals", label: "Fase finale", detail: "Configura il percorso" }, { id: "summary", label: "Riepilogo", detail: "Verifica e inizia" }];
   const phases = workspaceMode ? workspaceMode === "day" ? [{ id: "groups", label: "Gironi", detail: "Campo, orario e risultati" }, { id: "finals", label: "Fase finale", detail: "Turni e risultati" }] : preparationSteps : WORKFLOW_STEPS;
@@ -37,8 +37,10 @@ export default function TournamentSetupHeader({ family = "teams", step = "prepar
       </label>
       {selected && <div className="flex flex-wrap gap-2 text-xs font-semibold">
         <span className="rounded-full bg-slate-100 px-3 py-2">{tournaments.find((t) => t.nome === selected)?.stato}</span>
-        <span className={`rounded-full px-3 py-2 ${summary.groupsPublished ? "bg-green-50 text-green-800" : "bg-amber-50 text-amber-800"}`}>Gironi: {summary.groupsPublished === undefined ? "verifica…" : summary.groupsPublished ? "pubblicati" : "bozza"}</span>
-        <span className={`rounded-full px-3 py-2 ${summary.finalsPublished ? "bg-green-50 text-green-800" : "bg-amber-50 text-amber-800"}`}>Finali: {summary.finalsPublished === undefined ? "verifica…" : summary.finalsPublished ? "pubblicate" : "bozza"}</span>
+        {[{ phase: "groups", label: "Gironi", visible: summary.groupsPublished, ready: summary.groupsConfigured }, { phase: "finals", label: "Finali", visible: summary.finalsPublished, ready: summary.finalsConfigured }].map(item => <div key={item.phase} className="staff-publication-control">
+          <span className={`rounded-full px-3 py-2 ${item.visible ? "bg-green-50 text-green-800" : "bg-amber-50 text-amber-800"}`}>{item.label}: {item.visible === undefined ? "verifica…" : item.visible ? "pubblicati" : "bozza"}</span>
+          {onPublish && <button type="button" disabled={disabled || Boolean(publicationSaving) || Boolean(summary.scoreDrafts) || item.visible === undefined || !item.visible && !item.ready} onClick={() => onPublish(item.phase)} className={`staff-button ${item.visible ? "" : "staff-button-yellow"} disabled:opacity-40`} aria-label={`${item.visible ? "Nascondi" : "Pubblica"} ${item.phase === "groups" ? "gironi" : "finali"}`}>{publicationSaving === item.phase ? "Salvataggio…" : `${item.visible ? "Nascondi" : "Pubblica"} ${item.phase === "groups" ? "gironi" : "finali"}`}</button>}
+        </div>)}
       </div>}
     </div>
     {selected && workspaceMode && <div className="flex flex-wrap items-center justify-between gap-3">
