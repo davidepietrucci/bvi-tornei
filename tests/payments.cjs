@@ -7,10 +7,16 @@ const { renderToStaticMarkup } = require('react-dom/server');
 
 (async () => {
   const helpers = await import(`data:text/javascript;base64,${Buffer.from(fs.readFileSync('app/utils/payments.js', 'utf8')).toString('base64')}`);
-  const { moneyCents, paymentModel, paymentVersion, updatePayment } = helpers;
+  const { moneyCents, paymentModel, paymentRegistrations, paymentVersion, updatePayment } = helpers;
   const tournaments = [{ nome: 'Coppie', quota: 40, categoria: '2x2 Maschile' }, { nome: 'Giallo', quota: 25, categoria: 'Giallo' }];
   const pair = { id: '1', torneo: 'Coppie', giocatori: 'Anna & Bea', stato: 'Approvata', quotaPagata: 0 };
   const single = { ...pair, id: '2', torneo: 'Giallo', giocatori: 'Carla', formatoIscrizione: 'singola' };
+  const orphan = { ...pair, id: 'deleted', torneo: 'Torneo eliminato', giocatori: 'Storico da conservare', quotaTotale: 1000, quotaPagata: 999, paymentHistory: [{ by: 'staff', after: 999 }] };
+  const originalOrphan = JSON.stringify(orphan);
+  assert.deepEqual(paymentRegistrations([pair, single, orphan], tournaments), [pair, single]);
+  assert.deepEqual(paymentRegistrations([pair, single], []), []);
+  assert.deepEqual(paymentRegistrations([{ ...pair, torneo: '  COPPIE  ' }], tournaments).map(r => r.id), ['1']);
+  assert.equal(paymentRegistrations([{ ...pair, torneo: '' }], [{ nome: '' }]).length, 0);
   const apply = (registration, amounts, mode = 'add', reason = '') => updatePayment(registration, tournaments, { amounts, mode, reason }, 'staff', '2026-11-17T12:00:00Z');
   assert.equal(moneyCents('12,50'), 1250); assert.equal(moneyCents('0.01'), 1);
   for (const value of ['-1', 'NaN', Infinity, '', '1.001', '1e3', true, null]) assert.throws(() => moneyCents(value));
@@ -46,11 +52,12 @@ const { renderToStaticMarkup } = require('react-dom/server');
   assert.throws(() => apply(paid, ['0', '0'], 'correct'), /motivo/);
   assert.equal(apply(paid, ['0', '20'], 'correct', 'Importo errato').quotaPagata, 20);
   assert.throws(() => apply({ ...pair, stato: 'Annullata' }, ['5', '0']), /annullate/);
-  assert.throws(() => apply({ ...pair, torneo: 'Missing' }, ['5', '0']), /Quota mancante/);
+  assert.throws(() => apply({ ...pair, quotaTotale: 'invalid' }, ['5', '0']), /Quota mancante/);
+  for (const mode of ['add', 'correct', 'allocate']) assert.throws(() => apply(orphan, ['0', '0'], mode, 'Test'), /torneo non esiste/);
   assert.equal(pair.quotaPagata, 0, 'Original registration must not mutate');
 
   class NextResponse extends Response { static json(data, options) { return new NextResponse(JSON.stringify(data), options); } }
-  let role = 'staff', userId = 'S', stored = [pair, single], fail = false, writes = 0;
+  let role = 'staff', userId = 'S', stored = [pair, single, orphan], fail = false, writes = 0;
   const context = vm.createContext({ Response, NextResponse, console, ...helpers,
     auth: async () => ({ userId, sessionClaims: {} }), currentUser: async () => ({ publicMetadata: { role } }),
     getIscrizioni: async () => stored, getTornei: async () => tournaments,
@@ -65,10 +72,17 @@ const { renderToStaticMarkup } = require('react-dom/server');
   vm.runInContext(`${api}\nthis.get = GET; this.post = POST;`, context);
   const request = (body) => ({ json: async () => body });
   let response = await context.get(); assert.equal(response.status, 200); assert.equal(response.headers.get('cache-control'), 'no-store');
+  assert.deepEqual((await response.json()).registrations.map(r => r.id), ['1', '2']);
   const body = { id: '1', version: paymentVersion(pair, tournaments), mode: 'add', amounts: ['5', '10'] };
   userId = null; assert.equal((await context.post(request(body))).status, 401);
   userId = 'S'; role = 'atleta'; assert.equal((await context.get()).status, 403); assert.equal((await context.post(request(body))).status, 403);
   role = 'staff'; assert.equal((await context.post(request({ ...body, id: 'missing' }))).status, 404);
+  assert.equal((await context.post(request({ ...body, id: orphan.id, version: paymentVersion(orphan, tournaments) }))).status, 409);
+  assert.equal(writes, 0, 'An orphan payment must not change stored records');
+  const removalVersion = paymentVersion(single, tournaments);
+  const removedTournament = tournaments.pop();
+  assert.equal((await context.post(request({ id: single.id, version: removalVersion, mode: 'add', amounts: ['5'] }))).status, 409, 'Deletion while editor is open must block saving');
+  tournaments.push(removedTournament);
   response = await context.post(request(body)); assert.equal(response.status, 200); assert.equal(stored[0].quotaPagata, 15); assert.equal(stored[1], single);
   assert.equal((await context.post(request(body))).status, 409, 'A replay must not double-count the payment');
   assert.equal(writes, 1);
@@ -78,17 +92,21 @@ const { renderToStaticMarkup } = require('react-dom/server');
   const invalidBody = { ...body, version: paymentVersion(stored[0], tournaments), amounts: ['999', '0'] };
   assert.equal((await context.post(request(invalidBody))).status, 400);
   fail = true; assert.equal((await context.post(request(invalidBody))).status, 500); fail = false;
+  assert.equal(JSON.stringify(stored.find(r => r.id === orphan.id)), originalOrphan, 'Historical payments must remain untouched');
 
   await swc.loadBindings();
   let states = [], index = 0;
   const compiled = await swc.transform(fs.readFileSync('app/staff/pagamenti/page.js', 'utf8'), { filename: 'payments-page.js', jsc: { parser: { syntax: 'ecmascript', jsx: true }, transform: { react: { runtime: 'automatic' } } }, module: { type: 'commonjs' } });
   const ui = { exports: {}, require: (name) => name === 'react' ? { ...React, useEffect: () => {}, useRef: () => ({ current: null }), useState: () => [states[index++], () => {}] } : name.endsWith('/payments') ? helpers : name.endsWith('/StaffHeader') ? () => null : require(name) };
   vm.runInNewContext(compiled.code, ui);
-  const render = (error = '', status = 'all') => {
-    states = [{ registrations: [pair, single, { ...pair, id: 'cancel', stato: 'Annullata' }], tournaments }, error, '', '', '', status, false, null, false, '', 0]; index = 0;
+  const render = (error = '', status = 'all', extras = [], selected = '', inactive = false) => {
+    states = [{ registrations: [pair, single, { ...pair, id: 'cancel', stato: 'Annullata' }, ...extras], tournaments }, error, '', selected, '', status, inactive, null, false, '', 0]; index = 0;
     return renderToStaticMarkup(React.createElement(ui.exports.default));
   };
   let html = render(); assert.match(html, /Anna/); assert.match(html, /Bea/); assert.match(html, /Carla/);
+  assert.equal(render('', 'all', [orphan]), html, 'Deleted tournaments must not affect options, rows, counts or totals');
+  assert.equal(render('', 'all', [orphan], orphan.torneo), html, 'A removed selected tournament must fall back to all existing tournaments');
+  assert.ok(!render('', 'all', [{ ...orphan, stato: 'Annullata' }], '', true).includes(orphan.giocatori));
   assert.match(html, /<table/); assert.match(html, /rowspan="2"/i);
   assert.match(html, /Quota atleta/); assert.match(html, /Versato atleta/); assert.match(html, /Residuo atleta/);
   assert.match(html, /Registro pagamenti scorrevole/);
@@ -99,5 +117,5 @@ const { renderToStaticMarkup } = require('react-dom/server');
   assert.ok(!html.includes('#cancel')); assert.match(html, /Stato pagamento/); assert.match(html, /Residuo/);
   html = render('Network failure'); assert.match(html, /role="alert"/); assert.match(html, /disabled=""/);
   html = render('', 'paid'); assert.match(html, /Nessuna iscrizione con questi filtri/);
-  console.log('Payments: individual/pair shares, cents, partial payments, legacy attribution, corrections, audit history, staff permissions, stale/replayed writes, failed saves and UI states passed.');
+  console.log('Payments: deleted tournaments excluded from options/rows/totals/API, stale deletion saves blocked, history preserved, individual/pair amounts, permissions and UI states passed.');
 })().catch((error) => { console.error(error); process.exitCode = 1; });

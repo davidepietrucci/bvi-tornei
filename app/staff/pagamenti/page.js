@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import StaffHeader from "@/app/components/StaffHeader";
-import { euro, paymentModel, paymentVersion } from "@/app/utils/payments";
+import { euro, paymentModel, paymentRegistrations, paymentVersion } from "@/app/utils/payments";
 
 const labels = { unpaid: "Da pagare", partial: "Acconto", paid: "Saldato", review: "Da verificare" };
 const colors = { unpaid: "bg-red-50 text-red-800", partial: "bg-amber-50 text-amber-800", paid: "bg-green-50 text-green-800", review: "bg-orange-50 text-orange-800" };
@@ -80,16 +80,17 @@ export default function StaffPagamenti() {
     } catch (reason) { setSaveError(reason.message); }
     finally { setBusy(false); }
   };
-  const all = data ? data.registrations.map((r) => paymentModel(r, data.tournaments)) : [];
-  const filtered = all.filter((m) => (inactive ? m.inactive : !m.inactive) && (!tournament || m.registration.torneo === tournament) && (!search.trim() || `${m.registration.giocatori} ${m.registration.id} ${m.registration.torneo}`.toLocaleLowerCase("it-IT").includes(search.trim().toLocaleLowerCase("it-IT"))));
+  const all = data ? paymentRegistrations(data.registrations, data.tournaments).map((r) => paymentModel(r, data.tournaments)) : [];
+  const tournaments = [...new Set((data?.tournaments || []).map((t) => t.nome).filter(Boolean))];
+  const selectedTournament = tournaments.includes(tournament) ? tournament : "";
+  const filtered = all.filter((m) => (inactive ? m.inactive : !m.inactive) && (!selectedTournament || m.tournament.nome === selectedTournament) && (!search.trim() || `${m.registration.giocatori} ${m.registration.id} ${m.registration.torneo}`.toLocaleLowerCase("it-IT").includes(search.trim().toLocaleLowerCase("it-IT"))));
   const shown = filtered.filter((m) => status === "all" || m.status === status);
   const totals = filtered.reduce((sum, m) => ({ due: sum.due + (m.due ?? 0), paid: sum.paid + m.total, remaining: sum.remaining + (m.remaining ?? 0) }), { due: 0, paid: 0, remaining: 0 });
-  const tournaments = [...new Set([...(data?.tournaments.map((t) => t.nome) || []), ...all.map((m) => m.registration.torneo)])];
   return <main className="min-h-screen bg-[#f8faff] pb-10"><StaffHeader /><div className="mx-auto max-w-[1600px] space-y-4 px-6 py-6 lg:px-8">
     <div className="staff-page-heading"><div><h1 className="staff-page-title">Pagamenti</h1><p className="staff-page-description">Gialli: quota individuale. Coppie: quota totale divisa tra i due atleti.</p></div><button className="staff-button" disabled={!!editing} onClick={() => setReload((n) => n + 1)}>Aggiorna</button></div>
     {error && <div role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{error} I dati precedenti non sono confermati come aggiornati.<button className="ml-2 underline" onClick={() => setReload((n) => n + 1)}>Riprova</button></div>}
     {message && <p role="status" className="rounded-xl bg-green-50 p-3 text-sm text-green-800">{message}</p>}
-    <div className="grid gap-4 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-[minmax(220px,1fr)_minmax(260px,2fr)]"><label className="text-sm font-bold">Torneo<select value={tournament} onChange={(e) => setTournament(e.target.value)} className={inputClass}><option value="">Tutti i tornei</option>{tournaments.map((name) => <option key={name}>{name}</option>)}</select></label><label className="text-sm font-bold">Cerca atleta o coppia<input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Nome, cognome o iscrizione…" className={inputClass} /></label></div>
+    <div className="grid gap-4 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-[minmax(220px,1fr)_minmax(260px,2fr)]"><label className="text-sm font-bold">Torneo<select value={selectedTournament} onChange={(e) => setTournament(e.target.value)} className={inputClass}><option value="">Tutti i tornei</option>{tournaments.map((name) => <option key={name}>{name}</option>)}</select></label><label className="text-sm font-bold">Cerca atleta o coppia<input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Nome, cognome o iscrizione…" className={inputClass} /></label></div>
     {!data && !error && <p role="status">Caricamento pagamenti…</p>}
     {data && <><div className="grid grid-cols-3 gap-2">{[["Previsto", totals.due], ["Incassato", totals.paid], ["Residuo", totals.remaining]].map(([label, amount]) => <div key={label} className="rounded-xl border border-slate-200 bg-white p-3 sm:p-5"><p className="text-xs text-slate-600">{label}</p><p className="mt-2 break-words text-lg font-black text-[#0a1628] sm:text-2xl">{euro(amount)}</p></div>)}</div><p className="text-xs text-slate-500">Totali riferiti a torneo e ricerca, indipendenti dal filtro pagamento. Quote mancanti escluse dal previsto.</p>
       <div role="group" aria-label="Stato pagamento" className="flex flex-wrap gap-2">{[["all", "Tutti"], ...Object.entries(labels)].map(([value, label]) => <button key={value} aria-pressed={status === value} onClick={() => setStatus(value)} className={`min-h-11 rounded-xl border px-3 text-sm font-bold ${status === value ? "bg-[#0a1628] text-white" : "bg-white text-slate-600"}`}>{label} ({value === "all" ? filtered.length : filtered.filter((m) => m.status === value).length})</button>)}</div>

@@ -9,6 +9,11 @@ export function moneyCents(value) {
 }
 const legacyCents = (value) => { try { return moneyCents(value ?? 0); } catch { return null; } };
 
+export function paymentRegistrations(registrations, tournaments) {
+  const names = new Set(tournaments.map((t) => normalized(t.nome)).filter(Boolean));
+  return registrations.filter((registration) => names.has(normalized(registration.torneo)));
+}
+
 export function paymentModel(registration, tournaments) {
   const tournament = tournaments.find((t) => normalized(t.nome) === normalized(registration.torneo));
   const individual = registration.formatoIscrizione === "singola" || /giallo/i.test(tournament?.categoria || "");
@@ -45,6 +50,7 @@ export function paymentVersion(registration, tournaments) {
 
 export function updatePayment(registration, tournaments, { amounts, mode, reason }, actor, now) {
   const model = paymentModel(registration, tournaments);
+  if (!model.tournament) throw new Error("Il torneo non esiste più. Aggiorna l’elenco dei pagamenti.");
   if (model.inactive) throw new Error("Non puoi registrare pagamenti su iscrizioni annullate o rifiutate.");
   if (model.due === null) throw new Error("Quota mancante o non valida: correggi prima la configurazione del torneo.");
   if (!["add", "correct", "allocate"].includes(mode) || !Array.isArray(amounts) || amounts.length !== model.players.length) throw new Error("Dati pagamento non validi.");

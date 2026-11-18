@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { getIscrizioni, getTornei, updateRegistrationsAtomically } from "@/app/utils/db-server";
-import { paymentVersion, updatePayment } from "@/app/utils/payments";
+import { paymentRegistrations, paymentVersion, updatePayment } from "@/app/utils/payments";
 
 export const dynamic = "force-dynamic";
 async function staffUser() {
@@ -16,7 +16,7 @@ export async function GET() {
   try {
     const actor = await staffUser(); if (actor.error) return actor.error;
     const [registrations, tournaments] = await Promise.all([getIscrizioni(), getTornei()]);
-    return NextResponse.json({ registrations, tournaments }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ registrations: paymentRegistrations(registrations, tournaments), tournaments }, { headers: { "Cache-Control": "no-store" } });
   } catch { return NextResponse.json({ error: "Caricamento pagamenti non riuscito." }, { status: 500 }); }
 }
 export async function POST(request) {
@@ -27,6 +27,7 @@ export async function POST(request) {
     const result = await updateRegistrationsAtomically(async (registrations, tournaments) => {
       const target = registrations.find((r) => String(r.id) === String(body.id));
       if (!target) return NextResponse.json({ error: "Iscrizione non trovata." }, { status: 404 });
+      if (!paymentRegistrations([target], tournaments).length) return NextResponse.json({ error: "Il torneo non esiste più. Aggiorna l’elenco dei pagamenti." }, { status: 409 });
       if (paymentVersion(target, tournaments) !== body.version) return NextResponse.json({ error: "Questo pagamento è cambiato su un altro dispositivo. Chiudi e riapri il pagamento dopo aver aggiornato." }, { status: 409 });
       let updated;
       try { updated = updatePayment(target, tournaments, body, actor.userId, new Date().toISOString()); }
