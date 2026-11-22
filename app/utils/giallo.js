@@ -2,7 +2,7 @@
 export const GIALLO_FORMAT = "giallo-v1";
 export const isGiallo = (tournament) => /giallo/i.test(tournament?.categoria || "");
 export const gialloSlug = (name) => name.toLowerCase().trim().replace(/\s+/g, "_");
-export const supportedGialloCount = (count) => [12, 16, 20, 24].includes(count);
+export const supportedGialloCount = (count) => [12, 15, 16, 20, 24].includes(count);
 
 // Old tournaments had one switch: keep that meaning until either new switch is saved.
 export function gialloVisibility(config) {
@@ -34,23 +34,33 @@ export function approvedGialloAthletes(registrations, name) {
 
 export function createGiallo(athletes) {
   if (!supportedGialloCount(athletes.length)) {
-    throw new Error(`Ci sono ${athletes.length} atleti approvati. Servono 12, 16, 20 o 24 atleti: nessuno verrà escluso automaticamente.`);
+    throw new Error(`Ci sono ${athletes.length} atleti approvati. Servono 12, 15, 16, 20 o 24 atleti: nessuno verrà escluso automaticamente.`);
   }
   const shuffled = athletes.map((a) => ({ ...a }));
   for (let i = shuffled.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
+  const groupSize = shuffled.length === 15 ? 5 : 4;
   return {
     format: GIALLO_FORMAT, published: false,
-    groups: Array.from({ length: shuffled.length / 4 }, (_, i) => ({
-      id: String.fromCharCode(65 + i), athletes: shuffled.slice(i * 4, i * 4 + 4),
+    groups: Array.from({ length: shuffled.length / groupSize }, (_, i) => ({
+      id: String.fromCharCode(65 + i), athletes: shuffled.slice(i * groupSize, (i + 1) * groupSize),
     })),
     results: {}, finals: null,
   };
 }
 
 export function groupGames(group) {
+  if (group.athletes.length === 5) {
+    return [
+      [[0, 1], [2, 3], 4], [[0, 2], [1, 4], 3], [[0, 3], [2, 4], 1],
+      [[0, 4], [1, 3], 2], [[1, 2], [3, 4], 0],
+    ].map(([left, right, rest], i) => ({
+      id: `group-${group.id}-${i}`, left: left.map((n) => group.athletes[n]),
+      right: right.map((n) => group.athletes[n]), rest: group.athletes[rest],
+    }));
+  }
   return [[[0, 1], [2, 3]], [[0, 2], [1, 3]], [[0, 3], [1, 2]]].map(([left, right], i) => ({
     id: `group-${group.id}-${i}`, left: left.map((n) => group.athletes[n]), right: right.map((n) => group.athletes[n]),
   }));
@@ -93,6 +103,7 @@ export function groupsComplete(config) {
 
 export function startGialloFinals(config) {
   if (!groupsComplete(config)) throw new Error("Completa e salva tutti i risultati dei gironi prima di generare il tabellone.");
+  if (config.groups.flatMap((group) => group.athletes).length === 15) throw new Error("La formula della fase finale per 15 atleti non è ancora configurata.");
   const groupIds = new Set(config.groups.flatMap(groupGames).map((game) => game.id));
   const matchMetadata = Object.fromEntries(Object.entries(config.matchMetadata || {}).map(([id, meta]) => [id, groupIds.has(id) ? meta : { ...meta, status: "scheduled" }]));
   return { ...config, matchMetadata, finals: { seeds: gialloRanking(config).map(({ id, name }) => ({ id, name })), results: {} } };
@@ -195,7 +206,8 @@ export function validateGiallo(config) {
   if (config?.publicView || ["groupsPublished", "finalsPublished"].some(key => config?.[key] !== undefined && typeof config[key] !== "boolean")) throw new Error("Visibilità giallo non valida.");
   if (config?.format !== GIALLO_FORMAT || typeof config.published !== "boolean" || !Array.isArray(config.groups)) throw new Error("Formato giallo non valido.");
   const athletes = config.groups.flatMap((g) => g.athletes || []);
-  if (!supportedGialloCount(athletes.length) || config.groups.some((g, i) => g.id !== String.fromCharCode(65 + i) || g.athletes?.length !== 4) ||
+  const groupSize = athletes.length === 15 ? 5 : 4;
+  if (!supportedGialloCount(athletes.length) || config.groups.some((g, i) => g.id !== String.fromCharCode(65 + i) || g.athletes?.length !== groupSize) ||
     athletes.some((a) => typeof a.id !== "string" || !a.id || typeof a.name !== "string" || !a.name.trim()) ||
     new Set(athletes.map((a) => a.id)).size !== athletes.length) throw new Error("Gironi o atleti non validi.");
   const groupIds = new Set(config.groups.flatMap(groupGames).map((g) => g.id));

@@ -29,6 +29,7 @@ function Match({ game, score, editable, busy, onScore, details }) {
     onScore(game.id, [Number(left), Number(right)]);
   }}>
     <p className="mb-3 text-xs font-bold text-gray-500">Partita {Number(game.id.split("-").at(-1)) + 1} · Set unico a 21</p>
+    {game.rest && <p className="mb-3 text-xs font-bold text-slate-600">Riposa: {game.rest.name}</p>}
     {details && <p className="mb-3 text-xs font-semibold text-slate-600">{[details.court && `Campo ${details.court}`, details.time && `Ore ${details.time}`, score ? "Terminata" : details.status === "in_progress" ? "In corso" : "Da giocare"].filter(Boolean).join(" · ")}</p>}
     {[game.left, game.right].map((pair, side) => <div key={side} className="my-2 flex items-center justify-between gap-3">
       <span className="font-semibold">{pair.map((athlete) => athlete.name).join(" + ")}</span>
@@ -68,7 +69,7 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
     onSummary?.({ groupsPublished: visibility.groups, finalsPublished: visibility.finals,
       busy: loading || busy, scoreDrafts: scoreDrafts + finalScoreDrafts, groupCount: config?.groups.length || 0, approvedCount: athletes.length,
       summaryReady: !loading && !error, groupsConfigured: Boolean(config?.groups.length), finalsConfigured: Boolean(config?.finals),
-      groupMatches: config?.groups.length * 3 || 0, groupCompleted: Object.keys(config?.results || {}).length,
+      groupMatches: config?.groups.reduce((sum, group) => sum + groupGames(group).length, 0) || 0, groupCompleted: Object.keys(config?.results || {}).length,
       finalMatches: gialloStages(config).reduce((sum, stage) => sum + stage.games.length, 0), finalCompleted: Object.keys(config?.finals?.results || {}).length });
   }, [onSummary, config, loading, busy, athletes.length, scoreDrafts, finalScoreDrafts, error]);
 
@@ -163,7 +164,10 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
   const target = count ? 2 ** Math.floor(Math.log2(count)) : 0;
   const playoffCount = 2 * (count - target);
   const completedGames = config ? Object.keys(config.results).length : 0;
-  const groupGameCount = config ? config.groups.length * 3 : 0;
+  const groupGameCount = config ? config.groups.reduce((sum, group) => sum + groupGames(group).length, 0) : 0;
+  const groupSize = (config?.groups[0]?.athletes.length || (athletes.length === 15 ? 5 : 4));
+  const finalAvailable = count !== 15;
+  const groupDescription = (n) => n === 15 ? "3 gironi da 5" : `${n / 4} gironi da 4`;
   const visibility = gialloVisibility(config);
   const show = (stage) => editable ? view === stage : stage === "finals" ? visibility.finals : visibility.groups;
 
@@ -175,13 +179,14 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
       </div>
       <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[{ label: editable ? "Atleti approvati" : "Atleti", value: editable ? athletes.length : count },
-          { label: "Gironi da 4", value: config?.groups.length ?? (supportedGialloCount(athletes.length) ? athletes.length / 4 : "—") },
+          { label: `Gironi da ${groupSize}`, value: config?.groups.length ?? (supportedGialloCount(athletes.length) ? athletes.length / groupSize : "—") },
           { label: "Risultati dei gironi", value: `${completedGames} / ${groupGameCount}` },
           { label: "Formato", value: "1 set a 21" }].map((stat) => <div key={stat.label} className="rounded-xl bg-slate-50 p-3"><span className="block text-xs text-slate-500">{stat.label}</span><strong className="mt-1 block text-lg">{stat.value}</strong></div>)}
       </div>
       <details className="mt-4 text-sm"><summary className="cursor-pointer font-semibold text-slate-600">Come funziona questa formula?</summary>
         <div className="mt-3 space-y-2 leading-6 text-slate-600">
           <p>Gironi da 4: tre partite a testa, ogni atleta gioca con tutti e contro tutti nel proprio girone. Set unico a 21 con due punti di vantaggio.</p>
+          <p>Con 15 atleti: tre gironi da 5, cinque partite per girone e un atleta a riposo a ogni turno. Ognuno gioca quattro partite, una con ciascun compagno.</p>
           <p>Classifica individuale: vittorie, quoziente punti, differenza punti, punti fatti. A parità completa vale l’ordine del sorteggio iniziale.</p>
           <p>Coppie libere: migliore + peggiore disponibile secondo la classifica dei gironi, evitando di ripetere i compagni della fase finale. Dalle semifinali le coppie restano fisse.</p>
         </div>
@@ -217,22 +222,23 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
       </div>
       <div hidden={!show("prepare")} className="space-y-4 border-t border-slate-100 pt-5">
       <div><h3 className="text-xl font-bold">1. Controlla i partecipanti</h3><p className="mt-2 text-sm leading-6 text-slate-500">Vengono utilizzate soltanto le iscrizioni approvate. Il numero di gironi viene calcolato automaticamente, senza escludere nessuno.</p></div>
-      <p><strong>{athletes.length} atleti approvati</strong> · {supportedGialloCount(athletes.length) ? `${athletes.length / 4} gironi da 4` : "Numero non supportato: servono 12, 16, 20 o 24. Nessuno viene escluso."}</p>
+      <p><strong>{athletes.length} atleti approvati</strong> · {supportedGialloCount(athletes.length) ? groupDescription(athletes.length) : "Numero non supportato: servono 12, 15, 16, 20 o 24. Nessuno viene escluso."}</p>
       {changed && <p className="text-amber-800">Gli approvati differiscono dal sorteggio salvato. I gironi non vengono cambiati automaticamente: verifica gli iscritti prima di rigenerare.</p>}
       {athletes.length > 0 && <details className="rounded-xl bg-slate-50 p-4"><summary className="cursor-pointer text-sm font-semibold">Vedi i {athletes.length} partecipanti approvati</summary><ol className="mt-3 grid list-inside list-decimal gap-2 text-sm sm:grid-cols-2">{athletes.map((a) => <li key={a.id}>{a.name}</li>)}</ol></details>}
-      {!config ? <button className={buttonClass} disabled={disabled || !supportedGialloCount(athletes.length)} onClick={generate}>Genera {supportedGialloCount(athletes.length) ? athletes.length / 4 : ""} gironi da 4</button>
+      {!config ? <button className={buttonClass} disabled={disabled || !supportedGialloCount(athletes.length)} onClick={generate}>Genera {supportedGialloCount(athletes.length) ? groupDescription(athletes.length) : "gironi"}</button>
         : <><p className="rounded-xl bg-green-50 p-4 text-sm text-green-800">I gironi sono già salvati. Puoi passare ai risultati senza ripetere il sorteggio.</p><button className={buttonClass} onClick={() => setView("groups")}>Vai ai risultati dei gironi →</button>
           <details className="pt-3"><summary className="cursor-pointer text-sm font-semibold text-slate-600">Modifica il sorteggio · azzera risultati</summary><p className="my-3 text-sm text-slate-500">Rigenerare cancella tutti i risultati e il tabellone giallo. L’operazione richiede conferma.</p><button className="rounded-xl border border-red-200 px-4 py-3 text-sm font-bold text-red-700 disabled:opacity-40" disabled={disabled || !supportedGialloCount(athletes.length)} onClick={generate}>Rigenera gironi e azzera risultati</button></details></>}
       </div>
     </details>}
     {!config && <p className="rounded-xl bg-white p-5">Gironi e tabellone giallo non ancora {editable ? "generati" : "pubblicati"}.</p>}
     {config && <>
-      <p hidden={editable ? view === "prepare" : !visibility.groups} className="rounded-xl bg-slate-100 p-4 text-sm leading-6">{count} atleti · {config.groups.length} gironi · {config.groups.length * 3} partite nei gironi
-        {playoffCount > 0 ? ` · primi ${count - playoffCount} direttamente ${target === 16 ? "ai quarti" : "alle semifinali"}, altri ${playoffCount} agli spareggi` : " · tutti ai quarti"}.
+      <p hidden={editable ? view === "prepare" : !visibility.groups} className="rounded-xl bg-slate-100 p-4 text-sm leading-6">{count} atleti · {config.groups.length} gironi · {groupGameCount} partite nei gironi
+        {finalAvailable ? (playoffCount > 0 ? ` · primi ${count - playoffCount} direttamente ${target === 16 ? "ai quarti" : "alle semifinali"}, altri ${playoffCount} agli spareggi` : " · tutti ai quarti") : " · formula delle finali da definire"}.
       </p>
       <div hidden={!show("groups")} className="space-y-5">
         {editable && <div hidden={workspaceMode === "prepare"}><MatchScoreEntry groups={config.groups.map((g) => ({ id: g.id, label: `Girone ${g.id}`, matches: groupGames(g).map((game) => ({
           id: game.id, left: game.left.map((a) => a.name), right: game.right.map((a) => a.name),
+          rest: game.rest?.name,
           score: config.results[game.id] ? [config.results[game.id]] : [], ready: true, bestOf: 1, target: 21,
           court: config.matchMetadata?.[game.id]?.court, time: config.matchMetadata?.[game.id]?.time, status: config.matchMetadata?.[game.id]?.status,
         })) }))} disabled={disabled} onDirtyChange={setScoreDrafts} onSave={(game, sets, details) => recordScore(game.id, sets[0], details)} onClear={(game) => recordScore(game.id, null)} onSaveDetails={(game, details) => persist({ ...config, matchMetadata: { ...config.matchMetadata, [game.id]: validateMatchDetails(game, details) } })} /></div>}
@@ -247,7 +253,7 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
       {editable && <button className={buttonClass} onClick={() => setView("ranking")}>Controlla la classifica →</button>}
       </div>
       <section hidden={!show("ranking")} className="overflow-x-auto rounded-2xl border bg-white p-4 sm:p-6">
-        {editable && <p className="mb-4 text-sm leading-6 text-slate-500">3. Controlla la classifica. {groupsComplete(config) ? "Tutti i risultati sono completi: puoi preparare il tabellone." : `Mancano ${groupGameCount - completedGames} risultati prima di poter generare il tabellone.`}</p>}
+        {editable && <p className="mb-4 text-sm leading-6 text-slate-500">3. Controlla la classifica. {groupsComplete(config) ? (finalAvailable ? "Tutti i risultati sono completi: puoi preparare il tabellone." : "Tutti i risultati sono completi; la formula delle finali per 15 atleti è da definire.") : `Mancano ${groupGameCount - completedGames} risultati prima della fine dei gironi.`}</p>}
         <h3 className="mb-4 text-xl font-black">Classifica unica individuale {groupsComplete(config) ? "· completa" : "· provvisoria"}</h3>
         <table className="w-full text-left text-sm"><thead><tr>{["#", "Atleta", "Girone", "Giocate", "Vittorie", "PF", "PS", "Quoz."].map((label) => <th key={label} className="p-2">{label}</th>)}</tr></thead>
           <tbody>{ranking.map((a, i) => <tr key={a.id} className="border-t"><td className="p-2">{i + 1}</td><td className="p-2 font-bold">{a.name}</td><td className="p-2">{a.group}</td><td className="p-2">{a.played}</td><td className="p-2">{a.wins}</td><td className="p-2">{a.pf}</td><td className="p-2">{a.ps}</td><td className="p-2">{a.ps ? (a.pf / a.ps).toFixed(3) : a.pf ? "∞" : "—"}</td></tr>)}</tbody>
@@ -267,7 +273,8 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
         <div hidden={editable && effectiveFinalMode !== "setup"} className="space-y-5">
         {editable && <p className="rounded-xl bg-slate-50 p-4 text-sm leading-6">La formula giallo usa la classifica unica: migliore con peggiore, coppie riformate a ogni turno e fisse dalle semifinali. Qui generi e controlli il percorso; campo, orario e punteggi si gestiscono in Partite e risultati.</p>}
         {editable && <p className="text-sm leading-6 text-slate-500">Genera gli abbinamenti dalla classifica completa. Poi salva i risultati: i turni successivi compariranno solo quando tutti gli incontri precedenti sono conclusi.</p>}
-        {editable && <button className={buttonClass} disabled={disabled || !groupsComplete(config)} onClick={() => {
+        {!finalAvailable && <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Per 15 atleti la formula delle finali deve ancora essere definita: non è possibile generare un tabellone automatico.</p>}
+        {editable && <button className={buttonClass} disabled={disabled || !groupsComplete(config) || !finalAvailable} onClick={() => {
           if (config.finals && !window.confirm("Rigenerare il tabellone cancellando tutti i risultati delle finali?")) return;
           try { persist(startGialloFinals(config)); } catch (reason) { setError(reason.message); }
         }}>{config.finals ? "Rigenera tabellone" : "Genera tabellone dalla classifica"}</button>}

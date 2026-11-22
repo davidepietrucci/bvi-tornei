@@ -48,6 +48,7 @@ conservandone campo e orario.
 
 - Usa solo le iscrizioni approvate del torneo selezionato, identificate per ID.
 - 12 / 16 / 20 / 24 atleti producono rispettivamente 3 / 4 / 5 / 6 gironi da quattro.
+- 15 atleti producono tre gironi da cinque: cinque partite per girone, un riposo per atleta e quattro partite a testa, una con ciascun compagno.
 - Ogni girone disputa AB–CD, AC–BD, AD–BC: tre partite a testa, tutti come
   compagni una volta e come avversari due volte all'interno del girone.
 - Le coppie sono libere, senza vincoli di genere.
@@ -65,7 +66,7 @@ A parità completa si mantiene l'ordine del sorteggio iniziale, come indicato in
 
 ## Eliminazione diretta
 
-Tutti passano. La classifica iniziale resta il riferimento per gli abbinamenti.
+Per 12, 16, 20 e 24 atleti tutti passano. Per 15 atleti la formula delle finali non è ancora definita: il tabellone automatico resta disabilitato, senza escludere nessuno automaticamente. La classifica iniziale resta il riferimento per gli abbinamenti.
 Si abbina il migliore con il peggiore disponibile, evitando di ripetere compagni
 già avuti nei turni precedenti della fase finale. Le coppie vengono accoppiate in
 partita dalla più alta contro la più bassa testa di serie. Entrambi i vincitori

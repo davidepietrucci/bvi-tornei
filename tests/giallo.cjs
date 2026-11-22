@@ -24,6 +24,38 @@ const { isDeepStrictEqual } = require('node:util');
   ], 'Giallo').length, 1);
   assert.throws(() => approvedGialloAthletes([{ torneo: 'Giallo', stato: 'Approvata', giocatori: 'A' }], 'Giallo'));
 
+  // Fifteen athletes: three groups of five, all ten partnerships and one rest each.
+  let fifteen = createGiallo(athletes(15));
+  assert.deepEqual(fifteen.groups.map(g => g.athletes.length), [5, 5, 5]);
+  assert.equal(validateGiallo(fifteen), true);
+  for (const group of fifteen.groups) {
+    const games = groupGames(group), pairs = new Set(), rests = new Set();
+    assert.equal(games.length, 5);
+    for (const game of games) {
+      const players = [...game.left, ...game.right];
+      assert.equal(new Set(players.map(a => a.id)).size, 4);
+      assert(!players.some(a => a.id === game.rest.id));
+      rests.add(game.rest.id);
+      for (const pair of [game.left, game.right]) pairs.add(pair.map(a => a.id).sort().join(','));
+    }
+    assert.equal(pairs.size, 10);
+    assert.equal(rests.size, 5);
+  }
+  const first = groupGames(fifteen.groups[0])[0];
+  fifteen = setGialloScore(fifteen, first.id, [21, 15]);
+  let individual = new Map(gialloRanking(fifteen).map(a => [a.id, a]));
+  for (const a of first.left) assert.deepEqual([individual.get(a.id).wins, individual.get(a.id).pf, individual.get(a.id).ps], [1, 21, 15]);
+  for (const a of first.right) assert.deepEqual([individual.get(a.id).wins, individual.get(a.id).pf, individual.get(a.id).ps], [0, 15, 21]);
+  assert.equal(individual.get(first.rest.id).played, 0);
+  fifteen = completeGroups(fifteen);
+  assert(groupsComplete(fifteen));
+  assert(gialloRanking(fifteen).every(a => a.played === 4));
+  assert.equal(validateGiallo(fifteen), true);
+  assert.throws(() => startGialloFinals(fifteen), /fase finale per 15/);
+  const invalidFifteen = structuredClone(fifteen);
+  invalidFifteen.groups[0].athletes.pop();
+  assert.throws(() => validateGiallo(invalidFifteen), /Gironi o atleti/);
+
   for (const count of [12, 16, 20, 24]) {
     for (let simulation = 0; simulation < 40; simulation++) {
       let config = createGiallo(athletes(count));

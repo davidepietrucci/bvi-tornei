@@ -41,6 +41,15 @@ class NextResponse extends Response {
   assert.equal((await (await get()).json()).data.groups.length, 6, 'Staff can read drafts');
   assert.equal((await post()).status, 200);
   assert.equal(writes, 1);
+  let fifteen = rules.createGiallo(Array.from({ length: 15 }, (_, i) => ({ id: String(i), name: `Atleta ${i}` })));
+  fifteen = rules.setGialloScore(fifteen, 'group-C-4', [21, 15]);
+  assert.equal((await post({ data: fifteen })).status, 200, 'Three groups of five and their fifth match must be accepted');
+  stored = { ...fifteen, published: true };
+  userId = null;
+  const publicFifteen = (await (await get()).json()).data;
+  assert.deepEqual(publicFifteen.groups.map(g => g.athletes.length), [5, 5, 5]);
+  assert.deepEqual(publicFifteen.results['group-C-4'], [21, 15]);
+  userId = 'staff-1'; stored = valid;
   assert.equal((await post({ baseline: undefined })).status, 400);
   assert.equal((await post({ data: { ...valid, results: { 'group-A-0': [21, 20] } } })).status, 400);
   assert.equal((await post({ data: { ...valid, groups: [valid.groups[0]] } })).status, 400);

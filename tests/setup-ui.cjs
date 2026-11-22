@@ -104,6 +104,17 @@ const swc = require('next/dist/build/swc');
   assert.match(noPlayers, /Numero non supportato/);
   assert.match(noPlayers, /disabled=""/);
   pages.empty = header + noPlayers;
+  const fifteenAthletes = athletes.slice(0, 15);
+  const fifteenConfig = rules.createGiallo(fifteenAthletes);
+  cursor = 0; states = ['prepare', 'A', null, fifteenAthletes, false, false, '', '', 0, false];
+  const fifteenSetup = renderToStaticMarkup(React.createElement(Giallo, { tournament, editable: true, embedded: true }));
+  assert.match(fifteenSetup, /Genera 3 gironi da 5/);
+  cursor = 0; states = ['groups', 'A', fifteenConfig, fifteenAthletes, false, false, '', '', 0, false];
+  const fifteenGroups = renderToStaticMarkup(React.createElement(Giallo, { tournament, editable: true, embedded: true }));
+  assert.match(fifteenGroups, /15 partite nei gironi/);
+  assert.match(fifteenGroups, /Riposa:/);
+  assert.match(fifteenGroups, /formula delle finali da definire/);
+  pages.fifteen = header + fifteenGroups;
   const previewNames = ['Marco Rossi', 'Luca Verdi', 'Paolo Neri', 'Andrea Bianchi'];
   const previewGames = [[[0, 1], [2, 3]], [[0, 2], [1, 3]], [[0, 3], [1, 2]]];
   const scoreGroups = ['A', 'B', 'C'].map((id) => ({ id, label: `Girone ${id}`, matches: previewGames.map(([l, r], i) => ({

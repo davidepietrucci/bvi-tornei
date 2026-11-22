@@ -147,6 +147,7 @@ export default function MatchScoreEntry({ groups, onSave, onClear, onSaveDetails
           <span className={`rounded-full px-3 py-2 text-xs font-bold ${dirty || detailsDirty ? "bg-amber-50 text-amber-800" : saved ? "bg-green-50 text-green-800" : "bg-slate-100 text-slate-500"}`}>{saving ? "Salvataggio…" : dirty || detailsDirty ? "Modifiche non salvate" : statusLabel(matchStatus(match))}</span>
         </div>
         <div className="space-y-6 p-5 sm:p-7">
+          {match.rest && <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-900">Riposa: {match.rest}</p>}
           {onSaveDetails && <fieldset disabled={saving || disabled} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
             <legend className="px-2 text-sm font-bold">Gestione della partita</legend>
             <div className="grid gap-4 sm:grid-cols-3">
