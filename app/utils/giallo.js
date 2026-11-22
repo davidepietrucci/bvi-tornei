@@ -56,9 +56,7 @@ export function addFifthGialloAthletes(config, approved, selections) {
   if (!config || config.groups?.length !== 3 || config.groups.some((group) => group.athletes?.length !== 4)) {
     throw new Error("Servono tre gironi già composti da quattro atleti ciascuno.");
   }
-  if (Object.keys(config.results || {}).length || config.finals || Object.keys(config.matchMetadata || {}).length) {
-    throw new Error("Sono presenti risultati, tabellone o dati delle partite: l'aggiunta cambierebbe gli incontri. Verifica prima questi dati.");
-  }
+  if (config.finals) throw new Error("È già presente un tabellone finale. Verifica prima i risultati e gli abbinamenti.");
   if (!Array.isArray(approved) || approved.length !== 15 || new Set(approved.map((athlete) => athlete.id)).size !== 15) {
     throw new Error("Servono esattamente 15 iscrizioni approvate distinte.");
   }
@@ -72,17 +70,37 @@ export function addFifthGialloAthletes(config, approved, selections) {
   if (selected.some((id) => !id || !approvedById.has(id) || used.has(id)) || new Set(selected).size !== 3) {
     throw new Error("Seleziona un atleta approvato diverso e non ancora assegnato per ogni girone.");
   }
-  return { ...config, groups: config.groups.map((group, i) => ({ ...group, athletes: [...group.athletes, { ...approvedById.get(selected[i]) }] })) };
+  // A five-player round can retain only one of the original four-player matches:
+  // the fifth player can rest once. Move that match to round one, preserving sides.
+  const results = {};
+  const matchMetadata = {};
+  const sourceIds = new Set(config.groups.flatMap(groupGames).map((game) => game.id));
+  if ([...Object.keys(config.results || {}), ...Object.keys(config.matchMetadata || {})].some((id) => !sourceIds.has(id))) {
+    throw new Error("Sono presenti dati di partite non riconosciute. Verifica il torneo prima di modificare i gironi.");
+  }
+  const orders = [[0, 1, 2, 3, 4], [0, 2, 1, 3, 4], [0, 3, 1, 2, 4]];
+  const groups = config.groups.map((group, i) => {
+    const relevant = groupGames(group).filter((game) => Object.hasOwn(config.results || {}, game.id) || Object.hasOwn(config.matchMetadata || {}, game.id));
+    if (relevant.length > 1) throw new Error(`Il girone ${group.id} contiene dati su più partite: non è possibile conservarli tutti con un solo riposo. Verifica prima gli incontri.`);
+    const oldGame = relevant[0];
+    const oldIndex = oldGame ? Number(oldGame.id.split("-").at(-1)) : 0;
+    const newId = `group-${group.id}-0`;
+    if (oldGame && Object.hasOwn(config.results || {}, oldGame.id)) results[newId] = config.results[oldGame.id];
+    if (oldGame && Object.hasOwn(config.matchMetadata || {}, oldGame.id)) matchMetadata[newId] = config.matchMetadata[oldGame.id];
+    return { ...group, rotation: orders[oldIndex], athletes: [...group.athletes, { ...approvedById.get(selected[i]) }] };
+  });
+  return { ...config, groups, results, ...(config.matchMetadata !== undefined || Object.keys(matchMetadata).length ? { matchMetadata } : {}) };
 }
 
 export function groupGames(group) {
   if (group.athletes.length === 5) {
+    const order = group.rotation || [0, 1, 2, 3, 4];
     return [
       [[0, 1], [2, 3], 4], [[0, 2], [1, 4], 3], [[0, 3], [2, 4], 1],
       [[0, 4], [1, 3], 2], [[1, 2], [3, 4], 0],
     ].map(([left, right, rest], i) => ({
-      id: `group-${group.id}-${i}`, left: left.map((n) => group.athletes[n]),
-      right: right.map((n) => group.athletes[n]), rest: group.athletes[rest],
+      id: `group-${group.id}-${i}`, left: left.map((n) => group.athletes[order[n]]),
+      right: right.map((n) => group.athletes[order[n]]), rest: group.athletes[order[rest]],
     }));
   }
   return [[[0, 1], [2, 3]], [[0, 2], [1, 3]], [[0, 3], [1, 2]]].map(([left, right], i) => ({
@@ -231,7 +249,8 @@ export function validateGiallo(config) {
   if (config?.format !== GIALLO_FORMAT || typeof config.published !== "boolean" || !Array.isArray(config.groups)) throw new Error("Formato giallo non valido.");
   const athletes = config.groups.flatMap((g) => g.athletes || []);
   const groupSize = athletes.length === 15 ? 5 : 4;
-  if (!supportedGialloCount(athletes.length) || config.groups.some((g, i) => g.id !== String.fromCharCode(65 + i) || g.athletes?.length !== groupSize) ||
+  if (!supportedGialloCount(athletes.length) || config.groups.some((g, i) => g.id !== String.fromCharCode(65 + i) || g.athletes?.length !== groupSize ||
+    (g.rotation !== undefined && (groupSize !== 5 || !Array.isArray(g.rotation) || g.rotation.length !== 5 || g.rotation.some((n) => !Number.isInteger(n) || n < 0 || n > 4) || new Set(g.rotation).size !== 5))) ||
     athletes.some((a) => typeof a.id !== "string" || !a.id || typeof a.name !== "string" || !a.name.trim()) ||
     new Set(athletes.map((a) => a.id)).size !== athletes.length) throw new Error("Gironi o atleti non validi.");
   const groupIds = new Set(config.groups.flatMap(groupGames).map((g) => g.id));

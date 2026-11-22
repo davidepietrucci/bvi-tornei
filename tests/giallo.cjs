@@ -37,8 +37,20 @@ const { isDeepStrictEqual } = require('node:util');
   assert.equal(validateGiallo(manual), true);
   assert.throws(() => addFifthGialloAthletes(existingGroups, allFifteen, { A: '13', B: '13', C: '15' }), /diverso/);
   assert.throws(() => addFifthGialloAthletes(existingGroups, allFifteen.slice(0, 14), { A: '13', B: '14', C: '15' }), /15 iscrizioni/);
-  assert.throws(() => addFifthGialloAthletes({ ...existingGroups, results: { 'group-A-0': [21, 15] } }, allFifteen, { A: '13', B: '14', C: '15' }), /risultati/);
-  assert.throws(() => addFifthGialloAthletes({ ...existingGroups, matchMetadata: { 'group-A-0': { court: '1', status: 'scheduled' } } }, allFifteen, { A: '13', B: '14', C: '15' }), /dati delle partite/);
+  for (let oldIndex = 0; oldIndex < 3; oldIndex++) {
+    const oldId = `group-A-${oldIndex}`;
+    const previous = { ...existingGroups, results: { [oldId]: [21, 15] }, matchMetadata: { [oldId]: { court: '1', status: 'finished' } } };
+    const migrated = addFifthGialloAthletes(previous, allFifteen, { A: '13', B: '14', C: '15' });
+    const before = groupGames(previous.groups[0])[oldIndex];
+    const after = groupGames(migrated.groups[0])[0];
+    assert.deepEqual(after.left, before.left);
+    assert.deepEqual(after.right, before.right);
+    assert.deepEqual(migrated.results['group-A-0'], [21, 15]);
+    assert.equal(migrated.matchMetadata['group-A-0'].court, '1');
+    assert.equal(validateGiallo(migrated), true);
+    assert.equal(gialloRanking(migrated).filter(a => a.played === 1).length, 4);
+  }
+  assert.throws(() => addFifthGialloAthletes({ ...existingGroups, results: { 'group-A-0': [21, 15], 'group-A-1': [21, 12] } }, allFifteen, { A: '13', B: '14', C: '15' }), /più partite/);
 
   // Fifteen athletes: three groups of five, all ten partnerships and one rest each.
   let fifteen = createGiallo(athletes(15));
