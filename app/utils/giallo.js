@@ -145,10 +145,11 @@ export function groupsComplete(config) {
 
 export function startGialloFinals(config) {
   if (!groupsComplete(config)) throw new Error("Completa e salva tutti i risultati dei gironi prima di generare il tabellone.");
-  if (config.groups.flatMap((group) => group.athletes).length === 15) throw new Error("La formula della fase finale per 15 atleti non è ancora configurata.");
   const groupIds = new Set(config.groups.flatMap(groupGames).map((game) => game.id));
   const matchMetadata = Object.fromEntries(Object.entries(config.matchMetadata || {}).map(([id, meta]) => [id, groupIds.has(id) ? meta : { ...meta, status: "scheduled" }]));
-  return { ...config, matchMetadata, finals: { seeds: gialloRanking(config).map(({ id, name }) => ({ id, name })), results: {} } };
+  const ranked = gialloRanking(config);
+  const qualified = ranked.length === 15 ? ranked.slice(0, 12) : ranked;
+  return { ...config, matchMetadata, finals: { seeds: qualified.map(({ id, name }) => ({ id, name })), results: {} } };
 }
 
 function seededGames(athletes, stage, previousGames = []) {

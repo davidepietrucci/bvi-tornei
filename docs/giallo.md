@@ -67,7 +67,7 @@ A parità completa si mantiene l'ordine del sorteggio iniziale, come indicato in
 
 ## Eliminazione diretta
 
-Per 12, 16, 20 e 24 atleti tutti passano. Per 15 atleti la formula delle finali non è ancora definita: il tabellone automatico resta disabilitato, senza escludere nessuno automaticamente. La classifica iniziale resta il riferimento per gli abbinamenti.
+Per 12, 16, 20 e 24 atleti tutti passano. Con 15 atleti passano i primi 12 della classifica unica individuale: i primi quattro accedono direttamente alle semifinali, dal quinto al dodicesimo giocano due spareggi; i restanti tre non si qualificano. La classifica iniziale resta il riferimento per gli abbinamenti.
 Si abbina il migliore con il peggiore disponibile, evitando di ripetere compagni
 già avuti nei turni precedenti della fase finale. Le coppie vengono accoppiate in
 partita dalla più alta contro la più bassa testa di serie. Entrambi i vincitori
@@ -77,6 +77,7 @@ Le coppie formate in semifinale rimangono invariate nella finale.
 | Atleti | Spareggi | Accessi diretti | Turno successivo | Partite totali incl. gironi |
 | --- | --- | --- | --- | --- |
 | 12 | 2 partite / 8 atleti | primi 4 | Semifinali | 14 |
+| 15 | 2 partite / 8 atleti | primi 4 della classifica unica | Semifinali | 20 |
 | 16 | nessuno | tutti | Quarti | 19 |
 | 20 | 2 partite / 8 atleti | primi 12 | Quarti | 24 |
 | 24 | 4 partite / 16 atleti | primi 8 | Quarti | 29 |

@@ -180,12 +180,12 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
   const assignedIds = new Set(config?.groups.flatMap((group) => group.athletes.map((athlete) => athlete.id)) || []);
   const unassigned = athletes.filter((athlete) => !assignedIds.has(athlete.id));
   const disabled = busy || conflict;
-  const target = count ? 2 ** Math.floor(Math.log2(count)) : 0;
-  const playoffCount = 2 * (count - target);
+  const finalistsCount = count === 15 ? 12 : count;
+  const target = finalistsCount ? 2 ** Math.floor(Math.log2(finalistsCount)) : 0;
+  const playoffCount = 2 * (finalistsCount - target);
   const completedGames = config ? Object.keys(config.results).length : 0;
   const groupGameCount = config ? config.groups.reduce((sum, group) => sum + groupGames(group).length, 0) : 0;
   const groupSize = (config?.groups[0]?.athletes.length || (athletes.length === 15 ? 5 : 4));
-  const finalAvailable = count !== 15;
   const groupDescription = (n) => n === 15 ? "3 gironi da 5" : `${n / 4} gironi da 4`;
   const visibility = gialloVisibility(config);
   const show = (stage) => editable ? view === stage : stage === "finals" ? visibility.finals : visibility.groups;
@@ -207,6 +207,7 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
           <p>Gironi da 4: tre partite a testa, ogni atleta gioca con tutti e contro tutti nel proprio girone. Set unico a 21 con due punti di vantaggio.</p>
           <p>Con 15 atleti: tre gironi da 5, cinque partite per girone e un atleta a riposo a ogni turno. Ognuno gioca quattro partite, una con ciascun compagno.</p>
           <p>Classifica individuale: vittorie, quoziente punti, differenza punti, punti fatti. A parità completa vale l’ordine del sorteggio iniziale.</p>
+          <p>Con 15 atleti si qualificano i primi 12 della classifica unica: i primi 4 vanno direttamente in semifinale, dal 5° al 12° disputano due spareggi.</p>
           <p>Coppie libere: migliore + peggiore disponibile secondo la classifica dei gironi, evitando di ripetere i compagni della fase finale. Dalle semifinali le coppie restano fisse.</p>
         </div>
       </details>
@@ -262,7 +263,7 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
     {!config && <p className="rounded-xl bg-white p-5">Gironi e tabellone giallo non ancora {editable ? "generati" : "pubblicati"}.</p>}
     {config && <>
       <p hidden={editable ? view === "prepare" : !visibility.groups} className="rounded-xl bg-slate-100 p-4 text-sm leading-6">{count} atleti · {config.groups.length} gironi · {groupGameCount} partite nei gironi
-        {finalAvailable ? (playoffCount > 0 ? ` · primi ${count - playoffCount} direttamente ${target === 16 ? "ai quarti" : "alle semifinali"}, altri ${playoffCount} agli spareggi` : " · tutti ai quarti") : " · formula delle finali da definire"}.
+        {count === 15 ? " · primi 12 della classifica unica qualificati: primi 4 in semifinale, dal 5° al 12° agli spareggi" : (playoffCount > 0 ? ` · primi ${finalistsCount - playoffCount} direttamente ${target === 16 ? "ai quarti" : "alle semifinali"}, altri ${playoffCount} agli spareggi` : " · tutti ai quarti")}.
       </p>
       <div hidden={!show("groups")} className="space-y-5">
         {editable && <div hidden={workspaceMode === "prepare"}><MatchScoreEntry groups={config.groups.map((g) => ({ id: g.id, label: `Girone ${g.id}`, matches: groupGames(g).map((game) => ({
@@ -282,7 +283,7 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
       {editable && <button className={buttonClass} onClick={() => setView("ranking")}>Controlla la classifica →</button>}
       </div>
       <section hidden={!show("ranking")} className="overflow-x-auto rounded-2xl border bg-white p-4 sm:p-6">
-        {editable && <p className="mb-4 text-sm leading-6 text-slate-500">3. Controlla la classifica. {groupsComplete(config) ? (finalAvailable ? "Tutti i risultati sono completi: puoi preparare il tabellone." : "Tutti i risultati sono completi; la formula delle finali per 15 atleti è da definire.") : `Mancano ${groupGameCount - completedGames} risultati prima della fine dei gironi.`}</p>}
+        {editable && <p className="mb-4 text-sm leading-6 text-slate-500">3. Controlla la classifica. {groupsComplete(config) ? "Tutti i risultati sono completi: puoi preparare il tabellone." : `Mancano ${groupGameCount - completedGames} risultati prima della fine dei gironi.`}</p>}
         <h3 className="mb-4 text-xl font-black">Classifica unica individuale {groupsComplete(config) ? "· completa" : "· provvisoria"}</h3>
         <table className="w-full text-left text-sm"><thead><tr>{["#", "Atleta", "Girone", "Giocate", "Vittorie", "PF", "PS", "Quoz."].map((label) => <th key={label} className="p-2">{label}</th>)}</tr></thead>
           <tbody>{ranking.map((a, i) => <tr key={a.id} className="border-t"><td className="p-2">{i + 1}</td><td className="p-2 font-bold">{a.name}</td><td className="p-2">{a.group}</td><td className="p-2">{a.played}</td><td className="p-2">{a.wins}</td><td className="p-2">{a.pf}</td><td className="p-2">{a.ps}</td><td className="p-2">{a.ps ? (a.pf / a.ps).toFixed(3) : a.pf ? "∞" : "—"}</td></tr>)}</tbody>
@@ -302,8 +303,8 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
         <div hidden={editable && effectiveFinalMode !== "setup"} className="space-y-5">
         {editable && <p className="rounded-xl bg-slate-50 p-4 text-sm leading-6">La formula giallo usa la classifica unica: migliore con peggiore, coppie riformate a ogni turno e fisse dalle semifinali. Qui generi e controlli il percorso; campo, orario e punteggi si gestiscono in Partite e risultati.</p>}
         {editable && <p className="text-sm leading-6 text-slate-500">Genera gli abbinamenti dalla classifica completa. Poi salva i risultati: i turni successivi compariranno solo quando tutti gli incontri precedenti sono conclusi.</p>}
-        {!finalAvailable && <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Per 15 atleti la formula delle finali deve ancora essere definita: non è possibile generare un tabellone automatico.</p>}
-        {editable && <button className={buttonClass} disabled={disabled || !groupsComplete(config) || !finalAvailable} onClick={() => {
+        {count === 15 && <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Si qualificano i primi 12 della classifica unica: i primi 4 accedono direttamente alle semifinali, gli altri 8 giocano gli spareggi.</p>}
+        {editable && <button className={buttonClass} disabled={disabled || !groupsComplete(config)} onClick={() => {
           if (config.finals && !window.confirm("Rigenerare il tabellone cancellando tutti i risultati delle finali?")) return;
           try { persist(startGialloFinals(config)); } catch (reason) { setError(reason.message); }
         }}>{config.finals ? "Rigenera tabellone" : "Genera tabellone dalla classifica"}</button>}
