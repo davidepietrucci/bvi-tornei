@@ -7,7 +7,7 @@ const { isDeepStrictEqual } = require('node:util');
   const source = fs.readFileSync('app/utils/giallo.js', 'utf8');
   const rules = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
   const { createGiallo, groupGames, gialloRanking, validGialloScore, groupsComplete,
-    startGialloFinals, gialloStages, setGialloScore, validateGiallo, approvedGialloAthletes } = rules;
+    startGialloFinals, gialloStages, setGialloScore, validateGiallo, approvedGialloAthletes, addFifthGialloAthletes } = rules;
   const athletes = (n) => Array.from({ length: n }, (_, i) => ({ id: String(i + 1), name: `Atleta ${i + 1}` }));
   const completeGroups = (config) => {
     for (const group of config.groups) for (const game of groupGames(group)) config = setGialloScore(config, game.id, [21, 15]);
@@ -23,6 +23,22 @@ const { isDeepStrictEqual } = require('node:util');
     { id: 'd', torneo: 'Giallo', stato: 'Annullata', giocatori: 'D' },
   ], 'Giallo').length, 1);
   assert.throws(() => approvedGialloAthletes([{ torneo: 'Giallo', stato: 'Approvata', giocatori: 'A' }], 'Giallo'));
+
+  const existingGroups = { ...createGiallo(athletes(12)), published: true, groupsPublished: true, finalsPublished: false };
+  const untouched = structuredClone(existingGroups);
+  const allFifteen = athletes(15);
+  const manual = addFifthGialloAthletes(existingGroups, allFifteen, { A: '13', B: '14', C: '15' });
+  assert.deepEqual(existingGroups, untouched, 'The existing saved draw cannot be mutated');
+  assert.equal(manual.groupsPublished, true);
+  for (const [i, group] of manual.groups.entries()) {
+    assert.deepEqual(group.athletes.slice(0, 4), existingGroups.groups[i].athletes);
+    assert.equal(group.athletes[4].id, String(13 + i));
+  }
+  assert.equal(validateGiallo(manual), true);
+  assert.throws(() => addFifthGialloAthletes(existingGroups, allFifteen, { A: '13', B: '13', C: '15' }), /diverso/);
+  assert.throws(() => addFifthGialloAthletes(existingGroups, allFifteen.slice(0, 14), { A: '13', B: '14', C: '15' }), /15 iscrizioni/);
+  assert.throws(() => addFifthGialloAthletes({ ...existingGroups, results: { 'group-A-0': [21, 15] } }, allFifteen, { A: '13', B: '14', C: '15' }), /risultati/);
+  assert.throws(() => addFifthGialloAthletes({ ...existingGroups, matchMetadata: { 'group-A-0': { court: '1', status: 'scheduled' } } }, allFifteen, { A: '13', B: '14', C: '15' }), /dati delle partite/);
 
   // Fifteen athletes: three groups of five, all ten partnerships and one rest each.
   let fifteen = createGiallo(athletes(15));
@@ -132,5 +148,14 @@ const { isDeepStrictEqual } = require('node:util');
   const next = createGiallo(athletes(20));
   assert.equal(await context.save('test', next, config, 'Giallo'), 'registrations_changed');
   assert.deepEqual(saved, config);
+  saved = existingGroups;
+  registrations = allFifteen.map(a => ({ id: a.id, giocatori: a.name, torneo: 'Giallo', stato: 'Approvata' }));
+  assert.equal(await context.save('test', manual, existingGroups, 'Giallo'), 'saved');
+  assert.deepEqual(saved.groups.map(g => g.athletes.slice(0, 4)), existingGroups.groups.map(g => g.athletes));
+  assert.equal(await context.save('test', manual, existingGroups, 'Giallo'), 'conflict');
+  saved = existingGroups;
+  registrations[14].stato = 'In Attesa';
+  assert.equal(await context.save('test', manual, existingGroups, 'Giallo'), 'registrations_changed');
+  assert.deepEqual(saved, existingGroups);
   console.log('Giallo: rotations, ranking, 160 full tournaments, scores, downstream resets and save-conflict tests passed.');
 })().catch((error) => { console.error(error); process.exitCode = 1; });

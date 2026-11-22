@@ -49,6 +49,7 @@ conservandone campo e orario.
 - Usa solo le iscrizioni approvate del torneo selezionato, identificate per ID.
 - 12 / 16 / 20 / 24 atleti producono rispettivamente 3 / 4 / 5 / 6 gironi da quattro.
 - 15 atleti producono tre gironi da cinque: cinque partite per girone, un riposo per atleta e quattro partite a testa, una con ciascun compagno.
+- Se esistono già tre gironi da quattro e ci sono 15 approvati, lo staff può scegliere il quinto atleta di ogni girone senza spostare gli altri e mantenendo la visibilità. La modifica è bloccata se sono già presenti risultati, finali o dati campo/orario/stato, perché gli incontri cambiano; il server ricontrolla gli approvati e la versione salvata.
 - Ogni girone disputa AB–CD, AC–BD, AD–BC: tre partite a testa, tutti come
   compagni una volta e come avversari due volte all'interno del girone.
 - Le coppie sono libere, senza vincoli di genere.

@@ -51,6 +51,30 @@ export function createGiallo(athletes) {
   };
 }
 
+// Add exactly one approved athlete to each existing group without changing its draw.
+export function addFifthGialloAthletes(config, approved, selections) {
+  if (!config || config.groups?.length !== 3 || config.groups.some((group) => group.athletes?.length !== 4)) {
+    throw new Error("Servono tre gironi già composti da quattro atleti ciascuno.");
+  }
+  if (Object.keys(config.results || {}).length || config.finals || Object.keys(config.matchMetadata || {}).length) {
+    throw new Error("Sono presenti risultati, tabellone o dati delle partite: l'aggiunta cambierebbe gli incontri. Verifica prima questi dati.");
+  }
+  if (!Array.isArray(approved) || approved.length !== 15 || new Set(approved.map((athlete) => athlete.id)).size !== 15) {
+    throw new Error("Servono esattamente 15 iscrizioni approvate distinte.");
+  }
+  const existing = config.groups.flatMap((group) => group.athletes);
+  const approvedById = new Map(approved.map((athlete) => [athlete.id, athlete]));
+  if (existing.length !== 12 || new Set(existing.map((athlete) => athlete.id)).size !== 12 || existing.some((athlete) => approvedById.get(athlete.id)?.name !== athlete.name)) {
+    throw new Error("I partecipanti salvati non corrispondono agli approvati. Aggiorna e verifica le iscrizioni prima di proseguire.");
+  }
+  const selected = config.groups.map((group) => selections?.[group.id]);
+  const used = new Set(existing.map((athlete) => athlete.id));
+  if (selected.some((id) => !id || !approvedById.has(id) || used.has(id)) || new Set(selected).size !== 3) {
+    throw new Error("Seleziona un atleta approvato diverso e non ancora assegnato per ogni girone.");
+  }
+  return { ...config, groups: config.groups.map((group, i) => ({ ...group, athletes: [...group.athletes, { ...approvedById.get(selected[i]) }] })) };
+}
+
 export function groupGames(group) {
   if (group.athletes.length === 5) {
     return [

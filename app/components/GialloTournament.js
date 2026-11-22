@@ -4,7 +4,7 @@ import { useEffect, useState, useImperativeHandle, useRef } from "react";
 import MatchScoreEntry from "@/app/components/tournament/MatchScoreEntry";
 import { validateMatchDetails } from "@/app/utils/match-scoring";
 import {
-  approvedGialloAthletes, createGiallo, gialloRanking, gialloSlug, gialloStages,
+  addFifthGialloAthletes, approvedGialloAthletes, createGiallo, gialloRanking, gialloSlug, gialloStages,
   groupGames, groupsComplete, setGialloScore, startGialloFinals, supportedGialloCount, gialloVisibility,
 } from "@/app/utils/giallo";
 
@@ -61,7 +61,9 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
   const [scoreDrafts, setScoreDrafts] = useState(0);
   const [finalMode, setFinalMode] = useState("setup");
   const [finalScoreDrafts, setFinalScoreDrafts] = useState(0);
+  const [additions, setAdditions] = useState({});
   const publicationLock = useRef(false);
+  const additionLock = useRef(false);
   const effectiveFinalMode = workspaceMode ? workspaceMode === "day" ? "results" : "setup" : finalMode;
   const slug = gialloSlug(tournament.nome);
   useEffect(() => {
@@ -140,6 +142,20 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
     finally { setBusy(false); }
   };
 
+  const addMissingAthletes = async () => {
+    if (additionLock.current || busy || conflict || scoreDrafts || finalScoreDrafts) return;
+    additionLock.current = true;
+    setBusy(true);
+    setError(""); setMessage("");
+    try {
+      const current = approvedGialloAthletes(await readData("iscrizioni"), tournament.nome);
+      setAthletes(current);
+      const next = addFifthGialloAthletes(config, current, additions);
+      if (await persist(next)) { setAdditions({}); setMessage("Atleti aggiunti ai gironi esistenti. I nuovi incontri sono disponibili."); }
+    } catch (reason) { setError(reason.message); }
+    finally { additionLock.current = false; setBusy(false); }
+  };
+
   const recordScore = async (id, score, details) => {
     if (JSON.stringify(config.results[id] ?? config.finals?.results[id] ?? null) === JSON.stringify(score)) return true;
     const isGroup = id.startsWith("group-");
@@ -160,6 +176,9 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
   const generatedIds = ranking.map((a) => a.id).sort().join(",");
   const currentIds = athletes.map((a) => a.id).sort().join(",");
   const changed = editable && config && generatedIds !== currentIds;
+  const canAddFifth = editable && config?.groups.length === 3 && config.groups.every((group) => group.athletes.length === 4) && athletes.length === 15;
+  const assignedIds = new Set(config?.groups.flatMap((group) => group.athletes.map((athlete) => athlete.id)) || []);
+  const unassigned = athletes.filter((athlete) => !assignedIds.has(athlete.id));
   const disabled = busy || conflict;
   const target = count ? 2 ** Math.floor(Math.log2(count)) : 0;
   const playoffCount = 2 * (count - target);
@@ -223,10 +242,20 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
       <div hidden={!show("prepare")} className="space-y-4 border-t border-slate-100 pt-5">
       <div><h3 className="text-xl font-bold">1. Controlla i partecipanti</h3><p className="mt-2 text-sm leading-6 text-slate-500">Vengono utilizzate soltanto le iscrizioni approvate. Il numero di gironi viene calcolato automaticamente, senza escludere nessuno.</p></div>
       <p><strong>{athletes.length} atleti approvati</strong> · {supportedGialloCount(athletes.length) ? groupDescription(athletes.length) : "Numero non supportato: servono 12, 15, 16, 20 o 24. Nessuno viene escluso."}</p>
-      {changed && <p className="text-amber-800">Gli approvati differiscono dal sorteggio salvato. I gironi non vengono cambiati automaticamente: verifica gli iscritti prima di rigenerare.</p>}
+      {changed && <p className="text-amber-800">Gli approvati differiscono dal sorteggio salvato. I gironi non vengono cambiati automaticamente: verifica gli iscritti.</p>}
       {athletes.length > 0 && <details className="rounded-xl bg-slate-50 p-4"><summary className="cursor-pointer text-sm font-semibold">Vedi i {athletes.length} partecipanti approvati</summary><ol className="mt-3 grid list-inside list-decimal gap-2 text-sm sm:grid-cols-2">{athletes.map((a) => <li key={a.id}>{a.name}</li>)}</ol></details>}
       {!config ? <button className={buttonClass} disabled={disabled || !supportedGialloCount(athletes.length)} onClick={generate}>Genera {supportedGialloCount(athletes.length) ? groupDescription(athletes.length) : "gironi"}</button>
-        : <><p className="rounded-xl bg-green-50 p-4 text-sm text-green-800">I gironi sono già salvati. Puoi passare ai risultati senza ripetere il sorteggio.</p><button className={buttonClass} onClick={() => setView("groups")}>Vai ai risultati dei gironi →</button>
+        : <><p className="rounded-xl bg-green-50 p-4 text-sm text-green-800">I gironi sono già salvati. Puoi passare ai risultati senza ripetere il sorteggio.</p>
+          {canAddFifth && <section className="space-y-4 rounded-xl border border-amber-200 bg-amber-50 p-4" aria-label="Aggiungi atleti senza sorteggio">
+            <div><h4 className="font-black">Aggiungi i 3 atleti ai gironi esistenti</h4><p className="mt-1 text-sm">Scegli un atleta per ogni girone: i 12 già assegnati resteranno nei rispettivi posti. Gli incontri verranno aggiornati e la visibilità dei gironi resterà invariata. L'operazione è disponibile solo se non ci sono risultati, finali o dati delle partite salvati.</p></div>
+            {config.groups.map((group) => <label key={group.id} className="block text-sm font-bold">Girone {group.id} · {group.athletes.map(a => a.name).join(", ")}
+              <select value={additions[group.id] || ""} disabled={disabled} onChange={(event) => setAdditions(previous => ({ ...previous, [group.id]: event.target.value }))} className="mt-2 block w-full rounded-xl border border-slate-300 bg-white p-3 font-medium">
+                <option value="">Scegli il quinto atleta</option>
+                {unassigned.map((athlete) => <option key={athlete.id} value={athlete.id} disabled={Object.entries(additions).some(([id, value]) => id !== group.id && value === athlete.id)}>{athlete.name}</option>)}
+              </select></label>)}
+            <button type="button" className={buttonClass} disabled={disabled || Boolean(scoreDrafts + finalScoreDrafts) || config.groups.some((group) => !additions[group.id])} onClick={addMissingAthletes}>Aggiungi atleti senza risorteggiare</button>
+          </section>}
+          <button className={buttonClass} onClick={() => setView("groups")}>Vai ai risultati dei gironi →</button>
           <details className="pt-3"><summary className="cursor-pointer text-sm font-semibold text-slate-600">Modifica il sorteggio · azzera risultati</summary><p className="my-3 text-sm text-slate-500">Rigenerare cancella tutti i risultati e il tabellone giallo. L’operazione richiede conferma.</p><button className="rounded-xl border border-red-200 px-4 py-3 text-sm font-bold text-red-700 disabled:opacity-40" disabled={disabled || !supportedGialloCount(athletes.length)} onClick={generate}>Rigenera gironi e azzera risultati</button></details></>}
       </div>
     </details>}
