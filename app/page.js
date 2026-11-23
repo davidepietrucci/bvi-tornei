@@ -241,7 +241,15 @@ export default function Home() {
 
       {torneiConclusi.length > 0 && <section className="mx-auto max-w-7xl px-5 py-16 sm:px-8">
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4"><div><p className="mb-2 text-xs font-black uppercase tracking-[0.2em] text-[#b18a0d]">Archivio</p><h2 className="text-3xl font-black">I tornei passati</h2></div>{torneiConclusi.length > 3 && <button type="button" aria-expanded={showAllCompleted} aria-controls="archivio-tornei" onClick={() => setShowAllCompleted(value => !value)} className="min-h-11 text-sm font-bold text-[#101d2c] underline decoration-[#f5ca3e] decoration-2 underline-offset-4">{showAllCompleted ? "Mostra meno ↑" : "Mostra tutti →"}</button>}</div>
-        <div id="archivio-tornei" className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{visibleCompleted.map((t, i) => <article key={t.id || i} className="flex items-center justify-between gap-4 rounded-2xl border border-[#e8e4d8] bg-white p-5"><div><p className="text-xs font-bold text-gray-500">{t.data} · {t.categoria || "Categoria libera"}</p><h3 className="mt-1 font-black"><a href={`/tornei/${t.id}`} className="hover:text-[#8a6e07]">{t.nome}</a></h3><a href={`/tornei/${t.id}`} className="mt-1 inline-flex text-[10px] font-black uppercase tracking-wider text-[#657080] underline decoration-[#f5ca3e] decoration-2 underline-offset-2">Scheda torneo →</a></div><a href={`/classifica?tour=${encodeURIComponent(t.nome)}`} className="shrink-0 rounded-full bg-[#f5ca3e] px-4 py-2 text-xs font-black">Classifica</a></article>)}</div>
+        <div id="archivio-tornei" className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {visibleCompleted.map((t, i) => <article key={t.id || i} className="flex items-center justify-between gap-4 rounded-2xl border border-[#e8e4d8] bg-white p-5">
+            <div>
+              <p className="text-xs font-bold text-gray-500">{t.data} · {t.categoria || "Categoria libera"}</p>
+              <h3 className="mt-1 font-black"><a href={`/tornei/${t.id}`} className="hover:text-[#8a6e07]">{t.nome}</a></h3>
+            </div>
+            <a href={`/tornei/${t.id}`} aria-label={`Vedi torneo: ${t.nome}`} className="shrink-0 rounded-full bg-[#f5ca3e] px-4 py-2 text-xs font-black">Vedi torneo →</a>
+          </article>)}
+        </div>
       </section>}
 
       {/* Modal Coppie Iscritte */}

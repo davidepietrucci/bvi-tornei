@@ -54,7 +54,14 @@ const { renderToStaticMarkup } = require('react-dom/server');
   assert.match(text(toggle(tree)), /Mostra meno/);
   const html = renderToStaticMarkup(archive(tree));
   assert.match(html, /href="\/tornei\/4"/);
-  assert.match(html, /href="\/classifica\?tour=Tappa%20gialla"/);
+  assert.doesNotMatch(html, /href="\/classifica/);
+  for (const article of nodes(archive(tree)).filter(node => node.type === 'article')) {
+    const link = nodes(article).find(node => node.type === 'a' && text(node) === 'Vedi torneo →');
+    assert(link, 'Every archived tournament must link to its complete detail page');
+    assert.match(link.props.href, /^\/tornei\/\d+$/);
+    assert.equal(link.props.href, nodes(article).find(node => node.type === 'h3').props.children.props.href);
+    assert.match(link.props['aria-label'], /^Vedi torneo: /);
+  }
   toggle(tree).props.onClick(); tree = render();
   assert.equal(names(tree).length, 3);
   assert.equal(JSON.stringify(fixtures), before, 'Sorting cannot mutate fetched tournaments');
