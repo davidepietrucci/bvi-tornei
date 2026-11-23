@@ -8,6 +8,30 @@ import { randomUUID, createHash } from "node:crypto";
 import { tournamentNotifications } from "./notifications";
 import { gialloClosingPreview } from "./giallo-completion";
 
+export async function updateTournamentStatus({ id, nome, stato, baseline }) {
+  if (!db) throw new Error("Database non disponibile");
+  const fail = (message, status) => { throw Object.assign(new Error(message), { status }); };
+  if (!["In Programmazione", "Iscrizioni Aperte", "In Corso"].includes(stato)) fail("Stato non valido.", 400);
+  return db.runTransaction(async transaction => {
+    const ref = db.collection("config").doc("tornei");
+    const snapshot = await transaction.get(ref);
+    const list = snapshot.data()?.list;
+    if (!Array.isArray(list)) fail("Elenco tornei non disponibile.", 409);
+    const index = list.findIndex(t => t.nome === nome && (id === undefined || String(t.id) === String(id)));
+    if (index < 0) fail("Torneo non trovato.", 404);
+    const tournament = list[index];
+    if (tournament.stato !== baseline) fail("Lo stato è cambiato. Aggiorna la pagina prima di riprovare.", 409);
+    if (tournament.stato === "Concluso") fail("Riapri il torneo dalla classifica finale prima di cambiare stato.", 409);
+    if (isGiallo(tournament)) {
+      const config = await transaction.get(db.collection("giallo").doc(gialloSlug(nome)));
+      if (config.data()?.data?.completion) fail("Riapri il torneo dalla classifica finale prima di cambiare stato.", 409);
+    }
+    const updated = { ...tournament, stato };
+    if (tournament.stato !== stato) transaction.set(ref, { list: sanitizeData(list.map((t, i) => i === index ? updated : t)) });
+    return updated;
+  });
+}
+
 let parsedServiceAccount = null;
 const jsonEnv = process.env.FIREBASE_SERVICE_ACCOUNT || process.env.FIREBASE_CONFIG_JSON || process.env.FIREBASE_CREDENTIALS;
 if (jsonEnv) {

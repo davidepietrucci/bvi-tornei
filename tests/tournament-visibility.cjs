@@ -29,7 +29,7 @@ const swc = require('next/dist/build/swc');
       require(id) {
         if (id === 'react') return hooks;
         if (id === 'next/navigation') return { useRouter: () => ({}), useSearchParams: () => new URLSearchParams() };
-        if (id === '@/app/utils/giallo') return { isGiallo: () => false };
+        if (id === '@/app/utils/giallo') return { isGiallo: () => false, gialloVisibility: () => ({ groups: false, finals: false }) };
         if (id === '@/app/utils/tournament-workflow') return { saveWorkflowConfig: async (...args) => { if (failSave) throw new Error('Salvataggio fallito'); saves.push(structuredClone(args)); }, readWorkflowConfig: async () => null };
         if (id === '@/app/utils/ranking') return { calculateUnifiedRanking: () => [], getSchedule: () => [] };
         if (id === '@/app/utils/match-scoring') return { ...scoringRules, teamGroupMatches: () => [] };

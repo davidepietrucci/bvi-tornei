@@ -113,12 +113,28 @@ export default function TournamentManagement() {
   const [reload, setReload] = useState(0);
   const [workspaceMode, setWorkspaceMode] = useState("prepare");
   const [publicationSaving, setPublicationSaving] = useState("");
+  const [statusSaving, setStatusSaving] = useState(false);
   const publicationLock = useRef(false);
   const workspaceRef = useRef(null);
   const receiveSummary = useCallback(({ updatedTournament, ...value }) => {
     setSummary(previous => ({ ...previous, ...value }));
     if (updatedTournament) setTournaments(list => list.map(item => String(item.id) === String(updatedTournament.id) && item.nome === updatedTournament.nome ? updatedTournament : item));
   }, []);
+
+  const changeStatus = async stato => {
+    if (publicationLock.current || navigating || summary.busy || summary.scoreDrafts || statusSaving) return;
+    const current = tournaments.find(t => t.nome === selected);
+    if (!current || current.stato === stato) return;
+    if (!window.confirm(`Impostare il torneo come «${stato}»? Questo non modifica risultati o pubblicazione.`)) return;
+    publicationLock.current = true; setStatusSaving(true); setError("");
+    try {
+      const response = await fetch("/api/staff/tornei/stato", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: current.id, nome: current.nome, stato, baseline: current.stato }) });
+      const json = await response.json();
+      if (!response.ok || json.success !== true || !json.tournament || json.tournament.nome !== current.nome || json.tournament.stato !== stato) throw new Error(json.error || "Stato non salvato. Aggiorna e riprova.");
+      setTournaments(list => list.map(t => t.nome === current.nome && t.id === current.id ? json.tournament : t));
+    } catch (reason) { setError(reason.message); }
+    finally { publicationLock.current = false; setStatusSaving(false); }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -187,7 +203,7 @@ export default function TournamentManagement() {
       {loading ? <p role="status">Caricamento gestione torneo…</p> : <>
         <TournamentSetupHeader family={family} step={step} tournaments={available} selected={selected}
           workspaceMode={workspaceMode} onModeChange={(mode) => navigate(mode === "day" ? ["groups", "finals"].includes(step) ? step : "groups" : "summary", false, mode)}
-          onSelect={(name) => choose(family, name)} summary={summary} disabled={navigating || summary.busy || Boolean(publicationSaving)} onPublish={publish} publicationSaving={publicationSaving}
+          onSelect={(name) => choose(family, name)} summary={summary} disabled={navigating || summary.busy || Boolean(publicationSaving) || statusSaving} onPublish={publish} publicationSaving={publicationSaving} onStatusChange={changeStatus} statusSaving={statusSaving}
           onStepChange={navigate} onFamilyChange={(next) => {
             if (next === family) return;
             choose(next, tournaments.find((t) => isGiallo(t) === (next === "giallo"))?.nome || "");
@@ -195,7 +211,7 @@ export default function TournamentManagement() {
         {navigating && <p role="status" className="mb-4 text-sm text-slate-600">Verifica e salvataggio delle modifiche…</p>}
         {tournament && workspaceMode === "day" && nextAction && <aside className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-yellow-200 bg-yellow-50 p-4"><div><p className="text-sm font-bold">{nextAction.label}</p><p className="mt-1 text-sm text-slate-600">{nextAction.detail}</p></div>{(step !== nextAction.step || workspaceMode !== nextAction.mode) && <button type="button" disabled={navigating || summary.busy} onClick={() => navigate(nextAction.step, false, nextAction.mode)} className="min-h-11 rounded-xl bg-[#0a1628] px-4 py-3 text-sm font-bold text-white disabled:opacity-40">Apri →</button>}</aside>}
         {tournament && step === "ranking" && <button type="button" disabled={navigating || summary.busy} onClick={() => navigate(workspaceMode === "day" ? "groups" : "summary")} className="mb-4 min-h-11 text-sm font-bold underline">← {workspaceMode === "day" ? "Torna alle partite" : "Torna al riepilogo"}</button>}
-        {tournament && <div inert={navigating || Boolean(publicationSaving) || undefined} aria-busy={navigating || Boolean(publicationSaving)}>
+        {tournament && <div inert={navigating || Boolean(publicationSaving) || statusSaving || undefined} aria-busy={navigating || Boolean(publicationSaving) || statusSaving}>
           <TournamentWorkspace key={tournament.id || tournament.nome} tournament={tournament} step={step}
             workspaceMode={workspaceMode} onNavigate={navigate} onSummary={receiveSummary} saveRef={workspaceRef} />
           {step === "summary" && (summary.summaryReady ? <TournamentOverview tournament={tournament} summary={summary} disabled={navigating || summary.busy} onNavigate={(next, mode) => navigate(next, false, mode)} /> : <p role="status">Verifica configurazione del torneo…</p>)}

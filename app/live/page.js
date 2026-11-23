@@ -5,8 +5,8 @@ import { useState, useEffect } from "react";
 import { getTornei, getGironi, getBracket } from "@/app/utils/db";
 import { calculateUnifiedRanking, getSchedule as getScheduleShared } from "@/app/utils/ranking";
 import SponsorBanner from "@/app/components/SponsorBanner";
-import GialloTournament from "@/app/components/GialloTournament";
-import { isGiallo } from "@/app/utils/giallo";
+import GialloLiveContent from "@/app/components/GialloLiveContent";
+import { isGiallo, gialloVisibility } from "@/app/utils/giallo";
 
 const capitalizeWord = (word) => {
   if (!word) return "";
@@ -77,6 +77,8 @@ export default function PortaleLiveMobile() {
   const [fasiFinaliCategory, setFasiFinaliCategory] = useState("gold"); // "gold" or "silver"
   const [viewMode, setViewMode] = useState("cronologico"); // "cronologico" or "girone"
   const [loading, setLoading] = useState(true);
+  const [yellowLive, setYellowLive] = useState(null);
+  const [liveError, setLiveError] = useState("");
 
   // 1. Carica l'elenco dei tornei e determina quello da visualizzare
   useEffect(() => {
@@ -91,8 +93,9 @@ export default function PortaleLiveMobile() {
       } else {
         // Cerca tornei attivi per primi
         const attivi = parsed.filter(
-          (t) => t.stato === "Iscrizioni Aperte" || t.stato === "In Programmazione"
+          (t) => ["In Corso", "Iscrizioni Aperte", "In Programmazione"].includes(t.stato)
         );
+        attivi.sort((a, b) => Number(b.stato === "In Corso") - Number(a.stato === "In Corso"));
         if (attivi.length > 0) {
           setSelectedTorneo(attivi[0].nome);
         } else if (parsed.length > 0) {
@@ -104,28 +107,41 @@ export default function PortaleLiveMobile() {
   }, []);
 
   // 2. Caricamento live dei gironi e dei bracket del torneo selezionato
+  const selectedYellow = isGiallo(tornei.find(t => t.nome === selectedTorneo));
   useEffect(() => {
     if (!selectedTorneo) return;
     const slug = selectedTorneo.toLowerCase().trim().replace(/\s+/g, "_");
-
-    const fetchLive = () => {
-      getGironi(slug, { publicView: true }).then((data) => {
-        setConfig(data);
-      });
-      getBracket(slug, { publicView: true }).then((data) => {
-        setBracketConfig(data);
-      });
+    let cancelled = false, running = false;
+    const controller = new AbortController();
+    const fetchLive = async () => {
+      if (running) return;
+      running = true;
+      try {
+        if (selectedYellow) {
+          const response = await fetch(`/api/db?${new URLSearchParams({ type: "giallo", slug, public: "true" })}`, { cache: "no-store", signal: controller.signal });
+          const json = await response.json();
+          if (!response.ok) throw new Error("Aggiornamento live non riuscito. Riprova tra pochi secondi.");
+          if (!cancelled) setYellowLive({ tournament: selectedTorneo, data: json.data });
+        } else {
+          const [groups, finals] = await Promise.all([getGironi(slug, { publicView: true }), getBracket(slug, { publicView: true })]);
+          if (!cancelled) { setConfig(groups); setBracketConfig(finals); }
+        }
+        if (!cancelled) setLiveError("");
+      } catch (reason) { if (!cancelled) setLiveError(reason.message); }
+      finally { running = false; }
     };
 
     fetchLive();
     const interval = setInterval(fetchLive, 10000);
-    return () => clearInterval(interval);
-  }, [selectedTorneo]);
+    return () => { cancelled = true; controller.abort(); clearInterval(interval); };
+  }, [selectedTorneo, selectedYellow]);
 
   const selectedTorneoObj = tornei.find((t) => t.nome === selectedTorneo);
   const isConcluso = selectedTorneoObj?.stato === "Concluso";
-  const isPublished = config && config.pubblicato;
-  const isBracketPublished = bracketConfig && bracketConfig.tabellonePubblicato;
+  const yellowConfig = yellowLive?.tournament === selectedTorneo ? yellowLive.data : null;
+  const yellowVisibility = gialloVisibility(yellowConfig);
+  const isPublished = selectedYellow ? yellowVisibility.groups : config && config.pubblicato;
+  const isBracketPublished = selectedYellow ? yellowVisibility.finals : bracketConfig && bracketConfig.tabellonePubblicato;
   const activeTab = !isPublished && isBracketPublished ? "finali" : requestedTab === "finali" && !isBracketPublished ? "gironi" : requestedTab;
   const rankingType = config?.rankingType || "avulsa";
 
@@ -898,7 +914,7 @@ export default function PortaleLiveMobile() {
     const s2R = parseInt(meta?.s2R || 0);
     const s3L = parseInt(meta?.s3L || 0);
     const s3R = parseInt(meta?.s3R || 0);
-    const isThreeSets = isPlayoffMatch && bracketConfig?.subPhaseType !== "custom_18";
+    const isThreeSets = !meta?.singleSet && isPlayoffMatch && bracketConfig?.subPhaseType !== "custom_18";
     const isMultiSetPlayoff = isThreeSets;
 
     let isWinnerL = false;
@@ -960,6 +976,7 @@ export default function PortaleLiveMobile() {
           </div>
         </div>
 
+        {meta?.rest && <p className="text-xs font-bold text-gray-500">Riposa: {meta.rest}</p>}
         <div className="flex items-center justify-between gap-3 py-1.5">
           {/* Team Left */}
           <div className="flex-1 text-right min-w-0 pr-1">
@@ -1047,10 +1064,6 @@ export default function PortaleLiveMobile() {
   };
   const bgImage = getTournamentBgImage(selectedTorneoObj, selectedTorneo);
 
-  if (isGiallo(selectedTorneoObj)) return <main className="min-h-screen bg-[#f8faff] pb-20">
-    <GialloTournament tournament={selectedTorneoObj} tournaments={tornei} onSelect={setSelectedTorneo} />
-  </main>;
-
   return (
     <main className="min-h-screen bg-[#f0f4ff] pb-24 relative">
       {bgImage && (
@@ -1082,7 +1095,7 @@ export default function PortaleLiveMobile() {
                 </span>
               ) : (
                 <span className="px-2 py-0.5 rounded-full text-[8px] font-black bg-green-500/20 text-green-400 border border-green-500/30 uppercase tracking-wider shrink-0 animate-pulse">
-                  Torneo Attivo 🟢
+                  {selectedTorneoObj?.stato === "In Corso" ? "In corso 🟢" : selectedTorneoObj?.stato || "Torneo Attivo 🟢"}
                 </span>
               )}
             </div>
@@ -1104,10 +1117,12 @@ export default function PortaleLiveMobile() {
       <div className="max-w-md mx-auto px-4 pt-2 space-y-4">
         {/* Banner Sponsor */}
         <SponsorBanner />
+        {liveError && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{liveError}</p>}
+        {selectedYellow && tornei.length > 1 && <label className="block text-xs font-bold text-gray-500">Torneo<select aria-label="Torneo live" value={selectedTorneo} onChange={event => setSelectedTorneo(event.target.value)} className="mt-2 w-full rounded-xl border border-gray-200 bg-white p-3 text-sm text-[#0a1628]">{tornei.map(t => <option key={t.id || t.nome} value={t.nome}>{t.nome}</option>)}</select></label>}
 
         {/* Controllo Pubblicazione */}
         {isPublished || isBracketPublished ? (
-          <>
+          selectedYellow ? <GialloLiveContent config={yellowConfig} tab={activeTab} viewMode={viewMode} onViewModeChange={setViewMode} renderMatch={renderMatchRow} /> : <>
             {/* 1. SEZIONE GIRONI (COMPOSIZIONE SQUADRE INIZIALI) */}
             {activeTab === "gironi" && (
               <div className="space-y-5">
@@ -1700,7 +1715,7 @@ export default function PortaleLiveMobile() {
                 />
               </svg>
               <span className="text-xs font-black uppercase tracking-widest transition-colors">
-                {rankingType === "avulsa" ? "Classifica Avulsa" : "Classifiche"}
+                {selectedYellow ? "Classifica" : rankingType === "avulsa" ? "Classifica Avulsa" : "Classifiche"}
               </span>
               {activeTab === "classifica" && (
                 <span className="absolute top-3 w-1.5 h-1.5 rounded-full bg-[#FFD700]" />

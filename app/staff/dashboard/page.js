@@ -20,7 +20,7 @@ export default function StaffDashboard() {
 
   useEffect(() => {
     Promise.all([getTornei(), getIscrizioni()]).then(([tornei, iscrizioni]) => {
-      const countTorneiAttivi = tornei.filter(t => t.stato === "Iscrizioni Aperte" || t.stato === "In Programmazione").length;
+      const countTorneiAttivi = tornei.filter(t => ["Iscrizioni Aperte", "In Programmazione", "In Corso"].includes(t.stato)).length;
       const countInAttesa = iscrizioni.filter(i => i.stato === "In Attesa").length;
       const countConfermate = iscrizioni.filter(i => i.stato === "Approvata").length;
 

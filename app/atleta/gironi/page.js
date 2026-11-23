@@ -119,7 +119,8 @@ function TournamentView({ selectedTorneo, setSelectedTorneo, viewControl }) {
         } else if (urlTour && parsed.some(t => t.nome === urlTour)) {
           setSelectedTorneo(urlTour);
         } else {
-          const attivi = parsed.filter(t => t.stato === "Iscrizioni Aperte" || t.stato === "In Programmazione");
+          const attivi = parsed.filter(t => ["In Corso", "Iscrizioni Aperte", "In Programmazione"].includes(t.stato));
+          attivi.sort((a, b) => Number(b.stato === "In Corso") - Number(a.stato === "In Corso"));
           if (attivi.length > 0) {
             setSelectedTorneo(attivi[0].nome);
           } else if (parsed.length > 0) {

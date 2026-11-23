@@ -63,7 +63,7 @@ export default function GironiPubblici() {
       } else {
         // Cerca tornei attivi per primi
         const attivi = parsed.filter(
-          (t) => t.stato === "Iscrizioni Aperte" || t.stato === "In Programmazione"
+          (t) => ["In Corso", "Iscrizioni Aperte", "In Programmazione"].includes(t.stato)
         );
         if (attivi.length > 0) {
           setSelectedTorneo(attivi[0].nome);

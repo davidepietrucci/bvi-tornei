@@ -84,7 +84,7 @@ function ClassificaContent({ tournament = null, embedded = false, active = true 
   useEffect(() => {
     if (embedded) return;
     getTornei().then(parsed => {
-      const attivi = parsed.filter(t => t.stato === "Iscrizioni Aperte" || t.stato === "In Programmazione" || t.stato === "Concluso");
+      const attivi = parsed.filter(t => ["Iscrizioni Aperte", "In Programmazione", "In Corso", "Concluso"].includes(t.stato));
       setTornei(attivi);
       
       if (urlTour && attivi.some(t => t.nome === urlTour)) {

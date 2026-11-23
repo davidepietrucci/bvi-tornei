@@ -49,6 +49,7 @@ export default function StaffTornei() {
                   <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
                     torneo.stato === 'Iscrizioni Aperte' ? 'bg-green-100 text-green-700' :
                     torneo.stato === 'In Programmazione' ? 'bg-yellow-100 text-yellow-700' :
+                    torneo.stato === 'In Corso' ? 'bg-blue-100 text-blue-700' :
                     'bg-gray-100 text-gray-500'
                   }`}>
                     {torneo.stato}

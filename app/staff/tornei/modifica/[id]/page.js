@@ -197,6 +197,7 @@ export default function ModificaTorneo() {
                 >
                   <option>In Programmazione</option>
                   <option>Iscrizioni Aperte</option>
+                  <option>In Corso</option>
                   <option>Concluso</option>
                 </select>
               </div>
