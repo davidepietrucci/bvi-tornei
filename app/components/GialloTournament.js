@@ -2,10 +2,11 @@
 
 import { useEffect, useState, useImperativeHandle, useRef } from "react";
 import MatchScoreEntry from "@/app/components/tournament/MatchScoreEntry";
+import GialloCompletionPanel from "@/app/components/tournament/GialloCompletionPanel";
 import { validateMatchDetails } from "@/app/utils/match-scoring";
 import {
   addFifthGialloAthletes, approvedGialloAthletes, createGiallo, gialloRanking, gialloSlug, gialloStages,
-  groupGames, groupsComplete, setGialloScore, startGialloFinals, supportedGialloCount, gialloVisibility,
+  groupGames, groupsComplete, setGialloScore, startGialloFinals, supportedGialloCount, gialloVisibility, gialloPlacements,
 } from "@/app/utils/giallo";
 
 const buttonClass = "rounded-xl bg-[#0a1628] px-4 py-3 text-sm font-bold text-white disabled:opacity-40";
@@ -62,6 +63,7 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
   const [finalMode, setFinalMode] = useState("setup");
   const [finalScoreDrafts, setFinalScoreDrafts] = useState(0);
   const [additions, setAdditions] = useState({});
+  const [completionBusy, setCompletionBusy] = useState(false);
   const publicationLock = useRef(false);
   const additionLock = useRef(false);
   const effectiveFinalMode = workspaceMode ? workspaceMode === "day" ? "results" : "setup" : finalMode;
@@ -69,11 +71,11 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
   useEffect(() => {
     const visibility = gialloVisibility(config);
     onSummary?.({ groupsPublished: visibility.groups, finalsPublished: visibility.finals,
-      busy: loading || busy, scoreDrafts: scoreDrafts + finalScoreDrafts, groupCount: config?.groups.length || 0, approvedCount: athletes.length,
+      busy: loading || busy || completionBusy, scoreDrafts: scoreDrafts + finalScoreDrafts, groupCount: config?.groups.length || 0, approvedCount: athletes.length,
       summaryReady: !loading && !error, groupsConfigured: Boolean(config?.groups.length), finalsConfigured: Boolean(config?.finals),
       groupMatches: config?.groups.reduce((sum, group) => sum + groupGames(group).length, 0) || 0, groupCompleted: Object.keys(config?.results || {}).length,
       finalMatches: gialloStages(config).reduce((sum, stage) => sum + stage.games.length, 0), finalCompleted: Object.keys(config?.finals?.results || {}).length });
-  }, [onSummary, config, loading, busy, athletes.length, scoreDrafts, finalScoreDrafts, error]);
+  }, [onSummary, config, loading, busy, completionBusy, athletes.length, scoreDrafts, finalScoreDrafts, error]);
 
   useEffect(() => {
     let cancelled = false;
@@ -118,7 +120,7 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
   };
 
   const publish = async (phase) => {
-    if (!config || loading || busy || conflict || scoreDrafts || finalScoreDrafts || publicationLock.current) throw new Error("Attendi il caricamento e salva o scarta le bozze prima di pubblicare.");
+    if (!config || loading || busy || completionBusy || conflict || scoreDrafts || finalScoreDrafts || publicationLock.current) throw new Error("Attendi il caricamento e salva o scarta le bozze prima di pubblicare.");
     const visibility = gialloVisibility(config);
     if (phase === "finals" && !config.finals && !visibility.finals) throw new Error("Genera il tabellone prima di pubblicare le finali.");
     publicationLock.current = true;
@@ -157,9 +159,11 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
   };
 
   const recordScore = async (id, score, details) => {
+    if (config.completion) { setError("Riapri il torneo dalla classifica finale prima di correggere i risultati."); return false; }
     if (JSON.stringify(config.results[id] ?? config.finals?.results[id] ?? null) === JSON.stringify(score)) return true;
     const isGroup = id.startsWith("group-");
-    if ((isGroup && config.finals || !isGroup && Object.keys(config.finals?.results || {}).length > 0) &&
+    const podiumMatch = id === "final-0" || id === "bronze-0";
+    if ((isGroup && config.finals || !isGroup && !podiumMatch && Object.keys(config.finals?.results || {}).length > 0) &&
       !window.confirm(isGroup ? "La modifica annullerà il tabellone finale e i suoi risultati. Continuare?"
         : "La modifica cancellerà i risultati dei turni successivi, che saranno ricalcolati. Continuare?")) return false;
     try {
@@ -179,7 +183,7 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
   const canAddFifth = editable && config?.groups.length === 3 && config.groups.every((group) => group.athletes.length === 4) && athletes.length === 15;
   const assignedIds = new Set(config?.groups.flatMap((group) => group.athletes.map((athlete) => athlete.id)) || []);
   const unassigned = athletes.filter((athlete) => !assignedIds.has(athlete.id));
-  const disabled = busy || conflict;
+  const disabled = busy || conflict || completionBusy;
   const finalistsCount = count === 15 ? 12 : count;
   const target = finalistsCount ? 2 ** Math.floor(Math.log2(finalistsCount)) : 0;
   const playoffCount = 2 * (finalistsCount - target);
@@ -257,11 +261,17 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
             <button type="button" className={buttonClass} disabled={disabled || Boolean(scoreDrafts + finalScoreDrafts) || config.groups.some((group) => !additions[group.id])} onClick={addMissingAthletes}>Aggiungi atleti senza risorteggiare</button>
           </section>}
           <button className={buttonClass} onClick={() => setView("groups")}>Vai ai risultati dei gironi →</button>
-          <details className="pt-3"><summary className="cursor-pointer text-sm font-semibold text-slate-600">Modifica il sorteggio · azzera risultati</summary><p className="my-3 text-sm text-slate-500">Rigenerare cancella tutti i risultati e il tabellone giallo. L’operazione richiede conferma.</p><button className="rounded-xl border border-red-200 px-4 py-3 text-sm font-bold text-red-700 disabled:opacity-40" disabled={disabled || !supportedGialloCount(athletes.length)} onClick={generate}>Rigenera gironi e azzera risultati</button></details></>}
+          <details className="pt-3"><summary className="cursor-pointer text-sm font-semibold text-slate-600">Modifica il sorteggio · azzera risultati</summary><p className="my-3 text-sm text-slate-500">Rigenerare cancella tutti i risultati e il tabellone giallo. L’operazione richiede conferma.</p><button className="rounded-xl border border-red-200 px-4 py-3 text-sm font-bold text-red-700 disabled:opacity-40" disabled={disabled || Boolean(config.completion) || !supportedGialloCount(athletes.length)} onClick={generate}>Rigenera gironi e azzera risultati</button></details></>}
       </div>
     </details>}
     {!config && <p className="rounded-xl bg-white p-5">Gironi e tabellone giallo non ancora {editable ? "generati" : "pubblicati"}.</p>}
     {config && <>
+      <div hidden={editable ? !["ranking", "finals"].includes(view) : !visibility.finals}>
+        <GialloCompletionPanel config={config} slug={slug} editable={editable} disabled={disabled || Boolean(scoreDrafts + finalScoreDrafts)} onBusyChange={setCompletionBusy} onComplete={result => {
+          setConfig(result.config); setMessage(result.closed ? "Classifica salvata e torneo concluso." : "Torneo riaperto. I risultati sono stati conservati.");
+          onSummary?.({ updatedTournament: result.tournament });
+        }} />
+      </div>
       <p hidden={editable ? view === "prepare" : !visibility.groups} className="rounded-xl bg-slate-100 p-4 text-sm leading-6">{count} atleti · {config.groups.length} gironi · {groupGameCount} partite nei gironi
         {count === 15 ? " · primi 12 della classifica unica qualificati: primi 4 in semifinale, dal 5° al 12° agli spareggi" : (playoffCount > 0 ? ` · primi ${finalistsCount - playoffCount} direttamente ${target === 16 ? "ai quarti" : "alle semifinali"}, altri ${playoffCount} agli spareggi` : " · tutti ai quarti")}.
       </p>
@@ -271,7 +281,7 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
           rest: game.rest?.name,
           score: config.results[game.id] ? [config.results[game.id]] : [], ready: true, bestOf: 1, target: 21,
           court: config.matchMetadata?.[game.id]?.court, time: config.matchMetadata?.[game.id]?.time, status: config.matchMetadata?.[game.id]?.status,
-        })) }))} disabled={disabled} onDirtyChange={setScoreDrafts} onSave={(game, sets, details) => recordScore(game.id, sets[0], details)} onClear={(game) => recordScore(game.id, null)} onSaveDetails={(game, details) => persist({ ...config, matchMetadata: { ...config.matchMetadata, [game.id]: validateMatchDetails(game, details) } })} /></div>}
+        })) }))} disabled={disabled || Boolean(config.completion)} onDirtyChange={setScoreDrafts} onSave={(game, sets, details) => recordScore(game.id, sets[0], details)} onClear={(game) => recordScore(game.id, null)} onSaveDetails={(game, details) => persist({ ...config, matchMetadata: { ...config.matchMetadata, [game.id]: validateMatchDetails(game, details) } })} /></div>}
       {(!editable || workspaceMode === "prepare") && <div className="grid gap-5 lg:grid-cols-2">
         {config.groups.map((group) => <section key={group.id} className="space-y-3 rounded-2xl bg-slate-100 p-4">
           <h3 className="text-xl font-black">Girone {group.id}</h3>
@@ -299,12 +309,12 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
         {editable && <div hidden={effectiveFinalMode !== "results"}><MatchScoreEntry contextLabel="Risultati della fase finale giallo" selectorLabel="Scegli il turno" emptyMessage="Completa i gironi e genera il tabellone in Preparazione → Fase finale." groups={stages.map((stage) => ({ id: stage.id, label: stage.title, matches: stage.games.map((game) => ({
           id: game.id, left: game.left.map((a) => a.name), right: game.right.map((a) => a.name), ready: true, bestOf: 1, target: 21,
           score: config.finals.results[game.id] ? [config.finals.results[game.id]] : [], court: config.matchMetadata?.[game.id]?.court, time: config.matchMetadata?.[game.id]?.time, status: config.matchMetadata?.[game.id]?.status,
-        })) }))} disabled={disabled} onDirtyChange={setFinalScoreDrafts} onSave={(game, sets, details) => recordScore(game.id, sets[0], details)} onClear={(game) => recordScore(game.id, null)} onSaveDetails={(game, details) => persist({ ...config, matchMetadata: { ...config.matchMetadata, [game.id]: validateMatchDetails(game, details) } })} /></div>}
+        })) }))} disabled={disabled || Boolean(config.completion)} onDirtyChange={setFinalScoreDrafts} onSave={(game, sets, details) => recordScore(game.id, sets[0], details)} onClear={(game) => recordScore(game.id, null)} onSaveDetails={(game, details) => persist({ ...config, matchMetadata: { ...config.matchMetadata, [game.id]: validateMatchDetails(game, details) } })} /></div>}
         <div hidden={editable && effectiveFinalMode !== "setup"} className="space-y-5">
         {editable && <p className="rounded-xl bg-slate-50 p-4 text-sm leading-6">La formula giallo usa la classifica unica: migliore con peggiore, coppie riformate a ogni turno e fisse dalle semifinali. Qui generi e controlli il percorso; campo, orario e punteggi si gestiscono in Partite e risultati.</p>}
         {editable && <p className="text-sm leading-6 text-slate-500">Genera gli abbinamenti dalla classifica completa. Poi salva i risultati: i turni successivi compariranno solo quando tutti gli incontri precedenti sono conclusi.</p>}
         {count === 15 && <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Si qualificano i primi 12 della classifica unica: i primi 4 accedono direttamente alle semifinali, gli altri 8 giocano gli spareggi.</p>}
-        {editable && <button className={buttonClass} disabled={disabled || !groupsComplete(config)} onClick={() => {
+        {editable && <button className={buttonClass} disabled={disabled || Boolean(config.completion) || !groupsComplete(config)} onClick={() => {
           if (config.finals && !window.confirm("Rigenerare il tabellone cancellando tutti i risultati delle finali?")) return;
           try { persist(startGialloFinals(config)); } catch (reason) { setError(reason.message); }
         }}>{config.finals ? "Rigenera tabellone" : "Genera tabellone dalla classifica"}</button>}
@@ -315,10 +325,9 @@ function GialloPanel({ tournament, editable, workflowView, onWorkflowViewChange,
           <div className="grid gap-3 md:grid-cols-2">{stage.games.map((game) => <Match key={`${game.id}-${JSON.stringify(config.finals.results[game.id])}-${game.left.map((a) => a.id).join()}`} game={game} score={config.finals.results[game.id]} details={config.matchMetadata?.[game.id]} editable={false} busy={disabled} onScore={recordScore} />)}</div>
         </section>)}
         {config.finals && <p className="text-sm text-gray-600">Il turno successivo appare solo dopo il completamento di tutte le partite del turno precedente. Le semifinali non sono precompilate.</p>}
-        {config.finals?.results["final-0"] && <p className="text-lg font-black">Vincitori: {(() => {
-          const final = stages.find((s) => s.id === "final").games[0];
-          return (config.finals.results["final-0"][0] > config.finals.results["final-0"][1] ? final.left : final.right).map((a) => a.name).join(" + ");
-        })()}</p>}
+        {gialloPlacements(config).length > 0 && <div aria-label="Piazzamenti delle finali" className="space-y-2 rounded-xl bg-slate-50 p-4">
+          {gialloPlacements(config).map(placement => <p key={placement.position} className="text-sm"><strong>{placement.position}° posto{placement.position === 1 ? " · Vincitori" : ""}:</strong> {placement.athletes.map(athlete => athlete.name).join(" + ")}</p>)}
+        </div>}
         </div>
       </section>
     </>}

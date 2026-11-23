@@ -24,6 +24,7 @@ const swc = require('next/dist/build/swc');
   const stageIds = ['prepare', 'groups', 'ranking', 'finals'];
   let states = [], cursor = 0;
   let ScoreEntry;
+  let CompletionPanel;
   const load = async (file) => {
     const transformed = await swc.transform(fs.readFileSync(file, 'utf8'), {
       filename: file, jsc: { parser: { syntax: 'ecmascript', jsx: true }, transform: { react: { runtime: 'automatic' } } }, module: { type: 'commonjs' },
@@ -40,6 +41,7 @@ const swc = require('next/dist/build/swc');
         if (name === '@/app/utils/tournament-workflow') return workflow;
         if (name === '@/app/utils/match-scoring') return scoring;
         if (name === '@/app/components/tournament/MatchScoreEntry') return ScoreEntry;
+        if (name === '@/app/components/tournament/GialloCompletionPanel') return CompletionPanel;
         if (name === 'next/link') return ({ children, ...props }) => React.createElement('a', props, children);
         return require(name);
       },
@@ -48,6 +50,7 @@ const swc = require('next/dist/build/swc');
     return compiledModule.exports.default;
   };
   ScoreEntry = await load('app/components/tournament/MatchScoreEntry.js');
+  CompletionPanel = await load('app/components/tournament/GialloCompletionPanel.js');
   const Giallo = await load('app/components/GialloTournament.js');
   const Header = await load('app/components/TournamentSetupHeader.js');
   const header = renderToStaticMarkup(React.createElement(Header, { family: 'giallo', tournaments: [tournament], selected: tournament.nome, onSelect() {} }));
@@ -96,6 +99,26 @@ const swc = require('next/dist/build/swc');
   assert.ok(!dayFinals.includes('aria-label="Modalità gestione finale giallo"'));
   assert.match(dayFinals, /<div><section aria-label="Segna risultati delle partite"/);
   assert.match(dayFinals, /<div hidden="" class="space-y-5">/);
+  let podiumConfig = structuredClone(config);
+  while (!rules.gialloStages(podiumConfig).some(stage => stage.id === 'bronze')) {
+    for (const game of rules.gialloStages(podiumConfig).at(-1).games) podiumConfig = rules.setGialloScore(podiumConfig, game.id, [21, 15]);
+  }
+  podiumConfig = rules.setGialloScore(podiumConfig, 'final-0', [21, 17]);
+  podiumConfig = rules.setGialloScore(podiumConfig, 'bronze-0', [16, 21]);
+  podiumConfig.matchMetadata['bronze-0'] = { court: '3', time: '18:30', status: 'finished' };
+  cursor = 0; states = ['finals', 'A', podiumConfig, athletes, false, false, '', '', 0, false];
+  const podiumStaff = renderToStaticMarkup(React.createElement(Giallo, { tournament, editable: true, embedded: true, workflowView: 'finals', workspaceMode: 'day' }));
+  assert.match(podiumStaff, /Finale 3°\/4° posto/);
+  assert.match(podiumStaff, /Finale 1°\/2° posto/);
+  assert.match(podiumStaff, /Piazzamenti delle finali/);
+  assert.match(podiumStaff, /3° posto/);
+  assert.match(podiumStaff, /4° posto/);
+  const projection = rules.publicGiallo({ ...podiumConfig, published: true, groupsPublished: false, finalsPublished: true });
+  cursor = 0; states = ['finals', 'A', projection, [], false, false, '', '', 0, false];
+  const podiumPublic = renderToStaticMarkup(React.createElement(Giallo, { tournament, embedded: true }));
+  assert.match(podiumPublic, /Finale 3°\/4° posto/);
+  assert.match(podiumPublic, /18:30/);
+  assert.match(podiumPublic, /3° posto/);
   cursor = 0; states = ['summary', 'A', config, athletes, false, false, '', '', 0, false];
   const overviewGiallo = renderToStaticMarkup(React.createElement(Giallo, { tournament, editable: true, embedded: true, workflowView: 'summary', workspaceMode: 'prepare' }));
   assert.match(overviewGiallo, /<div hidden="" class="space-y-6 text-/);

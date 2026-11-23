@@ -63,6 +63,24 @@ class NextResponse extends Response {
   let completedGroups = valid;
   for (const group of valid.groups) for (const game of rules.groupGames(group)) completedGroups = rules.setGialloScore(completedGroups, game.id, [21, 15]);
   const finals = rules.startGialloFinals(completedGroups);
+  assert.equal((await post({ data: { ...finals, finals: { ...finals.finals, results: { 'bronze-0': [21, 15] } } } })).status, 400, 'Bronze cannot be scored before the semifinals');
+  let podium = finals;
+  while (!rules.gialloStages(podium).some(stage => stage.id === 'bronze')) {
+    for (const game of rules.gialloStages(podium).at(-1).games) podium = rules.setGialloScore(podium, game.id, [21, 15]);
+  }
+  podium = rules.setGialloScore(podium, 'bronze-0', [21, 18]);
+  podium.matchMetadata['bronze-0'] = { court: '3', time: '18:30', status: 'finished' };
+  assert.equal((await post({ data: podium })).status, 200, 'Bronze result and match details must save through the staff API');
+  assert.equal((await post({ data: { ...podium, matchMetadata: { ...podium.matchMetadata, 'bronze-1': { court: '3', time: '18:30', status: 'scheduled' } } } })).status, 400);
+  stored = { ...podium, published: true, groupsPublished: false, finalsPublished: true };
+  role = 'atleta'; userId = 'athlete-1';
+  const publicPodium = (await (await get()).json()).data;
+  assert.equal(publicPodium.groups.length, 0);
+  assert.equal(rules.gialloStages(publicPodium).find(stage => stage.id === 'bronze').games[0].id, 'bronze-0');
+  assert.deepEqual(publicPodium.finals.results['bronze-0'], [21, 18]);
+  stored.finalsPublished = false;
+  assert.equal((await (await get()).json()).data, null, 'Hidden finals must also hide the bronze match');
+  role = 'staff'; userId = 'staff-1';
   const finalGame = rules.gialloStages(finals)[0].games[0];
   let withFinalScore = rules.setGialloScore(finals, finalGame.id, [21, 16]);
   withFinalScore.matchMetadata[finalGame.id] = { court: '4', time: '18:00', status: 'finished' };

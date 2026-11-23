@@ -99,7 +99,7 @@ const { isDeepStrictEqual } = require('node:util');
   assert.deepEqual([final15.left, final15.right], semi15.games.map(g => g.left));
   fifteenFinals = setGialloScore(fifteenFinals, final15.id, [21, 17]);
   assert.equal(validateGiallo(fifteenFinals), true);
-  assert.equal(gialloStages(fifteenFinals).flatMap(s => s.games).length, 5);
+  assert.equal(gialloStages(fifteenFinals).flatMap(s => s.games).length, 6);
   assert.equal(setGialloScore(fifteenFinals, 'group-A-0', [21, 18]).finals, null);
   const invalidFifteen = structuredClone(fifteen);
   invalidFifteen.groups[0].athletes.pop();
@@ -144,9 +144,9 @@ const { isDeepStrictEqual } = require('node:util');
         assert.equal(validateGiallo(config), true);
       }
       const stages = gialloStages(config);
-      assert.equal(stages.flatMap((s) => s.games).length, count / 2 - 1);
+      assert.equal(stages.flatMap((s) => s.games).length, count / 2);
       const pairs = new Set();
-      for (const stage of stages.filter((s) => s.id !== 'final')) for (const game of stage.games) for (const pair of [game.left, game.right]) {
+      for (const stage of stages.filter((s) => !['final', 'bronze'].includes(s.id))) for (const game of stage.games) for (const pair of [game.left, game.right]) {
         const key = pair.map((a) => a.id).sort().join(',');
         assert.equal(pairs.has(key), false, 'Final-stage partners must change until semifinals'); pairs.add(key);
       }
@@ -154,6 +154,26 @@ const { isDeepStrictEqual } = require('node:util');
       const final = stages.at(-1).games[0];
       const winningPairs = semis.games.map((g) => config.finals.results[g.id][0] > config.finals.results[g.id][1] ? g.left : g.right);
       assert.deepEqual([final.left, final.right], winningPairs);
+      const bronze = stages.find(s => s.id === 'bronze').games[0];
+      const losingPairs = semis.games.map(g => config.finals.results[g.id][0] > config.finals.results[g.id][1] ? g.right : g.left);
+      assert.deepEqual([bronze.left, bronze.right], losingPairs, 'Bronze keeps the defeated semifinal pairs intact');
+      assert.equal(new Set([...final.left, ...final.right, ...bronze.left, ...bronze.right].map(a => a.id)).size, 8);
+      const goldScore = [...config.finals.results['final-0']];
+      const withBronze = setGialloScore(config, 'bronze-0', [19, 21]);
+      assert.deepEqual(withBronze.finals.results['final-0'], goldScore);
+      assert.equal(validateGiallo(withBronze), true);
+      assert.deepEqual(rules.gialloPlacements(withBronze).map(p => p.position), [1, 2, 3, 4]);
+      assert.deepEqual(rules.gialloPlacements(withBronze).find(p => p.position === 3).athletes, bronze.right);
+      assert.deepEqual(rules.gialloPlacements(withBronze).find(p => p.position === 4).athletes, bronze.left);
+      assert.deepEqual(setGialloScore(withBronze, 'final-0', [21, 12]).finals.results['bronze-0'], [19, 21]);
+      assert.deepEqual(setGialloScore(withBronze, 'final-0', null).finals.results['bronze-0'], [19, 21]);
+      assert.deepEqual(setGialloScore(withBronze, 'bronze-0', null).finals.results['final-0'], goldScore);
+      const semifinalCorrection = setGialloScore(withBronze, semis.games[0].id, [21, 10]);
+      assert.equal(semifinalCorrection.finals.results['final-0'], undefined);
+      assert.equal(semifinalCorrection.finals.results['bronze-0'], undefined);
+      const incompleteSemis = setGialloScore(withBronze, semis.games[0].id, null);
+      assert.ok(!gialloStages(incompleteSemis).some(s => ['final', 'bronze'].includes(s.id)));
+      assert.throws(() => setGialloScore(incompleteSemis, 'bronze-0', [21, 10]), /non ancora disponibile/);
       const firstGame = stages[0].games[0];
       const corrected = setGialloScore(config, firstGame.id, [21, 17]);
       for (const stage of stages.slice(1)) for (const game of stage.games) assert.equal(corrected.finals.results[game.id], undefined);
@@ -166,7 +186,7 @@ const { isDeepStrictEqual } = require('node:util');
 
   // Actual Firestore transaction helper, exercised with an isolated double (no production writes).
   const dbSource = fs.readFileSync('app/utils/db-server.js', 'utf8');
-  const helper = dbSource.slice(dbSource.indexOf('export async function saveGialloIfUnchanged'), dbSource.indexOf('export async function saveGironi'))
+  const helper = dbSource.slice(dbSource.indexOf('export async function saveGialloIfUnchanged'), dbSource.indexOf('export async function manageGialloCompletion'))
     .replace('export async function', 'async function');
   let saved = null, registrations = athletes(24).map((a) => ({ id: a.id, giocatori: a.name, torneo: 'Giallo', stato: 'Approvata' }));
   const db = { collection: (collection) => ({ doc: (id) => `${collection}/${id}` }), runTransaction: async (callback) => callback({

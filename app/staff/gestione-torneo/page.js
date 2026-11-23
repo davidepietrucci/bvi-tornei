@@ -115,7 +115,10 @@ export default function TournamentManagement() {
   const [publicationSaving, setPublicationSaving] = useState("");
   const publicationLock = useRef(false);
   const workspaceRef = useRef(null);
-  const receiveSummary = useCallback((value) => setSummary((previous) => ({ ...previous, ...value })), []);
+  const receiveSummary = useCallback(({ updatedTournament, ...value }) => {
+    setSummary(previous => ({ ...previous, ...value }));
+    if (updatedTournament) setTournaments(list => list.map(item => String(item.id) === String(updatedTournament.id) && item.nome === updatedTournament.nome ? updatedTournament : item));
+  }, []);
 
   useEffect(() => {
     let cancelled = false;

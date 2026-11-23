@@ -17,6 +17,7 @@ export function publicGiallo(config) {
     groups: visibility.groups ? config.groups : [], results: visibility.groups ? config.results : {},
     finals: visibility.finals && config.finals ? { results: config.finals.results } : null,
     publicFinalStages: visibility.finals ? gialloStages(config) : [],
+    ...(visibility.finals && config.completion ? { completion: { at: config.completion.at, rows: config.completion.rows.map(({ registrationId, name, placement, points, stage }) => ({ registrationId, name, placement, points, stage })) } } : {}),
     matchMetadata: Object.fromEntries(Object.entries(config.matchMetadata || {}).filter(([id]) => id.startsWith("group-") ? visibility.groups : visibility.finals)),
   };
 }
@@ -208,12 +209,56 @@ export function gialloStages(config) {
   stages.push({ id: "semis", title: "Semifinali · coppie definitive", games: semis });
   const finalists = winners(semis, results);
   if (finalists) {
+    const bronzePairs = semis.map(game => results[game.id][0] > results[game.id][1] ? game.right : game.left);
+    stages.push({ id: "bronze", title: "Finale 3°/4° posto · coppie fisse", games: [{
+      id: "bronze-0", left: bronzePairs[0], right: bronzePairs[1],
+    }] });
     // Keep the two winning semifinal pairs intact, including their original sides/order.
-    stages.push({ id: "final", title: "Finale · coppie fisse", games: [{
+    stages.push({ id: "final", title: "Finale 1°/2° posto · coppie fisse", games: [{
       id: "final-0", left: finalists.slice(0, 2), right: finalists.slice(2, 4),
     }] });
   }
   return stages;
+}
+
+export function gialloPlacements(config) {
+  const stages = gialloStages(config);
+  return [{ id: "final", first: 1 }, { id: "bronze", first: 3 }].flatMap(({ id, first }) => {
+    const game = stages.find(stage => stage.id === id)?.games[0];
+    const score = game && config?.finals?.results[game.id];
+    if (!validGialloScore(score)) return [];
+    const winningSide = score[0] > score[1] ? "left" : "right";
+    return [{ position: first, athletes: game[winningSide] }, { position: first + 1, athletes: game[winningSide === "left" ? "right" : "left"] }];
+  });
+}
+
+export function gialloFinalStandings(config) {
+  if (!config || config.publicView) return { ready: false, rows: [], problems: ["Carica la configurazione completa del torneo."] };
+  validateGiallo(config);
+  const ranked = gialloRanking(config);
+  const stages = gialloStages(config);
+  const positions = new Map();
+  for (const stage of stages.filter(stage => ["playoff", "quarters"].includes(stage.id))) {
+    const placement = stage.id === "quarters" || config.finals.seeds.length <= 12 ? 5 : 9;
+    for (const game of stage.games) {
+      const score = config.finals.results[game.id];
+      if (validGialloScore(score)) for (const athlete of score[0] > score[1] ? game.right : game.left) positions.set(athlete.id, { placement, stage: stage.id === "quarters" ? "Eliminato ai quarti" : "Eliminato agli spareggi" });
+    }
+  }
+  for (const placement of gialloPlacements(config)) for (const athlete of placement.athletes) positions.set(athlete.id, { placement: placement.position, stage: placement.position <= 2 ? "Finale 1°/2° posto" : "Finale 3°/4° posto" });
+  if (config.finals) {
+    const qualified = new Set(config.finals.seeds.map(athlete => athlete.id));
+    for (const athlete of ranked.filter(athlete => !qualified.has(athlete.id))) positions.set(athlete.id, { placement: config.finals.seeds.length + 1, stage: "Non qualificato alla fase finale" });
+  }
+  const rows = ranked.map(athlete => ({ registrationId: athlete.id, name: athlete.name, placement: positions.get(athlete.id)?.placement ?? null, stage: positions.get(athlete.id)?.stage || "In attesa dei risultati" }))
+    .sort((a, b) => (a.placement ?? Infinity) - (b.placement ?? Infinity));
+  const problems = [];
+  if (!groupsComplete(config)) problems.push("Completa tutti i risultati dei gironi.");
+  if (!config.finals) problems.push("Genera la fase finale.");
+  if (!validGialloScore(config.finals?.results["final-0"])) problems.push("Completa la finale 1°/2° posto.");
+  if (!validGialloScore(config.finals?.results["bronze-0"])) problems.push("Completa la finale 3°/4° posto.");
+  if (rows.some(row => row.placement === null)) problems.push("Alcuni atleti non hanno ancora un piazzamento definitivo.");
+  return { ready: problems.length === 0, rows, problems };
 }
 
 export function setGialloScore(config, gameId, score) {
@@ -237,8 +282,9 @@ export function setGialloScore(config, gameId, score) {
   if (index < 0) throw new Error("Partita non ancora disponibile.");
   if (score === null) delete next.finals.results[gameId]; else next.finals.results[gameId] = score;
   next.matchMetadata = { ...next.matchMetadata, [gameId]: { ...next.matchMetadata?.[gameId], status: score === null ? "scheduled" : "finished" } };
-  // Changing a score clears all subsequent rounds: no stale winners or prefilled semis.
-  for (const stage of stages.slice(index + 1)) for (const game of stage.games) {
+  // Gold and bronze are sibling matches. Neither result depends on the other.
+  const dependentStages = ["final", "bronze"].includes(stages[index].id) ? [] : stages.slice(index + 1);
+  for (const stage of dependentStages) for (const game of stage.games) {
     delete next.finals.results[game.id];
     if (next.matchMetadata[game.id]) next.matchMetadata[game.id].status = "scheduled";
   }
@@ -259,7 +305,7 @@ export function validateGiallo(config) {
   if (config.matchMetadata !== undefined) {
     if (!config.matchMetadata || typeof config.matchMetadata !== "object" || Array.isArray(config.matchMetadata)) throw new Error("Gestione partite non valida.");
     for (const [id, meta] of Object.entries(config.matchMetadata)) {
-      const finalId = Boolean(config.finals) && /^(playoff|quarters|semis|final)-[0-5]$/.test(id);
+      const finalId = Boolean(config.finals) && (/^(playoff|quarters|semis|final)-[0-5]$/.test(id) || id === "bronze-0");
       if ((!groupIds.has(id) && !finalId) || !meta || typeof meta !== "object" || Array.isArray(meta) ||
         (meta.court !== undefined && (typeof meta.court !== "string" || meta.court.length > 40)) ||
         (meta.time !== undefined && (typeof meta.time !== "string" || (meta.time !== "" && !/^([01]\d|2[0-3]):[0-5]\d$/.test(meta.time)))) ||

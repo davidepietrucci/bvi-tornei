@@ -3,9 +3,10 @@ import { getFirestore } from "firebase-admin/firestore";
 import fs from "fs";
 import path from "path";
 import { isDeepStrictEqual } from "node:util";
-import { approvedGialloAthletes } from "./giallo";
-import { randomUUID } from "node:crypto";
+import { approvedGialloAthletes, gialloSlug, isGiallo } from "./giallo";
+import { randomUUID, createHash } from "node:crypto";
 import { tournamentNotifications } from "./notifications";
+import { gialloClosingPreview } from "./giallo-completion";
 
 let parsedServiceAccount = null;
 const jsonEnv = process.env.FIREBASE_SERVICE_ACCOUNT || process.env.FIREBASE_CONFIG_JSON || process.env.FIREBASE_CREDENTIALS;
@@ -268,6 +269,11 @@ export async function saveGialloIfUnchanged(slug, data, baseline, tournamentName
     ]);
     if (!isDeepStrictEqual(snapshot.data()?.data ?? null, baseline)) return "conflict";
     const current = snapshot.data()?.data;
+    if (!isDeepStrictEqual(current?.completion ?? null, data.completion ?? null)) return "completion_protected";
+    if (current?.completion) {
+      const withoutVisibility = value => Object.fromEntries(Object.entries(value).filter(([key]) => !["published", "groupsPublished", "finalsPublished"].includes(key)));
+      if (!isDeepStrictEqual(withoutVisibility(current), withoutVisibility(data))) return "closed";
+    }
     const previousGroups = current?.groups;
     // Recheck approvals atomically when generating/regenerating, not while recording results.
     if (!isDeepStrictEqual(previousGroups, data.groups)) {
@@ -285,6 +291,58 @@ export async function saveGialloIfUnchanged(slug, data, baseline, tournamentName
     return "saved";
   });
 }
+export async function manageGialloCompletion(slug, action, fingerprint, actor, baseline) {
+  if (!db) throw new Error("Database Firestore non disponibile");
+  const ref = db.collection("giallo").doc(slug);
+  const registrationsRef = db.collection("config").doc("iscrizioni");
+  const tournamentsRef = db.collection("config").doc("tornei");
+  const fail = (message, status = 409) => { throw Object.assign(new Error(message), { status }); };
+  const canonical = value => Array.isArray(value) ? value.map(canonical) : value && typeof value === "object" ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
+  return db.runTransaction(async transaction => {
+    const [snapshot, registrationsDoc, tournamentsDoc] = await Promise.all([transaction.get(ref), transaction.get(registrationsRef), transaction.get(tournamentsRef)]);
+    const data = snapshot.data()?.data;
+    const registrations = registrationsDoc.data()?.list ?? [], tournaments = tournamentsDoc.data()?.list ?? [];
+    if (!Array.isArray(registrations) || !Array.isArray(tournaments)) fail("Dati del torneo non validi.", 400);
+    const tournament = tournaments.find(item => isGiallo(item) && gialloSlug(item.nome) === slug);
+    if (!data || !tournament) fail("Torneo giallo non trovato.", 404);
+    if (action === "preview" && !isDeepStrictEqual(data, baseline)) fail("Il torneo è cambiato. Aggiorna i dati prima di verificare la classifica.");
+    const preview = gialloClosingPreview(data, tournament, registrations);
+    const related = registrations.filter(item => String(item.torneo || "").trim().toLocaleLowerCase("it-IT") === tournament.nome.trim().toLocaleLowerCase("it-IT"));
+    const currentFingerprint = createHash("sha256").update(JSON.stringify(canonical({ data, tournament, registrations: related }))).digest("hex");
+    if (action === "preview") return { preview, fingerprint: currentFingerprint, closed: Boolean(data.completion), config: data, tournament };
+    if (action === "close" && data.completion && fingerprint === data.completion.requestFingerprint && tournament.stato === "Concluso") return { preview, config: data, tournament, closed: true, alreadyClosed: true };
+    if (fingerprint !== currentFingerprint) fail("Risultati, iscrizioni o configurazione sono cambiati. Verifica nuovamente la classifica prima di confermare.");
+    if (action === "close" && data.completion) return { preview, config: data, tournament, closed: true, alreadyClosed: true };
+    let next, nextTournament, nextRegistrations;
+    if (action === "close") {
+      if (!preview.ready) fail(preview.problems.join(" "), 400);
+      const placements = new Map(preview.rows.map(row => [row.registrationId, row.placement]));
+      const previousPlacements = Object.fromEntries(related.filter(item => placements.has(String(item.id))).map(item => [String(item.id), { piazzamentoCircuito: item.piazzamentoCircuito ?? null, piazzamentoFinale: item.piazzamentoFinale ?? null }]));
+      next = { ...data, completion: { version: 1, at: new Date().toISOString(), by: actor, requestFingerprint: fingerprint, previousState: tournament.stato, previousPlacements, rows: preview.rows } };
+      nextTournament = { ...tournament, stato: "Concluso" };
+      nextRegistrations = registrations.map(item => related.includes(item) && placements.has(String(item.id)) ? { ...item, piazzamentoCircuito: placements.get(String(item.id)), piazzamentoFinale: placements.get(String(item.id)) } : item);
+    } else if (action === "reopen") {
+      if (!data.completion) fail("Il torneo non è stato chiuso da questa gestione.");
+      const placements = new Map(data.completion.rows.map(row => [row.registrationId, row.placement]));
+      const previous = data.completion.previousPlacements;
+      if (related.some(item => placements.has(String(item.id)) && (item.piazzamentoCircuito !== placements.get(String(item.id)) || item.piazzamentoFinale !== placements.get(String(item.id))))) fail("Alcuni piazzamenti sono stati modificati dopo la chiusura. Verifica le iscrizioni prima di riaprire.");
+      next = { ...data }; delete next.completion;
+      nextTournament = { ...tournament, stato: data.completion.previousState && data.completion.previousState !== "Concluso" ? data.completion.previousState : "In Programmazione" };
+      nextRegistrations = registrations.map(item => {
+        const saved = related.includes(item) ? previous?.[String(item.id)] : null;
+        if (!saved) return item;
+        const restored = { ...item };
+        for (const key of ["piazzamentoCircuito", "piazzamentoFinale"]) { if (saved[key] === null) delete restored[key]; else restored[key] = saved[key]; }
+        return restored;
+      });
+    } else fail("Operazione non valida.", 400);
+    transaction.set(ref, { data: sanitizeData(next) });
+    transaction.set(registrationsRef, { list: sanitizeData(nextRegistrations) });
+    transaction.set(tournamentsRef, { list: sanitizeData(tournaments.map(item => item === tournament ? nextTournament : item)) });
+    return { preview, config: next, tournament: nextTournament, closed: action === "close" };
+  });
+}
+
 export async function saveGironi(slug, data) {
   await saveTournamentWithNotifications("gironi", slug, data);
 }

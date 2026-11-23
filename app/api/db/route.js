@@ -140,6 +140,7 @@ export async function POST(req) {
       const tournament = tournaments.find((t) => gialloSlug(t.nome) === slug && isGiallo(t));
       if (!tournament) return NextResponse.json({ error: "Torneo giallo non trovato." }, { status: 404 });
       const outcome = await saveGialloIfUnchanged(slug, data, baseline, tournament.nome);
+      if (outcome === "closed" || outcome === "completion_protected") return NextResponse.json({ error: "La classifica è stata confermata. Usa la gestione di chiusura per riaprire il torneo prima di modificare i risultati." }, { status: 409 });
       if (outcome !== "saved") return NextResponse.json({ error: outcome === "conflict"
         ? "Un altro staff ha modificato il torneo. Ricarica prima di salvare."
         : "Gli iscritti approvati sono cambiati. Aggiorna gli iscritti e rigenera i gironi." }, { status: 409 });

@@ -72,18 +72,22 @@ Si abbina il migliore con il peggiore disponibile, evitando di ripetere compagni
 già avuti nei turni precedenti della fase finale. Le coppie vengono accoppiate in
 partita dalla più alta contro la più bassa testa di serie. Entrambi i vincitori
 avanzano e le coppie sono riformate al turno successivo.
-Le coppie formate in semifinale rimangono invariate nella finale.
+Le coppie formate in semifinale rimangono invariate: le vincenti disputano la
+finale 1°/2° posto, le perdenti la finale 3°/4° posto. Entrambe sono disponibili
+dopo il completamento delle due semifinali, anche nei tabelloni già salvati.
 
 | Atleti | Spareggi | Accessi diretti | Turno successivo | Partite totali incl. gironi |
 | --- | --- | --- | --- | --- |
-| 12 | 2 partite / 8 atleti | primi 4 | Semifinali | 14 |
-| 15 | 2 partite / 8 atleti | primi 4 della classifica unica | Semifinali | 20 |
-| 16 | nessuno | tutti | Quarti | 19 |
-| 20 | 2 partite / 8 atleti | primi 12 | Quarti | 24 |
-| 24 | 4 partite / 16 atleti | primi 8 | Quarti | 29 |
+| 12 | 2 partite / 8 atleti | primi 4 | Semifinali | 15 |
+| 15 | 2 partite / 8 atleti | primi 4 della classifica unica | Semifinali | 21 |
+| 16 | nessuno | tutti | Quarti | 20 |
+| 20 | 2 partite / 8 atleti | primi 12 | Quarti | 25 |
+| 24 | 4 partite / 16 atleti | primi 8 | Quarti | 30 |
 
-Nessuna finale di consolazione prevista. Un turno appare solo quando tutto il
-precedente è concluso. Correggere un risultato elimina quelli dei turni successivi;
+I totali comprendono la finale 3°/4° posto. Le due finali sono indipendenti:
+modificare o cancellare il punteggio di una non modifica l'altra. Un turno appare
+solo quando tutto il precedente è concluso. Correggere una semifinale azzera
+entrambi i risultati delle finali, conservando campo e orario;
 correggere un girone elimina l'intero tabellone finale, previa conferma.
 
 ## Persistenza e pubblicazione
@@ -97,6 +101,29 @@ Pubblicazione esplicita: le bozze non sono restituite dal GET pubblico.
 Viste atleta, Gironi, Classifica e scheda torneo leggono lo stesso gestore e si
 aggiornano ogni dieci secondi. Lo staff aggiorna manualmente per non perdere
 risultati ancora in digitazione.
+
+## Classifica definitiva e chiusura
+
+Nelle viste Classifica e Fasi finali, lo staff usa «Verifica classifica e chiudi
+torneo» per vedere il riepilogo prima di confermare. La chiusura richiede tutti
+i risultati dei gironi, la finale 1°/2° posto e la finale 3°/4° posto.
+Entrambi i compagni condividono piazzamento e punti. Gli eliminati nello stesso
+turno sono ex aequo: 5° ai quarti, 9° negli spareggi prima dei quarti oppure 5°
+negli spareggi prima delle semifinali. Con 15 partecipanti, i tre non qualificati
+sono 13° a pari merito. Non vengono inventati spareggi individuali.
+
+Una transazione salva classifica definitiva, `piazzamentoFinale` e
+`piazzamentoCircuito` delle iscrizioni e stato «Concluso». Le tappe collegate
+mostrano i punti della scala tour configurata; finali tour e tornei scollegati
+non assegnano punti tappa. Un controllo di versione impedisce conferme basate
+su risultati, iscrizioni o configurazioni superati. Le richieste duplicate
+non ripetono la chiusura.
+
+Dopo la conferma, i risultati non sono modificabili senza riapertura esplicita.
+La riapertura conserva risultati e pubblicazione e ripristina stato e
+piazzamenti precedenti; modifiche manuali successive ai piazzamenti richiedono
+prima una verifica. La classifica pubblica segue la visibilità delle fasi finali
+e non espone lo storico interno della chiusura.
 
 ## Verifica
 

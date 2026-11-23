@@ -31,6 +31,7 @@ const swc = require('next/dist/build/swc');
     if (name.endsWith('/giallo')) return rules;
     if (name.endsWith('/match-scoring')) return {};
     if (name.endsWith('/MatchScoreEntry')) return () => null;
+    if (name.endsWith('/GialloCompletionPanel')) return () => null;
     return require(name);
   } };
   vm.runInNewContext(compiled.code, context);
