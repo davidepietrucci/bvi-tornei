@@ -12,6 +12,7 @@ export default function TournamentPublicView({
   confirmedRegistrations,
   gironiData,
   bracketData,
+  gialloFinalResult = null,
   isIndividual,
   capacity,
   isOpen,
@@ -27,6 +28,7 @@ export default function TournamentPublicView({
   const [activeGironeTab, setActiveGironeTab] = useState("A");
 
   const isFinished = tournament.stato === "Concluso";
+  const isLive = ["In Corso", "Live"].includes(tournament.stato);
 
   // Prevent background scroll when any modal is open
   useEffect(() => {
@@ -237,6 +239,13 @@ export default function TournamentPublicView({
           </div>
 
           <div className="mt-8 flex flex-wrap items-center gap-3">
+            {isLive && <Link
+              href={`/live?tour=${encodeURIComponent(tournament.nome)}`}
+              className="inline-flex min-h-12 w-full items-center justify-center gap-3 rounded-xl bg-[#f5ca3e] px-6 py-4 text-sm font-black text-[#101d2c] shadow-lg transition hover:bg-yellow-300 sm:w-auto"
+            >
+              <span aria-hidden="true" className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-red-600" />
+              Segui il Live ↗
+            </Link>}
             {isOpen && !isFull && (
               <Link
                 href={`/atleta/iscriviti?tour=${encodeURIComponent(tournament.nome)}`}
@@ -453,7 +462,18 @@ export default function TournamentPublicView({
           </div>
 
           {/* CARD 3: Classifiche Torneo (visibili direttamente in linea con gli altri elementi) */}
-          {isGiallo(tournament) ? (
+          {isGiallo(tournament) && isFinished ? (
+            <section aria-label="Classifica finale del torneo giallo" className="rounded-2xl border border-[#101d2c]/10 bg-white p-6 shadow-sm sm:p-7">
+              <p className="text-[10px] font-black uppercase tracking-[.23em] text-[#78600d]">Torneo concluso</p>
+              <h3 className="mt-2 text-2xl font-black">Classifica finale</h3>
+              {gialloFinalResult?.rows?.length > 0 ? <>
+                <p className="mt-3 text-xs text-[#657080]">{gialloFinalResult.confirmed ? "Confermata alla chiusura del torneo." : gialloFinalResult.complete ? "Calcolata dai risultati pubblicati delle fasi finali." : "Piazzamenti disponibili: mancano risultati per completare la classifica."} Stesso piazzamento per entrambi i compagni.</p>
+                <div className="mt-4 overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b border-[#101d2c]/10 text-xs text-[#657080]"><th className="py-3 pr-3">Posto</th><th className="py-3">Atleta</th>{gialloFinalResult.confirmed && <th className="py-3 pl-3 text-right">Punti tour</th>}</tr></thead>
+                  <tbody>{gialloFinalResult.rows.map(row => <tr key={row.registrationId} className="border-b border-[#101d2c]/5"><td className="py-3 pr-3 font-black">{row.placement}°</td><td className="py-3 font-semibold">{row.name}</td>{gialloFinalResult.confirmed && <td className="py-3 pl-3 text-right tabular-nums">{row.points ?? "—"}</td>}</tr>)}</tbody>
+                </table></div>
+              </> : <p className="mt-4 text-sm leading-6 text-[#657080]">La classifica finale non è ancora disponibile o pubblicata. Sarà visibile dopo la pubblicazione delle fasi finali e il salvataggio dei risultati.</p>}
+            </section>
+          ) : isGiallo(tournament) ? (
             <div className="flex flex-col justify-between gap-5 rounded-2xl border border-[#101d2c]/10 bg-white p-6 shadow-sm sm:p-7">
               <h3 className="text-2xl font-black">Classifica individuale giallo</h3>
               <p className="text-sm text-[#657080]">Gironi con compagni a rotazione, classifica unica e tabellone finale sono disponibili nella sezione dedicata, aggiornata in tempo reale.</p>

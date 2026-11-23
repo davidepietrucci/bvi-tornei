@@ -1,7 +1,8 @@
 import PublicHeader from "@/app/components/PublicHeader";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getIscrizioni, getTornei, getGironi, getBracket } from "@/app/utils/db-server";
+import { getIscrizioni, getTornei, getGironi, getBracket, getGiallo } from "@/app/utils/db-server";
+import { isGiallo, publicGialloFinalResult } from "@/app/utils/giallo";
 import TournamentPublicView from "./TournamentPublicView";
 
 export const dynamic = "force-dynamic";
@@ -54,16 +55,19 @@ export default async function TournamentPage({ params }) {
   let registrations = [];
   let gironiData = null;
   let bracketData = null;
+  let gialloFinalResult = null;
 
   try {
-    const [rawRegs, rawGironi, rawBracket] = await Promise.all([
+    const [rawRegs, rawGironi, rawBracket, rawGiallo] = await Promise.all([
       getIscrizioni().catch(() => []),
       getGironi(slug).catch(() => null),
-      getBracket(slug).catch(() => null)
+      getBracket(slug).catch(() => null),
+      isGiallo(tournament) && tournament.stato === "Concluso" ? getGiallo(slug).catch(() => null) : Promise.resolve(null),
     ]);
     registrations = Array.isArray(rawRegs) ? JSON.parse(JSON.stringify(rawRegs)) : [];
     gironiData = rawGironi?.pubblicato === true ? JSON.parse(JSON.stringify(rawGironi)) : null;
     bracketData = rawBracket?.tabellonePubblicato === true ? JSON.parse(JSON.stringify(rawBracket)) : null;
+    if (isGiallo(tournament) && tournament.stato === "Concluso") gialloFinalResult = publicGialloFinalResult(rawGiallo);
   } catch (e) {
     console.error("Errore nel recupero dati torneo:", e);
   }
@@ -109,6 +113,7 @@ export default async function TournamentPage({ params }) {
         confirmedRegistrations={cleanConfirmed}
         gironiData={gironiData}
         bracketData={bracketData}
+        gialloFinalResult={gialloFinalResult}
         isIndividual={isIndividual}
         capacity={capacity}
         isOpen={isOpen}

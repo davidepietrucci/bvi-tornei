@@ -70,5 +70,18 @@ const { renderToStaticMarkup } = require('react-dom/server');
     assert.equal(names(tree).length, count); assert.equal(toggle(tree), undefined);
   }
   tree = await load([]); assert.equal(archive(tree), undefined);
+  const ongoing = [
+    { id: 9, nome: 'Giallo & Misto / Estate', categoria: 'Giallo', stato: 'In Corso', data: '23 Novembre 2026' },
+    { id: 10, nome: 'Coppie live', categoria: 'Misto', stato: 'Live', data: '23 Novembre 2026' },
+  ];
+  tree = await load(ongoing);
+  const liveSection = nodes(tree).find(node => node.type === 'section' && text(node).includes('Risultati dal campo'));
+  for (const tournament of ongoing) {
+    const link = nodes(liveSection).find(node => node.type === 'a' && node.props['aria-label'] === `Segui il Live: ${tournament.nome}`);
+    assert.equal(link.props.href, `/live?tour=${encodeURIComponent(tournament.nome)}`);
+  }
+  assert(nodes(tree).some(node => node.type === 'a' && text(node) === 'Segui il Live ↗' && node.props.href === `/live?tour=${encodeURIComponent(ongoing[0].nome)}`));
+  assert(nodes(liveSection).some(node => node.type === 'a' && node.props.href === '/live'));
+  assert(!nodes(liveSection).some(node => node.type === 'a' && node.props.href.startsWith('/gironi')));
   console.log('Home archive: all closed categories, newest-first written/Italian/ISO dates, stable ties, invalid dates last, three-card limit, expand/collapse, links and empty states passed.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

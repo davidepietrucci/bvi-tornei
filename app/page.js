@@ -167,10 +167,10 @@ export default function Home() {
 
                 <div className="mt-4 flex flex-wrap items-center gap-3">
                   <a 
-                    href={currentHeroTorneo?.stato === "Iscrizioni Aperte" || (currentHeroTorneo && !currentHeroTorneo.stato) ? `/atleta/iscriviti?tour=${encodeURIComponent(currentHeroTorneo.nome)}` : currentHeroTorneo ? `/tornei/${currentHeroTorneo.id}` : "/atleta"} 
+                    href={["In Corso", "Live"].includes(currentHeroTorneo?.stato) ? `/live?tour=${encodeURIComponent(currentHeroTorneo.nome)}` : currentHeroTorneo?.stato === "Iscrizioni Aperte" || (currentHeroTorneo && !currentHeroTorneo.stato) ? `/atleta/iscriviti?tour=${encodeURIComponent(currentHeroTorneo.nome)}` : currentHeroTorneo ? `/tornei/${currentHeroTorneo.id}` : "/atleta"}
                     className="inline-flex items-center gap-2 rounded-xl bg-[#f5ca3e] px-4 py-2.5 text-xs font-black uppercase tracking-wider text-[#101d2c] shadow hover:bg-yellow-300 transition active:scale-95"
                   >
-                    {currentHeroTorneo?.stato === "Iscrizioni Aperte" || (currentHeroTorneo && !currentHeroTorneo.stato) ? "Vai all’iscrizione →" : "Dettagli torneo →"}
+                    {["In Corso", "Live"].includes(currentHeroTorneo?.stato) ? "Segui il Live ↗" : currentHeroTorneo?.stato === "Iscrizioni Aperte" || (currentHeroTorneo && !currentHeroTorneo.stato) ? "Vai all’iscrizione →" : "Dettagli torneo →"}
                   </a>
                   {currentHeroTorneo?.id && (
                     <a 
@@ -214,8 +214,8 @@ export default function Home() {
 
       {torneiLive.length > 0 && <section className="bg-[#101d2c] px-5 py-8 text-white sm:px-8">
         <div className="mx-auto max-w-7xl">
-          <div className="mb-5 flex items-center justify-between gap-4"><p className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[.22em] text-[#f5ca3e]"><span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" /> Risultati dal campo</p><a href="/gironi" className="text-[10px] font-bold uppercase tracking-wider text-white/60 hover:text-white">Tutti i live →</a></div>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{torneiLive.map((t, idx) => <article key={t.id || idx} className="flex items-center justify-between gap-4 border-l-2 border-[#f5ca3e] bg-white/5 px-4 py-4 sm:px-5"><div className="min-w-0"><h2 className="truncate font-black"><a href={`/tornei/${t.id}`} className="hover:text-[#f5ca3e]">{t.nome}</a></h2><p className="mt-1 truncate text-[10px] text-white/55">{t.categoria || "Categoria libera"} · {t.data}</p></div><a href={`/gironi?tour=${encodeURIComponent(t.nome)}`} className="shrink-0 text-xs font-black uppercase tracking-wider text-[#f5ca3e] hover:text-yellow-200">Live ↗</a></article>)}</div>
+          <div className="mb-5 flex items-center justify-between gap-4"><p className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[.22em] text-[#f5ca3e]"><span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" /> Risultati dal campo</p><a href="/live" className="text-[10px] font-bold uppercase tracking-wider text-white/60 hover:text-white">Tutti i live →</a></div>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{torneiLive.map((t, idx) => <article key={t.id || idx} className="flex flex-wrap items-center justify-between gap-4 border-l-2 border-[#f5ca3e] bg-white/5 px-4 py-4 sm:px-5"><div className="min-w-0"><h2 className="truncate font-black"><a href={`/tornei/${t.id}`} className="hover:text-[#f5ca3e]">{t.nome}</a></h2><p className="mt-1 truncate text-[10px] text-white/55">{t.categoria || "Categoria libera"} · {t.data}</p></div><a href={`/live?tour=${encodeURIComponent(t.nome)}`} aria-label={`Segui il Live: ${t.nome}`} className="inline-flex min-h-11 shrink-0 items-center rounded-xl bg-[#f5ca3e] px-4 py-3 text-xs font-black text-[#101d2c] hover:bg-yellow-300">Segui il Live ↗</a></article>)}</div>
         </div>
       </section>}
 

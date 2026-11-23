@@ -261,6 +261,22 @@ export function gialloFinalStandings(config) {
   return { ready: problems.length === 0, rows, problems };
 }
 
+// Public detail pages must not expose staff-only closure metadata or unpublished results.
+export function publicGialloFinalResult(config) {
+  const empty = { rows: [], complete: false, confirmed: false };
+  if (!config || !gialloVisibility(config).finals) return empty;
+  if (config.completion?.rows?.length) return {
+    complete: true, confirmed: true,
+    rows: config.completion.rows.map(({ registrationId, name, placement, points }) => ({ registrationId, name, placement, points })),
+  };
+  try {
+    const standings = gialloFinalStandings(config);
+    if (standings.ready) return { ...empty, complete: true, rows: standings.rows.map(({ registrationId, name, placement }) => ({ registrationId, name, placement })) };
+    // Older tournaments may have only a scored gold final: show only established places.
+    return { ...empty, rows: gialloPlacements(config).flatMap(({ position, athletes }) => athletes.map(athlete => ({ registrationId: athlete.id, name: athlete.name, placement: position }))) };
+  } catch { return empty; }
+}
+
 export function setGialloScore(config, gameId, score) {
   if (score !== null && !validGialloScore(score)) throw new Error("Risultato non valido: set a 21, con almeno due punti di vantaggio.");
   const next = structuredClone(config);

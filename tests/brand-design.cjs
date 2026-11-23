@@ -20,7 +20,7 @@ const { renderToStaticMarkup } = require('react-dom/server');
     if (name === 'next/navigation') return { usePathname: () => pathname, useRouter: () => ({ push: () => {} }) };
     if (name === '@clerk/nextjs') return { useUser: () => ({ isLoaded: true, user: { firstName: 'Anna', publicMetadata: { role } } }), useClerk: () => ({ signOut: () => {} }) };
     if (name === 'next/link') return ({ children, ...props }) => React.createElement('a', props, children);
-    if (name === 'next/image') return (props) => React.createElement('img', props);
+    if (name === 'next/image') return ({ src, alt, width, height, className }) => React.createElement('img', { src, alt, width, height, className });
     if (name.endsWith('/StaffIcon')) return Icon;
     return require(name);
   };
@@ -34,8 +34,27 @@ const { renderToStaticMarkup } = require('react-dom/server');
   assert.equal(renderTheme('/staff'), '<main>Content</main>');
   const Header = await compile('app/components/PublicHeader.js', mocked);
   let html = renderToStaticMarkup(React.createElement(Header, { active: 'Tour' }));
-  for (const route of ['/#tornei', '/live', '/classifica', '/tour', '/atleta']) assert.ok(html.includes(`href="${route}"`));
+  for (const route of ['/#tornei', '/tour', '/atleta']) assert.ok(html.includes(`href="${route}"`));
+  assert.ok(!html.includes('href="/live"'), 'Live entry points belong to tournaments, not the main header');
+  assert.ok(!html.includes('href="/classifica"'), 'Standings belong to tournament detail pages, not the main header');
   assert.match(html, /href="\/tour" aria-current="page"/);
+  const TournamentView = await compile('app/tornei/[id]/TournamentPublicView.js', name => {
+    if (name === 'react') return { ...React, useState: initial => [initial, () => {}], useEffect() {}, useMemo: compute => compute() };
+    if (name.endsWith('/giallo')) return { isGiallo: tournament => /giallo/i.test(tournament.categoria) };
+    if (name.endsWith('/GialloTournament')) return () => null;
+    if (name.endsWith('/ranking')) return { calculateSingleGroupStats: () => [], calculateUnifiedRanking: () => [] };
+    return mocked(name);
+  });
+  for (const categoria of ['Giallo', 'Misto']) for (const stato of ['In Corso', 'Live', 'Iscrizioni Aperte', 'In Programmazione', 'Concluso']) {
+    const nome = 'Tappa Gialla & Misto / Estate';
+    const detail = renderToStaticMarkup(React.createElement(TournamentView, {
+      tournament: { id: 'event', nome, categoria, stato }, confirmedRegistrations: [], gironiData: null, bracketData: null,
+      isIndividual: categoria === 'Giallo', capacity: 24, isOpen: stato === 'Iscrizioni Aperte', isFull: false, placesLeft: 24,
+      category: categoria, participantLabel: 'Atleti', heroImage: '/logo.png',
+    }));
+    assert.equal(detail.includes(`href="/live?tour=${encodeURIComponent(nome)}"`), ['In Corso', 'Live'].includes(stato), `${categoria}/${stato}: live link visibility`);
+    assert.equal(detail.includes('Segui il Live'), ['In Corso', 'Live'].includes(stato));
+  }
   const AthleteHeader = await compile('app/components/AthleteHeader.js', mocked);
   pathname = '/atleta/gironi'; role = 'atleta';
   html = renderToStaticMarkup(React.createElement(AthleteHeader));
