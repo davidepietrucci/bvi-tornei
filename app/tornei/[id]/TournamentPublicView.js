@@ -26,6 +26,7 @@ export default function TournamentPublicView({
   const [searchIscrizioni, setSearchIscrizioni] = useState("");
   const [isClassificaModalOpen, setIsClassificaModalOpen] = useState(false);
   const [activeGironeTab, setActiveGironeTab] = useState("A");
+  const [gialloResultsOpen, setGialloResultsOpen] = useState(false);
 
   const isFinished = tournament.stato === "Concluso";
   const isLive = ["In Corso", "Live"].includes(tournament.stato);
@@ -335,8 +336,6 @@ export default function TournamentPublicView({
         </div>
       </section>
 
-      {isGiallo(tournament) && <GialloTournament tournament={tournament} />}
-
       {/* SEZIONE IN LINEA: Informazioni Utili | Partecipanti (con popup) | Classifiche del Torneo */}
       <section id="classifica-section" className="mx-auto max-w-7xl px-5 pb-16 sm:px-8 sm:pb-20">
         <div className="mb-6 flex items-center justify-between">
@@ -475,9 +474,9 @@ export default function TournamentPublicView({
             </section>
           ) : isGiallo(tournament) ? (
             <div className="flex flex-col justify-between gap-5 rounded-2xl border border-[#101d2c]/10 bg-white p-6 shadow-sm sm:p-7">
-              <h3 className="text-2xl font-black">Classifica individuale giallo</h3>
-              <p className="text-sm text-[#657080]">Gironi con compagni a rotazione, classifica unica e tabellone finale sono disponibili nella sezione dedicata, aggiornata in tempo reale.</p>
-              <Link className="rounded-xl bg-[#101d2c] px-4 py-3 text-center text-sm font-bold text-white" href={`/classifica?tour=${encodeURIComponent(tournament.nome)}`}>Apri classifica e tabellone ↗</Link>
+              <h3 className="text-2xl font-black">Partite e risultati</h3>
+              <p className="text-sm text-[#657080]">Espandi la sezione qui sotto per consultare gironi, classifica individuale e fasi finali pubblicati, senza uscire dalla scheda.</p>
+              <a className="rounded-xl bg-[#101d2c] px-4 py-3 text-center text-sm font-bold text-white" href="#partite-risultati-giallo" onClick={() => setGialloResultsOpen(true)}>Vedi partite e risultati ↓</a>
             </div>
           ) : (
           <div className="flex flex-col justify-between rounded-2xl border border-[#101d2c]/10 bg-white p-6 shadow-sm sm:p-7">
@@ -639,6 +638,18 @@ export default function TournamentPublicView({
 
         </div>
       </section>
+
+      {isGiallo(tournament) && <section className="mx-auto max-w-7xl px-5 pb-12 sm:px-8">
+        <details id="partite-risultati-giallo" open={gialloResultsOpen} onToggle={event => setGialloResultsOpen(event.currentTarget.open)} className="scroll-mt-6 overflow-hidden rounded-2xl border border-[#101d2c]/10 bg-white shadow-sm">
+          <summary className="min-h-16 cursor-pointer p-5 text-[#101d2c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#bd9307] sm:p-6">
+            <span className="inline-flex w-[calc(100%-2rem)] flex-wrap items-center justify-between gap-3 align-middle">
+              <span><strong className="block text-lg font-black">Partite e risultati</strong><span className="mt-1 block text-sm text-[#657080]">Gironi, classifiche e tabellone finale · solo dati pubblicati</span></span>
+              <span className="rounded-full bg-[#f5ca3e] px-4 py-2 text-xs font-black">{gialloResultsOpen ? "Riduci ↑" : "Espandi ↓"}</span>
+            </span>
+          </summary>
+          {gialloResultsOpen && <div className="border-t border-[#101d2c]/10 p-4 sm:p-6"><GialloTournament tournament={tournament} embedded /></div>}
+        </details>
+      </section>}
 
       {/* ========================================================================= */}
       {/* POP-UP MODAL 1: TUTTE LE ISCRIZIONI (con ricerca in tempo reale)          */}

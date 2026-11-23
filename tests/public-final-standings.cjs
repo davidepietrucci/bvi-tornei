@@ -63,17 +63,38 @@ const { renderToStaticMarkup } = require('react-dom/server');
   assert.equal((await props()).gialloFinalResult, null); assert.equal(yellowReads, count);
   tournament.stato = 'Concluso'; raw = official;
   actual = await props();
+  let stateCursor = 0;
+  const states = [];
+  const GialloDetails = () => React.createElement('p', null, 'Tutti gli incontri pubblicati');
   const ClientView = await compile('app/tornei/[id]/TournamentPublicView.js', { ...common,
-    react: { ...React, useState: initial => [initial, () => {}], useEffect() {}, useMemo: compute => compute() },
+    react: { ...React, useState(initial) { const index = stateCursor++; if (!(index in states)) states[index] = initial; return [states[index], value => { states[index] = typeof value === 'function' ? value(states[index]) : value; }]; }, useEffect() {}, useMemo: compute => compute() },
     'next/image': ({ src, alt }) => React.createElement('img', { src, alt }),
-    '@/app/components/GialloTournament': () => null,
+    '@/app/components/GialloTournament': GialloDetails,
     '@/app/utils/ranking': { calculateSingleGroupStats: () => [], calculateUnifiedRanking: () => [] },
   });
-  const render = props => renderToStaticMarkup(ClientView(props));
+  const tree = props => { stateCursor = 0; return ClientView(props); };
+  const render = props => renderToStaticMarkup(tree(props));
   let html = render(actual);
   assert.match(html, /Classifica finale del torneo giallo/); assert.match(html, /Confermata alla chiusura/);
   for (let i = 0; i < 12; i++) assert(html.includes(`Atleta ${i}`));
   assert.doesNotMatch(html, /Apri classifica e tabellone/);
+  assert.doesNotMatch(html, /Tutti gli incontri pubblicati/);
+  let details = nodes(tree(actual)).find(node => node.type === 'details' && node.props.id === 'partite-risultati-giallo');
+  assert.equal(details.props.open, false, 'Results must be collapsed initially');
+  assert.equal(nodes(tree(actual)).filter(node => node.type === GialloDetails).length, 0, 'Do not load or poll match details while collapsed');
+  details.props.onToggle({ currentTarget: { open: true } });
+  html = render(actual);
+  assert.match(html, /Tutti gli incontri pubblicati/); assert.match(html, /Riduci/);
+  assert.match(html, /Classifica finale del torneo giallo/);
+  assert.equal(nodes(tree(actual)).filter(node => node.type === GialloDetails).length, 1);
+  details = nodes(tree(actual)).find(node => node.type === 'details' && node.props.id === 'partite-risultati-giallo');
+  details.props.onToggle({ currentTarget: { open: false } });
+  assert.doesNotMatch(render(actual), /Tutti gli incontri pubblicati/);
+  const activeProps = { ...actual, tournament: { ...actual.tournament, stato: 'In Corso' } };
+  const openLink = nodes(tree(activeProps)).find(node => node.type === 'a' && node.props.href === '#partite-risultati-giallo');
+  openLink.props.onClick();
+  assert.match(render(activeProps), /Tutti gli incontri pubblicati/);
+  nodes(tree(actual)).find(node => node.type === 'details').props.onToggle({ currentTarget: { open: false } });
   html = render({ ...actual, gialloFinalResult: partial });
   assert.match(html, /Piazzamenti disponibili/); assert.doesNotMatch(html, /Confermata alla chiusura/);
   html = render({ ...actual, gialloFinalResult: { rows: [] } });
@@ -82,5 +103,6 @@ const { renderToStaticMarkup } = require('react-dom/server');
   // Existing closed-team podium remains available when switching away from giallo.
   html = render({ ...actual, tournament: { ...tournament, categoria: 'Misto' }, bracketData: { phaseType: 'single', bracketAssignments: { 'gold-f1-L': 'Coppia campione', 'gold-f1-R': 'Coppia argento' }, bracketMetadata: { 'gold-f1': { scoreL: 2, scoreR: 0 } } } });
   assert.match(html, /Coppia campione/); assert.match(html, /Coppia argento/);
+  assert.doesNotMatch(html, /partite-risultati-giallo/);
   console.log('Public final standings: complete 12/15/16/20/24 athlete tables, shared places, confirmed and legacy results, partial podium, hidden-finals privacy, safe server props and existing team podium passed.');
 })().catch(error => { console.error(error); process.exitCode = 1; });
